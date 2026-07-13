@@ -108,12 +108,12 @@ struct RouteMapView: UIViewRepresentable {
 }
 
 final class RouteMapCoordinator: NSObject, MKMapViewDelegate {
-    private var renderedScene: MapScene?
+    var renderedScene: MapScene?
     private weak var mapView: MKMapView?
-    private var selectedSegmentID: String?
-    private var selectedStayID: String?
-    private var onSelectSegment: (String) -> Void = { _ in }
-    private var onSelectStay: (String) -> Void = { _ in }
+    var selectedSegmentID: String?
+    var selectedStayID: String?
+    var onSelectSegment: (String) -> Void = { _ in }
+    var onSelectStay: (String) -> Void = { _ in }
     private var onTapEmpty: () -> Void = {}
     private var tapRecognizer: UITapGestureRecognizer?
 
@@ -129,6 +129,7 @@ final class RouteMapCoordinator: NSObject, MKMapViewDelegate {
             selectedSegmentID = interaction.selectedSegmentID
             mapView.overlays.forEach { mapView.renderer(for: $0)?.setNeedsDisplay() }
             updateLabelSelection(in: mapView)
+            updateMovementCallout(in: mapView)
         }
         if selectedStayID != interaction.selectedStayID {
             selectedStayID = interaction.selectedStayID
@@ -198,62 +199,6 @@ final class RouteMapCoordinator: NSObject, MKMapViewDelegate {
         onTapEmpty()
     }
 
-    func mapView(_ mapView: MKMapView, viewFor annotation: any MKAnnotation) -> MKAnnotationView? {
-        guard let annotation = annotation as? RouteMapPointAnnotation else { return nil }
-        if annotation.kind == .movementLabel {
-            let identifier = "RouteMapLabelAnnotation"
-            let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as?
-                RouteMapLabelAnnotationView ?? RouteMapLabelAnnotationView(
-                    annotation: annotation,
-                    reuseIdentifier: identifier
-                )
-            view.annotation = annotation
-            view.configure(
-                text: annotation.labelText ?? "",
-                isSelected: annotation.id == selectedSegmentID
-            )
-            return view
-        }
-        if annotation.kind == .stay {
-            let identifier = "RouteMapStayAnnotation"
-            let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as?
-                RouteMapStayAnnotationView ?? RouteMapStayAnnotationView(
-                    annotation: annotation,
-                    reuseIdentifier: identifier
-                )
-            view.annotation = annotation
-            view.configure(
-                text: annotation.labelText ?? "",
-                isSelected: annotation.id == selectedStayID
-            )
-            return view
-        }
-        let identifier = "RouteMapPointAnnotation"
-        let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) ??
-            MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
-        view.annotation = annotation
-        view.canShowCallout = false
-        if let marker = view as? MKMarkerAnnotationView {
-            marker.markerTintColor = annotation.kind == .stay ? .systemRed : .systemBlue
-            marker.glyphImage = UIImage(
-                systemName: annotation.kind == .stay ? "mappin" : "photo"
-            )
-        }
-        return view
-    }
-
-    func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
-        guard let annotation = view.annotation as? RouteMapPointAnnotation,
-              annotation.kind != .media
-        else { return }
-        if annotation.kind == .movementLabel {
-            onSelectSegment(annotation.id)
-        } else {
-            onSelectStay(annotation.id)
-        }
-        mapView.deselectAnnotation(annotation, animated: false)
-    }
-
     private func addPolylines(_ polylines: [MapPolyline], to mapView: MKMapView) {
         for value in polylines where value.coordinates.count >= 2 {
             let coordinates = value.coordinates.map(\.mapCoordinate)
@@ -262,62 +207,9 @@ final class RouteMapCoordinator: NSObject, MKMapViewDelegate {
             mapView.addOverlay(polyline)
         }
     }
-
-    private func addAnnotations(scene: MapScene, to mapView: MKMapView) {
-        let labels = scene.movementLabels.map {
-            RouteMapPointAnnotation(
-                id: $0.segmentStableID,
-                coordinate: $0.coordinate.mapCoordinate,
-                kind: .movementLabel,
-                labelText: $0.text
-            )
-        }
-        let stays = scene.stayAnnotations.map {
-            RouteMapPointAnnotation(
-                id: $0.stayStableID,
-                coordinate: $0.coordinate.mapCoordinate,
-                kind: .stay,
-                labelText: $0.text
-            )
-        }
-        let media = scene.mediaAnnotations.map {
-            RouteMapPointAnnotation(
-                id: $0.localIdentifier,
-                coordinate: $0.coordinate.mapCoordinate,
-                kind: .media
-            )
-        }
-        mapView.addAnnotations(labels + stays + media)
-    }
-
-    private func updateLabelSelection(in mapView: MKMapView) {
-        for annotation in mapView.annotations {
-            guard let value = annotation as? RouteMapPointAnnotation,
-                  value.kind == .movementLabel,
-                  let view = mapView.view(for: value) as? RouteMapLabelAnnotationView
-            else { continue }
-            view.configure(
-                text: value.labelText ?? "",
-                isSelected: value.id == selectedSegmentID
-            )
-        }
-    }
-
-    private func updateStaySelection(in mapView: MKMapView) {
-        for annotation in mapView.annotations {
-            guard let value = annotation as? RouteMapPointAnnotation,
-                  value.kind == .stay,
-                  let view = mapView.view(for: value) as? RouteMapStayAnnotationView
-            else { continue }
-            view.configure(
-                text: value.labelText ?? "",
-                isSelected: value.id == selectedStayID
-            )
-        }
-    }
 }
 
-private extension RouteCoordinate {
+extension RouteCoordinate {
     var mapCoordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
     }

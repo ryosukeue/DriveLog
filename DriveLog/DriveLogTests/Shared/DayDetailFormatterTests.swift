@@ -33,6 +33,15 @@ struct DayDetailFormatterTests {
     func classification() {
         #expect(formatter.classification(.automotiveLike) == "車っぽい移動")
         #expect(formatter.classification(.walkingLike) == "徒歩っぽい移動")
-        #expect(formatter.classification(.other) == "その他")
+        #expect(formatter.classification(AutomaticMovementType.other) == "その他")
+        #expect(formatter.classification(UserMovementClassification.automotive) == "車")
+        #expect(formatter.classification(UserMovementClassification?.none) == "未設定")
+    }
+
+    @Test("formats segment average speed")
+    func speed() {
+        #expect(formatter.averageSpeed(metersPerSecond: 10) == "36.0km/h")
+        #expect(formatter.averageSpeed(metersPerSecond: nil) == "--")
+        #expect(formatter.averageSpeed(metersPerSecond: -.infinity) == "--")
     }
 }

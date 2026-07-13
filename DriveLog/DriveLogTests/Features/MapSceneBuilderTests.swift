@@ -37,7 +37,14 @@ struct MapSceneBuilderTests {
             MapMovementLabel(
                 segmentStableID: movement.stableID,
                 coordinate: coordinate(35.5, 140),
-                text: "1分・0.1km"
+                text: "1分・0.1km",
+                startDate: movement.startDate,
+                endDate: movement.endDate,
+                durationSeconds: movement.durationSeconds,
+                distanceMeters: movement.distanceMeters,
+                averageSpeedMetersPerSecond: movement.estimatedAverageSpeedMetersPerSecond,
+                automaticClassification: movement.automaticClassification,
+                userClassification: nil
             )
         ])
         #expect(scene.stayAnnotations == [

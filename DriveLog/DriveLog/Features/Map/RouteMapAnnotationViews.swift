@@ -3,6 +3,7 @@ import MapKit
 final class RouteMapPointAnnotation: NSObject, MKAnnotation {
     enum Kind {
         case movementLabel
+        case movementCallout
         case stay
         case media
     }
@@ -11,17 +12,62 @@ final class RouteMapPointAnnotation: NSObject, MKAnnotation {
     let coordinate: CLLocationCoordinate2D
     let kind: Kind
     let labelText: String?
+    let movement: MapMovementLabel?
 
     init(
         id: String,
         coordinate: CLLocationCoordinate2D,
         kind: Kind,
-        labelText: String? = nil
+        labelText: String? = nil,
+        movement: MapMovementLabel? = nil
     ) {
         self.id = id
         self.coordinate = coordinate
         self.kind = kind
         self.labelText = labelText
+        self.movement = movement
+    }
+}
+
+final class RouteMapMovementCalloutView: MKAnnotationView {
+    private let label = UILabel()
+
+    override init(annotation: (any MKAnnotation)?, reuseIdentifier: String?) {
+        super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
+        label.font = .preferredFont(forTextStyle: .caption1)
+        label.textColor = .label
+        label.backgroundColor = .secondarySystemBackground
+        label.numberOfLines = 0
+        label.layer.cornerRadius = 12
+        label.layer.masksToBounds = true
+        label.layer.borderColor = UIColor.systemRed.cgColor
+        label.layer.borderWidth = 2
+        addSubview(label)
+        canShowCallout = false
+        centerOffset = CGPoint(x: 0, y: -85)
+        isAccessibilityElement = true
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        nil
+    }
+
+    func configure(movement: MapMovementLabel, formatter: DayDetailFormatter) {
+        let timeRange = "\(formatter.time(movement.startDate))–\(formatter.time(movement.endDate))"
+        let values = [
+            timeRange,
+            formatter.duration(seconds: movement.durationSeconds),
+            formatter.distance(meters: movement.distanceMeters),
+            "平均 \(formatter.averageSpeed(metersPerSecond: movement.averageSpeedMetersPerSecond))",
+            formatter.classification(movement.automaticClassification),
+            "ユーザー分類 \(formatter.classification(movement.userClassification))"
+        ]
+        label.text = "  \(values.joined(separator: "\n"))  "
+        frame.size = CGSize(width: 190, height: 150)
+        label.frame = bounds
+        accessibilityLabel = values.joined(separator: "、")
+        accessibilityIdentifier = "map.movementCallout"
     }
 }
 

@@ -1,3 +1,5 @@
+import Foundation
+
 nonisolated struct MapScene: Sendable, Equatable {
     let polylines: [MapPolyline]
     let movementLabels: [MapMovementLabel]
@@ -23,6 +25,13 @@ nonisolated struct MapMovementLabel: Sendable, Equatable {
     let segmentStableID: String
     let coordinate: RouteCoordinate
     let text: String
+    let startDate: Date
+    let endDate: Date
+    let durationSeconds: Double
+    let distanceMeters: Double
+    let averageSpeedMetersPerSecond: Double?
+    let automaticClassification: AutomaticMovementType
+    let userClassification: UserMovementClassification?
 }
 
 nonisolated struct MapStayAnnotation: Sendable, Equatable {

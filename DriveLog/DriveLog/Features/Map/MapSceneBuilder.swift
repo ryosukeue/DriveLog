@@ -21,7 +21,14 @@ nonisolated struct MapSceneBuilder: MapSceneBuilding {
             return MapMovementLabel(
                 segmentStableID: movement.stableID,
                 coordinate: coordinate,
-                text: labelText(for: movement)
+                text: labelText(for: movement),
+                startDate: movement.startDate,
+                endDate: movement.endDate,
+                durationSeconds: movement.durationSeconds,
+                distanceMeters: movement.distanceMeters,
+                averageSpeedMetersPerSecond: movement.estimatedAverageSpeedMetersPerSecond,
+                automaticClassification: movement.automaticClassification,
+                userClassification: nil
             )
         }
         let stayAnnotations = stays.compactMap { stay -> MapStayAnnotation? in

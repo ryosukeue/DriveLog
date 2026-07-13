@@ -42,4 +42,30 @@ nonisolated struct DayDetailFormatter: Sendable {
             "その他"
         }
     }
+
+    func classification(_ value: UserMovementClassification?) -> String {
+        switch value {
+        case .automotive:
+            "車"
+        case .train:
+            "電車"
+        case .bus:
+            "バス"
+        case .walking:
+            "徒歩"
+        case .other:
+            "その他"
+        case nil:
+            "未設定"
+        }
+    }
+
+    func averageSpeed(metersPerSecond: Double?) -> String {
+        guard let metersPerSecond,
+              metersPerSecond.isFinite,
+              metersPerSecond >= 0
+        else { return "--" }
+        let kilometersPerHour = metersPerSecond * 3.6
+        return String(format: "%.1fkm/h", kilometersPerHour)
+    }
 }

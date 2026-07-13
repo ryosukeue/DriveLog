@@ -1,0 +1,186 @@
+import MapKit
+
+extension RouteMapCoordinator {
+    func mapView(_ mapView: MKMapView, viewFor annotation: any MKAnnotation) -> MKAnnotationView? {
+        guard let annotation = annotation as? RouteMapPointAnnotation else { return nil }
+        return switch annotation.kind {
+        case .movementLabel:
+            movementLabelView(for: annotation, in: mapView)
+        case .movementCallout:
+            movementCalloutView(for: annotation, in: mapView)
+        case .stay:
+            stayView(for: annotation, in: mapView)
+        case .media:
+            mediaView(for: annotation, in: mapView)
+        }
+    }
+
+    func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
+        guard let annotation = view.annotation as? RouteMapPointAnnotation,
+              annotation.kind == .movementLabel || annotation.kind == .stay
+        else { return }
+        if annotation.kind == .movementLabel {
+            onSelectSegment(annotation.id)
+        } else {
+            onSelectStay(annotation.id)
+        }
+        mapView.deselectAnnotation(annotation, animated: false)
+    }
+
+    func addAnnotations(scene: MapScene, to mapView: MKMapView) {
+        let labels = scene.movementLabels.map {
+            RouteMapPointAnnotation(
+                id: $0.segmentStableID,
+                coordinate: $0.coordinate.mapCoordinate,
+                kind: .movementLabel,
+                labelText: $0.text
+            )
+        }
+        let callouts = scene.movementLabels.compactMap { movement -> RouteMapPointAnnotation? in
+            guard movement.segmentStableID == selectedSegmentID else { return nil }
+            return RouteMapPointAnnotation(
+                id: movement.segmentStableID,
+                coordinate: movement.coordinate.mapCoordinate,
+                kind: .movementCallout,
+                movement: movement
+            )
+        }
+        let stays = scene.stayAnnotations.map {
+            RouteMapPointAnnotation(
+                id: $0.stayStableID,
+                coordinate: $0.coordinate.mapCoordinate,
+                kind: .stay,
+                labelText: $0.text
+            )
+        }
+        let media = scene.mediaAnnotations.map {
+            RouteMapPointAnnotation(
+                id: $0.localIdentifier,
+                coordinate: $0.coordinate.mapCoordinate,
+                kind: .media
+            )
+        }
+        mapView.addAnnotations(labels + callouts + stays + media)
+    }
+
+    func updateLabelSelection(in mapView: MKMapView) {
+        for annotation in mapView.annotations {
+            guard let value = annotation as? RouteMapPointAnnotation,
+                  value.kind == .movementLabel,
+                  let view = mapView.view(for: value) as? RouteMapLabelAnnotationView
+            else { continue }
+            view.configure(
+                text: value.labelText ?? "",
+                isSelected: value.id == selectedSegmentID
+            )
+        }
+    }
+
+    func updateStaySelection(in mapView: MKMapView) {
+        for annotation in mapView.annotations {
+            guard let value = annotation as? RouteMapPointAnnotation,
+                  value.kind == .stay,
+                  let view = mapView.view(for: value) as? RouteMapStayAnnotationView
+            else { continue }
+            view.configure(
+                text: value.labelText ?? "",
+                isSelected: value.id == selectedStayID
+            )
+        }
+    }
+
+    func updateMovementCallout(in mapView: MKMapView) {
+        let existing = mapView.annotations.compactMap { annotation -> RouteMapPointAnnotation? in
+            guard let value = annotation as? RouteMapPointAnnotation,
+                  value.kind == .movementCallout
+            else { return nil }
+            return value
+        }
+        mapView.removeAnnotations(existing)
+        guard let selectedSegmentID,
+              let movement = renderedScene?.movementLabels.first(where: {
+                  $0.segmentStableID == selectedSegmentID
+              })
+        else { return }
+        mapView.addAnnotation(
+            RouteMapPointAnnotation(
+                id: movement.segmentStableID,
+                coordinate: movement.coordinate.mapCoordinate,
+                kind: .movementCallout,
+                movement: movement
+            )
+        )
+    }
+
+    private func movementLabelView(
+        for annotation: RouteMapPointAnnotation,
+        in mapView: MKMapView
+    ) -> MKAnnotationView {
+        let identifier = "RouteMapLabelAnnotation"
+        let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as?
+            RouteMapLabelAnnotationView ?? RouteMapLabelAnnotationView(
+                annotation: annotation,
+                reuseIdentifier: identifier
+            )
+        view.annotation = annotation
+        view.configure(
+            text: annotation.labelText ?? "",
+            isSelected: annotation.id == selectedSegmentID
+        )
+        return view
+    }
+
+    private func movementCalloutView(
+        for annotation: RouteMapPointAnnotation,
+        in mapView: MKMapView
+    ) -> MKAnnotationView {
+        let identifier = "RouteMapMovementCallout"
+        let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as?
+            RouteMapMovementCalloutView ?? RouteMapMovementCalloutView(
+                annotation: annotation,
+                reuseIdentifier: identifier
+            )
+        view.annotation = annotation
+        if let movement = annotation.movement {
+            view.configure(
+                movement: movement,
+                formatter: DayDetailFormatter(timeZone: SystemTimeZoneProvider().current)
+            )
+        }
+        return view
+    }
+
+    private func stayView(
+        for annotation: RouteMapPointAnnotation,
+        in mapView: MKMapView
+    ) -> MKAnnotationView {
+        let identifier = "RouteMapStayAnnotation"
+        let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as?
+            RouteMapStayAnnotationView ?? RouteMapStayAnnotationView(
+                annotation: annotation,
+                reuseIdentifier: identifier
+            )
+        view.annotation = annotation
+        view.configure(
+            text: annotation.labelText ?? "",
+            isSelected: annotation.id == selectedStayID
+        )
+        return view
+    }
+
+    private func mediaView(
+        for annotation: RouteMapPointAnnotation,
+        in mapView: MKMapView
+    ) -> MKAnnotationView {
+        let identifier = "RouteMapPointAnnotation"
+        let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) ??
+            MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
+        view.annotation = annotation
+        view.canShowCallout = false
+        if let marker = view as? MKMarkerAnnotationView {
+            marker.markerTintColor = .systemBlue
+            marker.glyphImage = UIImage(systemName: "photo")
+        }
+        return view
+    }
+}
