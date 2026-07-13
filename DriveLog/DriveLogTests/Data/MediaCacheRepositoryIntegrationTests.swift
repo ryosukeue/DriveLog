@@ -92,6 +92,25 @@ struct MediaCacheRepositoryIntegrationTests {
         #expect(try await repository.cachedAssets(for: "2024-01-02").count == 1)
     }
 
+    @Test("replace updates an existing aggregate media count")
+    func aggregateCount() async throws {
+        let (container, repository) = try makeRepository()
+        let context = ModelContext(container)
+        context.insert(aggregate(localDateKey: "2024-01-01", mediaCount: 9))
+        context.insert(aggregate(localDateKey: "2024-01-02", mediaCount: 4))
+        try context.save()
+
+        try await repository.replaceAssets(
+            for: "2024-01-01",
+            assets: [media(id: "one"), media(id: "two")],
+            validatedAt: validatedAt
+        )
+
+        let aggregates = try ModelContext(container).fetch(FetchDescriptor<DayAggregateModel>())
+        #expect(aggregates.first { $0.localDateKey == "2024-01-01" }?.mediaCountCache == 2)
+        #expect(aggregates.first { $0.localDateKey == "2024-01-02" }?.mediaCountCache == 4)
+    }
+
     private func makeRepository() throws -> (ModelContainer, SwiftDataMediaCacheRepository) {
         let container = try DriveLogModelContainerFactory.make(isStoredInMemoryOnly: true)
         return (container, SwiftDataMediaCacheRepository(modelContainer: container))
@@ -111,6 +130,28 @@ struct MediaCacheRepositoryIntegrationTests {
             durationSeconds: type == .video ? 30 : nil,
             isScreenshot: false,
             isScreenRecording: false
+        )
+    }
+
+    private func aggregate(localDateKey: String, mediaCount: Int) -> DayAggregateModel {
+        DayAggregateModel(
+            localDateKey: localDateKey,
+            totalDistanceMeters: 0,
+            totalMovementDurationSeconds: 0,
+            startDate: nil,
+            endDate: nil,
+            locationRecordCount: 0,
+            rejectedLocationCount: 0,
+            mediaCountCache: mediaCount,
+            automaticClassificationRawValue: "other",
+            hasValidMovement: false,
+            movementSegmentCount: 0,
+            staySegmentCount: 0,
+            totalStayDurationSeconds: 0,
+            automotiveDurationSeconds: 0,
+            walkingDurationSeconds: 0,
+            sourceRawRevision: 0,
+            generatedAt: validatedAt
         )
     }
 }

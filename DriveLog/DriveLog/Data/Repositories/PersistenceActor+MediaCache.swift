@@ -61,6 +61,7 @@ extension PersistenceActor {
             for asset in unique {
                 try upsertMediaAsset(asset, for: localDateKey, validatedAt: validatedAt)
             }
+            try updateMediaCount(unique.count, for: localDateKey)
             try saveIfNeeded()
         } catch {
             modelContext.rollback()
@@ -115,5 +116,12 @@ extension PersistenceActor {
         Array(Dictionary(assets.map { ($0.localIdentifier, $0) }, uniquingKeysWith: { _, last in
             last
         }).values)
+    }
+
+    private func updateMediaCount(_ count: Int, for localDateKey: String) throws {
+        let descriptor = FetchDescriptor<DayAggregateModel>(
+            predicate: #Predicate { $0.localDateKey == localDateKey }
+        )
+        try modelContext.fetch(descriptor).first?.mediaCountCache = count
     }
 }

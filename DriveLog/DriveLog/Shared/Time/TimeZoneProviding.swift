@@ -1,5 +1,5 @@
 import Foundation
 
-protocol TimeZoneProviding: Sendable {
+nonisolated protocol TimeZoneProviding: Sendable {
     var current: TimeZone { get }
 }

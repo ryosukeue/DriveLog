@@ -1,6 +1,7 @@
 import AVFoundation
 @testable import DriveLog
 import Foundation
+import os
 import UIKit
 
 final class FakePhotoLibraryProvider: PhotoLibraryProviding, @unchecked Sendable {
@@ -13,6 +14,11 @@ final class FakePhotoLibraryProvider: PhotoLibraryProviding, @unchecked Sendable
     private let shareableResource: ShareableMediaResource
     private let error: DriveLogError?
     private let changeContinuation: AsyncStream<PhotoLibraryChange>.Continuation
+    private let fetchStorage = OSAllocatedUnfairLock(initialState: [DateInterval]())
+
+    var fetchedIntervals: [DateInterval] {
+        fetchStorage.withLock { $0 }
+    }
 
     init(
         authorization: PhotoPermissionState = .authorized,
@@ -44,7 +50,8 @@ final class FakePhotoLibraryProvider: PhotoLibraryProviding, @unchecked Sendable
         authorization
     }
 
-    func fetchAssets(in _: DateInterval) async throws -> [MediaAssetReference] {
+    func fetchAssets(in interval: DateInterval) async throws -> [MediaAssetReference] {
+        fetchStorage.withLock { $0.append(interval) }
         try throwConfiguredError()
         return assets
     }
