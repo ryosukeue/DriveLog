@@ -1,5 +1,6 @@
 import AVFoundation
 @testable import DriveLog
+import Foundation
 import Testing
 import UIKit
 
@@ -46,9 +47,10 @@ struct MediaPreviewViewModelTests {
         #expect(preview.photoRequests.count == 2)
     }
 
-    @Test("rejects video until the video preview issue")
+    @Test("loads video without autoplay and stops playback")
     func video() async {
-        let preview = MediaPreviewUseCaseFake(results: [])
+        let videoAsset = AVURLAsset(url: URL(fileURLWithPath: "/tmp/video.mov"))
+        let preview = MediaPreviewUseCaseFake(results: [], videoAsset: videoAsset)
         let viewModel = MediaPreviewViewModel(
             asset: asset(type: .video),
             loadPreview: preview
@@ -56,11 +58,16 @@ struct MediaPreviewViewModelTests {
 
         await viewModel.load()
 
-        guard case .error = viewModel.state else {
-            Issue.record("Expected error state")
+        guard case let .video(player) = viewModel.state else {
+            Issue.record("Expected video state")
             return
         }
         #expect(preview.photoRequests.isEmpty)
+        #expect(preview.videoRequests == ["photo"])
+        #expect(player.timeControlStatus == .paused)
+        player.play()
+        viewModel.stop()
+        #expect(player.timeControlStatus == .paused)
     }
 
     private func asset(type: MediaType = .photo) -> MediaAssetReference {
@@ -80,9 +87,15 @@ struct MediaPreviewViewModelTests {
 private final class MediaPreviewUseCaseFake: LoadMediaPreviewUseCase {
     private var results: [Result<UIImage, any Error>]
     private(set) var photoRequests: [String] = []
+    private(set) var videoRequests: [String] = []
+    private let videoAsset: AVAsset
 
-    init(results: [Result<UIImage, any Error>]) {
+    init(
+        results: [Result<UIImage, any Error>],
+        videoAsset: AVAsset = AVURLAsset(url: URL(fileURLWithPath: "/tmp/video.mov"))
+    ) {
         self.results = results
+        self.videoAsset = videoAsset
     }
 
     func loadPhoto(localIdentifier: String) async throws -> UIImage {
@@ -91,7 +104,8 @@ private final class MediaPreviewUseCaseFake: LoadMediaPreviewUseCase {
         return try results.removeFirst().get()
     }
 
-    func loadVideo(localIdentifier _: String) async throws -> AVAsset {
-        throw DriveLogError.mediaUnavailable
+    func loadVideo(localIdentifier: String) async throws -> AVAsset {
+        videoRequests.append(localIdentifier)
+        return videoAsset
     }
 }

@@ -56,7 +56,6 @@ struct ContentView: View {
                             path.append(.fullMap(id: UUID(), scene: scene))
                         },
                         onSelectMedia: { asset in
-                            guard asset.mediaType == .photo else { return }
                             path.append(.mediaPreview(id: UUID(), asset: asset))
                         }
                     )

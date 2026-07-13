@@ -1,3 +1,4 @@
+import AVKit
 import SwiftUI
 
 struct MediaPreviewView: View {
@@ -15,7 +16,7 @@ struct MediaPreviewView: View {
         .safeAreaInset(edge: .bottom) {
             metadata
         }
-        .navigationTitle("写真")
+        .navigationTitle(viewModel.asset.mediaType == .video ? "動画" : "写真")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -27,6 +28,9 @@ struct MediaPreviewView: View {
         .task {
             guard case .idle = viewModel.state else { return }
             await viewModel.load()
+        }
+        .onDisappear {
+            viewModel.stop()
         }
     }
 
@@ -44,6 +48,10 @@ struct MediaPreviewView: View {
                 .scaledToFit()
                 .accessibilityLabel("写真プレビュー")
                 .accessibilityIdentifier("mediaPreview.photo")
+        case let .video(player):
+            VideoPlayer(player: player)
+                .accessibilityLabel("動画プレビュー")
+                .accessibilityIdentifier("mediaPreview.video")
         case .error:
             VStack(spacing: 12) {
                 ContentUnavailableView(

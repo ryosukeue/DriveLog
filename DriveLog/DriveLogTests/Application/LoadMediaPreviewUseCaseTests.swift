@@ -1,4 +1,6 @@
+import AVFoundation
 @testable import DriveLog
+import Foundation
 import Testing
 import UIKit
 
@@ -24,6 +26,19 @@ struct LoadMediaPreviewUseCaseTests {
         await #expect(throws: DriveLogError.invalidData) {
             try await useCase.loadPhoto(localIdentifier: "")
         }
+        await #expect(throws: DriveLogError.invalidData) {
+            try await useCase.loadVideo(localIdentifier: "")
+        }
+    }
+
+    @Test("loads a video from the provider")
+    func video() async throws {
+        let asset = AVURLAsset(url: URL(fileURLWithPath: "/tmp/video.mov"))
+        let useCase = DefaultLoadMediaPreviewUseCase(
+            photoLibrary: FakePhotoLibraryProvider(videoAsset: asset)
+        )
+
+        #expect(try await useCase.loadVideo(localIdentifier: "video") === asset)
     }
 
     @Test("preserves provider failure")

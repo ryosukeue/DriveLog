@@ -1,3 +1,4 @@
+import AVFoundation
 import Observation
 import UIKit
 
@@ -8,6 +9,7 @@ final class MediaPreviewViewModel {
         case idle
         case loading
         case photo(UIImage)
+        case video(AVPlayer)
         case error
     }
 
@@ -25,17 +27,26 @@ final class MediaPreviewViewModel {
     }
 
     func load() async {
-        guard asset.mediaType == .photo else {
-            state = .error
-            return
-        }
         state = .loading
         do {
-            state = try await .photo(loadPreview.loadPhoto(
-                localIdentifier: asset.localIdentifier
-            ))
+            switch asset.mediaType {
+            case .photo:
+                state = try await .photo(loadPreview.loadPhoto(
+                    localIdentifier: asset.localIdentifier
+                ))
+            case .video:
+                let videoAsset = try await loadPreview.loadVideo(
+                    localIdentifier: asset.localIdentifier
+                )
+                state = .video(AVPlayer(playerItem: AVPlayerItem(asset: videoAsset)))
+            }
         } catch {
             state = .error
         }
+    }
+
+    func stop() {
+        guard case let .video(player) = state else { return }
+        player.pause()
     }
 }
