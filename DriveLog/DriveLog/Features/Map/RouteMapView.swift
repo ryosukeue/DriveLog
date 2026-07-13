@@ -9,6 +9,23 @@ nonisolated enum RouteMapDisplayMode: Sendable, Equatable {
 struct RouteMapView: UIViewRepresentable {
     let scene: MapScene
     let mode: RouteMapDisplayMode
+    let selectedSegmentID: String?
+    let onSelectSegment: (String) -> Void
+    let onTapEmpty: () -> Void
+
+    init(
+        scene: MapScene,
+        mode: RouteMapDisplayMode,
+        selectedSegmentID: String? = nil,
+        onSelectSegment: @escaping (String) -> Void = { _ in },
+        onTapEmpty: @escaping () -> Void = {}
+    ) {
+        self.scene = scene
+        self.mode = mode
+        self.selectedSegmentID = selectedSegmentID
+        self.onSelectSegment = onSelectSegment
+        self.onTapEmpty = onTapEmpty
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -18,12 +35,26 @@ struct RouteMapView: UIViewRepresentable {
         let mapView = MKMapView()
         mapView.delegate = context.coordinator
         configure(mapView)
+        context.coordinator.configure(
+            mapView: mapView,
+            mode: mode,
+            selectedSegmentID: selectedSegmentID,
+            onSelectSegment: onSelectSegment,
+            onTapEmpty: onTapEmpty
+        )
         context.coordinator.update(scene: scene, in: mapView)
         return mapView
     }
 
     func updateUIView(_ mapView: MKMapView, context: Context) {
         configure(mapView)
+        context.coordinator.configure(
+            mapView: mapView,
+            mode: mode,
+            selectedSegmentID: selectedSegmentID,
+            onSelectSegment: onSelectSegment,
+            onTapEmpty: onTapEmpty
+        )
         context.coordinator.update(scene: scene, in: mapView)
     }
 
@@ -39,6 +70,36 @@ struct RouteMapView: UIViewRepresentable {
 
     final class Coordinator: NSObject, MKMapViewDelegate {
         private var renderedScene: MapScene?
+        private weak var mapView: MKMapView?
+        private var selectedSegmentID: String?
+        private var onSelectSegment: (String) -> Void = { _ in }
+        private var onTapEmpty: () -> Void = {}
+        private var tapRecognizer: UITapGestureRecognizer?
+
+        func configure(
+            mapView: MKMapView,
+            mode: RouteMapDisplayMode,
+            selectedSegmentID: String?,
+            onSelectSegment: @escaping (String) -> Void,
+            onTapEmpty: @escaping () -> Void
+        ) {
+            self.mapView = mapView
+            self.onSelectSegment = onSelectSegment
+            self.onTapEmpty = onTapEmpty
+            if self.selectedSegmentID != selectedSegmentID {
+                self.selectedSegmentID = selectedSegmentID
+                mapView.overlays.forEach { mapView.renderer(for: $0)?.setNeedsDisplay() }
+            }
+            if mode == .full, tapRecognizer == nil {
+                let recognizer = UITapGestureRecognizer(target: self, action: #selector(handleTap))
+                recognizer.cancelsTouchesInView = false
+                mapView.addGestureRecognizer(recognizer)
+                tapRecognizer = recognizer
+            } else if mode == .preview, let tapRecognizer {
+                mapView.removeGestureRecognizer(tapRecognizer)
+                self.tapRecognizer = nil
+            }
+        }
 
         func update(scene: MapScene, in mapView: MKMapView) {
             guard renderedScene != scene else { return }
@@ -61,10 +122,36 @@ struct RouteMapView: UIViewRepresentable {
             }
             let renderer = MKPolylineRenderer(polyline: polyline)
             renderer.strokeColor = .systemRed
-            renderer.lineWidth = 4
+            renderer.lineWidth = polyline.title == selectedSegmentID ? 7 : 4
             renderer.lineJoin = .round
             renderer.lineCap = .round
             return renderer
+        }
+
+        @objc private func handleTap(_ recognizer: UITapGestureRecognizer) {
+            guard let mapView else { return }
+            let tapPoint = recognizer.location(in: mapView)
+            let coordinate = mapView.convert(tapPoint, toCoordinateFrom: mapView)
+            let mapPoint = MKMapPoint(coordinate)
+            for overlay in mapView.overlays.reversed() {
+                guard let polyline = overlay as? MKPolyline,
+                      let renderer = mapView.renderer(for: polyline) as? MKPolylineRenderer
+                else { continue }
+                renderer.createPath()
+                let rendererPoint = renderer.point(for: mapPoint)
+                let hitPath = renderer.path?.copy(
+                    strokingWithWidth: 22,
+                    lineCap: .round,
+                    lineJoin: .round,
+                    miterLimit: 0
+                )
+                guard hitPath?.contains(rendererPoint) == true,
+                      let stableID = polyline.title
+                else { continue }
+                onSelectSegment(stableID)
+                return
+            }
+            onTapEmpty()
         }
 
         func mapView(_ mapView: MKMapView, viewFor annotation: any MKAnnotation) -> MKAnnotationView? {
