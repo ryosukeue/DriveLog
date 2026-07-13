@@ -41,7 +41,11 @@ struct MapSceneBuilderTests {
             )
         ])
         #expect(scene.stayAnnotations == [
-            MapStayAnnotation(stayStableID: "visible", coordinate: coordinate(34, 138))
+            MapStayAnnotation(
+                stayStableID: "visible",
+                coordinate: coordinate(34, 138),
+                text: "1分"
+            )
         ])
         #expect(scene.mediaAnnotations == [
             MapMediaAnnotation(localIdentifier: "asset", coordinate: coordinate(37, 142))

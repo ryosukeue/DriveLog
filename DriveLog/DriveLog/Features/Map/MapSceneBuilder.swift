@@ -28,7 +28,8 @@ nonisolated struct MapSceneBuilder: MapSceneBuilding {
             guard stay.isVisibleByAutomaticRule else { return nil }
             return MapStayAnnotation(
                 stayStableID: stay.stableID,
-                coordinate: stay.representativeCoordinate
+                coordinate: stay.representativeCoordinate,
+                text: stayDurationText(seconds: stay.durationSeconds)
             )
         }
         let mediaAnnotations = media.map {
@@ -52,6 +53,13 @@ nonisolated struct MapSceneBuilder: MapSceneBuilding {
         let minutes = max(0, Int(movement.durationSeconds) / 60)
         let kilometers = max(0, movement.distanceMeters) / 1000
         return String(format: "%d分・%.1fkm", minutes, kilometers)
+    }
+
+    private func stayDurationText(seconds: Double) -> String {
+        let totalMinutes = max(0, Int(seconds) / 60)
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+        return hours > 0 ? "\(hours)時間\(minutes)分" : "\(minutes)分"
     }
 
     private func initialRegion(coordinates: [RouteCoordinate]) -> MapRegion? {

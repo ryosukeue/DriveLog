@@ -28,6 +28,7 @@ nonisolated struct MapMovementLabel: Sendable, Equatable {
 nonisolated struct MapStayAnnotation: Sendable, Equatable {
     let stayStableID: String
     let coordinate: RouteCoordinate
+    let text: String
 }
 
 nonisolated struct MapMediaAnnotation: Sendable, Equatable {
