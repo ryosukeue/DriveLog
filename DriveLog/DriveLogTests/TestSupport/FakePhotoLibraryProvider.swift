@@ -5,6 +5,11 @@ import os
 import UIKit
 
 final class FakePhotoLibraryProvider: PhotoLibraryProviding, @unchecked Sendable {
+    struct ThumbnailRequest: Sendable, Equatable {
+        let localIdentifier: String
+        let targetSize: CGSize
+    }
+
     let libraryChanges: AsyncStream<PhotoLibraryChange>
 
     private let authorization: PhotoPermissionState
@@ -15,9 +20,14 @@ final class FakePhotoLibraryProvider: PhotoLibraryProviding, @unchecked Sendable
     private let error: DriveLogError?
     private let changeContinuation: AsyncStream<PhotoLibraryChange>.Continuation
     private let fetchStorage = OSAllocatedUnfairLock(initialState: [DateInterval]())
+    private let thumbnailStorage = OSAllocatedUnfairLock(initialState: [ThumbnailRequest]())
 
     var fetchedIntervals: [DateInterval] {
         fetchStorage.withLock { $0 }
+    }
+
+    var thumbnailRequests: [ThumbnailRequest] {
+        thumbnailStorage.withLock { $0 }
     }
 
     init(
@@ -56,7 +66,13 @@ final class FakePhotoLibraryProvider: PhotoLibraryProviding, @unchecked Sendable
         return assets
     }
 
-    func requestThumbnail(localIdentifier _: String, targetSize _: CGSize) async throws -> UIImage {
+    func requestThumbnail(localIdentifier: String, targetSize: CGSize) async throws -> UIImage {
+        thumbnailStorage.withLock {
+            $0.append(ThumbnailRequest(
+                localIdentifier: localIdentifier,
+                targetSize: targetSize
+            ))
+        }
         try throwConfiguredError()
         return image
     }
