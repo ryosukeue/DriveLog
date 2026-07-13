@@ -93,7 +93,7 @@ struct DefaultDayProcessorTests {
 
         let stay = try #require(result.stays.first)
         #expect(result.stays.count == 1)
-        #expect(!stay.isVisibleByAutomaticRule)
+        #expect(stay.isVisibleByAutomaticRule)
         #expect(stay.sourceRawRevision == 4)
         #expect(result.aggregate.staySegmentCount == 0)
     }

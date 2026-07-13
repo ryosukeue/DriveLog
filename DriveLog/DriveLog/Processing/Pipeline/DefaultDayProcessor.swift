@@ -82,7 +82,7 @@ nonisolated struct DefaultDayProcessor: DayProcessing {
             visits: dayEvents.visits,
             overrides: []
         )
-        let stays = applyingStayOverrides(dayEvents.stayOverrides, to: automaticStays)
+        let effectiveStays = applyingStayOverrides(dayEvents.stayOverrides, to: automaticStays)
 
         try Task.checkCancellation()
         let unlabeledMovements = segmentation.segments.map { candidate in
@@ -93,19 +93,19 @@ nonisolated struct DefaultDayProcessor: DayProcessing {
                 generatedAt: generatedAt
             )
         }
-        let movements = addingLabels(to: unlabeledMovements, stays: stays)
+        let movements = addingLabels(to: unlabeledMovements, stays: effectiveStays)
 
         try Task.checkCancellation()
         let aggregate = summaryBuilder.build(
             localDateKey: localDateKey,
             sanitizedLocations: sanitizedLocations,
             movements: movements,
-            stays: stays,
+            stays: effectiveStays,
             mediaCount: mediaCount,
             sourceRawRevision: rawRevision,
             generatedAt: generatedAt
         )
-        return DayProcessingResult(aggregate: aggregate, movements: movements, stays: stays)
+        return DayProcessingResult(aggregate: aggregate, movements: movements, stays: automaticStays)
     }
 
     private func selectedLocations(
