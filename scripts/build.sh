@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 xcodebuild \
-  -project DriveLog.xcodeproj \
+  -project DriveLog/DriveLog.xcodeproj \
   -scheme DriveLog \
   -configuration Debug \
   -destination 'generic/platform=iOS Simulator' \
