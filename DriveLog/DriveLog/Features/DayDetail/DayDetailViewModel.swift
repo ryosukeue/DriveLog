@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import UIKit
 
 nonisolated enum DayDetailViewState: Sendable, Equatable {
     case idle
@@ -21,11 +22,24 @@ final class DayDetailViewModel {
     }
 
     private let loadDayDetail: any LoadDayDetailUseCase
+    private let loadMediaThumbnail: any LoadMediaThumbnailUseCase
     private var requestID: UUID?
 
-    init(localDateKey: String, loadDayDetail: any LoadDayDetailUseCase) {
+    init(
+        localDateKey: String,
+        loadDayDetail: any LoadDayDetailUseCase,
+        loadMediaThumbnail: any LoadMediaThumbnailUseCase
+    ) {
         self.localDateKey = localDateKey
         self.loadDayDetail = loadDayDetail
+        self.loadMediaThumbnail = loadMediaThumbnail
+    }
+
+    func thumbnail(localIdentifier: String, targetSize: CGSize) async throws -> UIImage {
+        try await loadMediaThumbnail.execute(
+            localIdentifier: localIdentifier,
+            targetSize: targetSize
+        )
     }
 
     func load() async {

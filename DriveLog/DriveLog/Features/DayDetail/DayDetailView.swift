@@ -3,6 +3,7 @@ import SwiftUI
 struct DayDetailView: View {
     @State private var viewModel: DayDetailViewModel
     let onOpenMap: (MapScene) -> Void
+    let onSelectMedia: (MediaAssetReference) -> Void
     private let formatter: DayDetailFormatter
 
     init(
@@ -10,11 +11,13 @@ struct DayDetailView: View {
         formatter: DayDetailFormatter = DayDetailFormatter(
             timeZone: SystemTimeZoneProvider().current
         ),
-        onOpenMap: @escaping (MapScene) -> Void = { _ in }
+        onOpenMap: @escaping (MapScene) -> Void = { _ in },
+        onSelectMedia: @escaping (MediaAssetReference) -> Void = { _ in }
     ) {
         _viewModel = State(initialValue: viewModel)
         self.formatter = formatter
         self.onOpenMap = onOpenMap
+        self.onSelectMedia = onSelectMedia
     }
 
     var body: some View {
@@ -56,6 +59,11 @@ struct DayDetailView: View {
             }
             DaySummaryCard(aggregate: data.aggregate, formatter: formatter)
             DayStatisticsCard(aggregate: data.aggregate, formatter: formatter)
+            MediaGridSection(
+                media: data.media,
+                loadThumbnail: viewModel.thumbnail,
+                onSelect: onSelectMedia
+            )
         }
         .padding(.horizontal)
     }

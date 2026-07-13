@@ -3,8 +3,9 @@ import Foundation
 import Testing
 
 @Suite("Load day detail use case")
+@MainActor
 struct LoadDayDetailUseCaseTests {
-    @Test("loads aggregate segments empty media and map scene")
+    @Test("loads aggregate segments sorted media and map scene")
     func load() async throws {
         let fixture = Fixture()
         let result = try await fixture.useCase().execute(localDateKey: fixture.key)
@@ -12,7 +13,8 @@ struct LoadDayDetailUseCaseTests {
         #expect(result.aggregate == fixture.aggregate)
         #expect(result.movements.map(\.segment) == [fixture.movement])
         #expect(result.stays.map(\.segment) == [fixture.stay])
-        #expect(result.media.isEmpty)
+        #expect(result.media.map(\.localIdentifier) == ["a", "b", "later"])
+        #expect(result.media.first?.location == nil)
         #expect(result.mapScene == fixture.scene)
         #expect(!result.isReprocessing)
     }
@@ -76,6 +78,15 @@ struct LoadDayDetailUseCaseTests {
                 .execute(localDateKey: fixture.key)
         }
     }
+
+    @Test("maps unknown media cache failure")
+    func mediaError() async {
+        let fixture = Fixture()
+        await #expect(throws: DriveLogError.persistenceFailure(code: "load_day_detail")) {
+            try await fixture.useCase(mediaError: FixtureError.failed)
+                .execute(localDateKey: fixture.key)
+        }
+    }
 }
 
 private struct Fixture {
@@ -122,6 +133,14 @@ private struct Fixture {
         )
     }
 
+    var media: [MediaAssetReference] {
+        [
+            media(id: "later", offset: 20),
+            media(id: "b", offset: 10),
+            media(id: "a", offset: 10)
+        ]
+    }
+
     func state(status: ProcessingStatus = .completed, raw: Int = 1, processed: Int = 1) -> DayProcessingStateData {
         DayProcessingStateData(
             localDateKey: key, rawRevision: raw, processedRevision: processed, status: status,
@@ -134,7 +153,8 @@ private struct Fixture {
         classificationOverrides: [ClassificationOverrideData] = [],
         stayOverrides: [StayOverrideData] = [],
         state: DayProcessingStateData? = nil,
-        error: (any Error)? = nil
+        error: (any Error)? = nil,
+        mediaError: (any Error)? = nil
     ) -> DefaultLoadDayDetailUseCase {
         DefaultLoadDayDetailUseCase(
             derivedRepository: DayDetailDerivedRepositoryFake(
@@ -150,7 +170,23 @@ private struct Fixture {
             processingStateRepository: DayDetailProcessingRepositoryFake(
                 value: state ?? self.state()
             ),
+            mediaCacheRepository: DayDetailMediaCacheRepositoryFake(
+                assets: media,
+                error: mediaError
+            ),
             mapSceneBuilder: DayDetailMapBuilderFake(scene: scene)
+        )
+    }
+
+    private func media(id: String, offset: TimeInterval) -> MediaAssetReference {
+        MediaAssetReference(
+            localIdentifier: id,
+            mediaType: .photo,
+            creationDate: now.addingTimeInterval(offset),
+            location: nil,
+            durationSeconds: nil,
+            isScreenshot: false,
+            isScreenRecording: false
         )
     }
 
@@ -258,6 +294,23 @@ private struct DayDetailProcessingRepositoryFake: ProcessingStateRepository {
     func markCompleted(localDateKey _: String, processedRevision _: Int, completedAt _: Date) {}
     func markFailed(localDateKey _: String, code _: String, failedAt _: Date) {}
     func deleteState(for _: String) {}
+}
+
+private struct DayDetailMediaCacheRepositoryFake: MediaCacheRepository {
+    let assets: [MediaAssetReference]
+    let error: (any Error)?
+
+    func cachedAssets(for _: String) throws -> [MediaAssetReference] {
+        if let error {
+            throw error
+        }
+        return assets
+    }
+
+    func upsertAssets(_: [MediaAssetReference], for _: String, validatedAt _: Date) {}
+    func removeAssets(localIdentifiers _: [String]) {}
+    func replaceAssets(for _: String, assets _: [MediaAssetReference], validatedAt _: Date) {}
+    func deleteCache(for _: String) {}
 }
 
 private struct DayDetailMapBuilderFake: MapSceneBuilding {

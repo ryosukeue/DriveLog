@@ -58,7 +58,13 @@ final class AppContainer {
                     modelContainer: modelContainer,
                     clock: clock
                 ),
+                mediaCacheRepository: SwiftDataMediaCacheRepository(
+                    modelContainer: modelContainer
+                ),
                 mapSceneBuilder: MapSceneBuilder()
+            ),
+            loadMediaThumbnail: DefaultLoadMediaThumbnailUseCase(
+                photoLibrary: PhotoLibraryProvider()
             )
         )
     }

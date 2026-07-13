@@ -1,3 +1,5 @@
+import Foundation
+
 nonisolated protocol LoadDayDetailUseCase: Sendable {
     func execute(localDateKey: String) async throws -> DayDetailData
 }
@@ -6,6 +8,7 @@ nonisolated struct DefaultLoadDayDetailUseCase: LoadDayDetailUseCase {
     private let derivedRepository: any DerivedDataRepository
     private let overrideRepository: any OverrideRepository
     private let processingStateRepository: any ProcessingStateRepository
+    private let mediaCacheRepository: any MediaCacheRepository
     private let mapSceneBuilder: any MapSceneBuilding
     private let overrideMatcher: any OverrideMatching
 
@@ -13,6 +16,7 @@ nonisolated struct DefaultLoadDayDetailUseCase: LoadDayDetailUseCase {
         derivedRepository: any DerivedDataRepository,
         overrideRepository: any OverrideRepository,
         processingStateRepository: any ProcessingStateRepository,
+        mediaCacheRepository: any MediaCacheRepository,
         mapSceneBuilder: any MapSceneBuilding,
         overrideMatcher: any OverrideMatching = OverrideMatcher(
             rules: ProcessingConfiguration.mvp.overrideMatching
@@ -21,6 +25,7 @@ nonisolated struct DefaultLoadDayDetailUseCase: LoadDayDetailUseCase {
         self.derivedRepository = derivedRepository
         self.overrideRepository = overrideRepository
         self.processingStateRepository = processingStateRepository
+        self.mediaCacheRepository = mediaCacheRepository
         self.mapSceneBuilder = mapSceneBuilder
         self.overrideMatcher = overrideMatcher
     }
@@ -44,6 +49,7 @@ nonisolated struct DefaultLoadDayDetailUseCase: LoadDayDetailUseCase {
         )
         async let stayOverrideValues = overrideRepository.stayOverrides(for: localDateKey)
         async let stateValue = processingStateRepository.state(for: localDateKey)
+        async let mediaValue = mediaCacheRepository.cachedAssets(for: localDateKey)
 
         guard let aggregate = try await aggregateValue else {
             throw DriveLogError.invalidData
@@ -53,6 +59,7 @@ nonisolated struct DefaultLoadDayDetailUseCase: LoadDayDetailUseCase {
         let classificationOverrides = try await classificationValues
         let stayOverrides = try await stayOverrideValues
         let state = try await stateValue
+        let media = try await mediaValue.sorted(by: mediaOrder)
         let displayMovements = movements.map { movement in
             MovementDisplayData(
                 segment: movement,
@@ -80,11 +87,18 @@ nonisolated struct DefaultLoadDayDetailUseCase: LoadDayDetailUseCase {
             aggregate: aggregate,
             movements: displayMovements,
             stays: displayStays,
-            media: [],
+            media: media,
             mapScene: makeMapScene(movements: movements, stays: visibleStays),
             isReprocessing: state.status == .processing ||
                 state.rawRevision > state.processedRevision
         )
+    }
+
+    private func mediaOrder(_ first: MediaAssetReference, _ second: MediaAssetReference) -> Bool {
+        guard first.creationDate == second.creationDate else {
+            return (first.creationDate ?? .distantFuture) < (second.creationDate ?? .distantFuture)
+        }
+        return first.localIdentifier < second.localIdentifier
     }
 
     private func makeMapScene(

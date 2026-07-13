@@ -1,6 +1,7 @@
 @testable import DriveLog
 import Foundation
 import Testing
+import UIKit
 
 @MainActor
 @Suite("Day detail view model")
@@ -10,7 +11,8 @@ struct DayDetailViewModelTests {
         let data = makeDayDetailData(isValid: true, isReprocessing: false)
         let viewModel = DayDetailViewModel(
             localDateKey: data.aggregate.localDateKey,
-            loadDayDetail: DayDetailUseCaseFake(results: [.success(data)])
+            loadDayDetail: DayDetailUseCaseFake(results: [.success(data)]),
+            loadMediaThumbnail: DayDetailThumbnailUseCaseFake()
         )
 
         await viewModel.load()
@@ -25,7 +27,8 @@ struct DayDetailViewModelTests {
         let data = makeDayDetailData(isValid: true, isReprocessing: true)
         let viewModel = DayDetailViewModel(
             localDateKey: data.aggregate.localDateKey,
-            loadDayDetail: DayDetailUseCaseFake(results: [.success(data)])
+            loadDayDetail: DayDetailUseCaseFake(results: [.success(data)]),
+            loadMediaThumbnail: DayDetailThumbnailUseCaseFake()
         )
 
         await viewModel.load()
@@ -38,12 +41,14 @@ struct DayDetailViewModelTests {
     func empty() async {
         let invalidDataViewModel = DayDetailViewModel(
             localDateKey: "2024-01-01",
-            loadDayDetail: DayDetailUseCaseFake(results: [.failure(DriveLogError.invalidData)])
+            loadDayDetail: DayDetailUseCaseFake(results: [.failure(DriveLogError.invalidData)]),
+            loadMediaThumbnail: DayDetailThumbnailUseCaseFake()
         )
         let invalidAggregate = makeDayDetailData(isValid: false, isReprocessing: false)
         let invalidAggregateViewModel = DayDetailViewModel(
             localDateKey: "2024-01-01",
-            loadDayDetail: DayDetailUseCaseFake(results: [.success(invalidAggregate)])
+            loadDayDetail: DayDetailUseCaseFake(results: [.success(invalidAggregate)]),
+            loadMediaThumbnail: DayDetailThumbnailUseCaseFake()
         )
 
         await invalidDataViewModel.load()
@@ -61,7 +66,11 @@ struct DayDetailViewModelTests {
             .failure(DriveLogError.persistenceFailure(code: "fixture")),
             .success(data)
         ])
-        let viewModel = DayDetailViewModel(localDateKey: "2024-01-01", loadDayDetail: fake)
+        let viewModel = DayDetailViewModel(
+            localDateKey: "2024-01-01",
+            loadDayDetail: fake,
+            loadMediaThumbnail: DayDetailThumbnailUseCaseFake()
+        )
 
         await viewModel.load()
         #expect(viewModel.state == .error)
@@ -76,13 +85,67 @@ struct DayDetailViewModelTests {
             .success(data),
             .failure(DriveLogError.persistenceFailure(code: "fixture"))
         ])
-        let viewModel = DayDetailViewModel(localDateKey: "2024-01-01", loadDayDetail: fake)
+        let viewModel = DayDetailViewModel(
+            localDateKey: "2024-01-01",
+            loadDayDetail: fake,
+            loadMediaThumbnail: DayDetailThumbnailUseCaseFake()
+        )
 
         await viewModel.load()
         await viewModel.load()
 
         #expect(viewModel.state == .error)
         #expect(viewModel.data?.aggregate == data.aggregate)
+    }
+
+    @Test("loads thumbnail through the injected use case and preserves failure")
+    func thumbnail() async throws {
+        let image = UIImage()
+        let success = DayDetailThumbnailUseCaseFake(image: image)
+        let viewModel = DayDetailViewModel(
+            localDateKey: "2024-01-01",
+            loadDayDetail: DayDetailUseCaseFake(results: []),
+            loadMediaThumbnail: success
+        )
+        let size = CGSize(width: 180, height: 180)
+
+        #expect(try await viewModel.thumbnail(localIdentifier: "photo", targetSize: size) === image)
+        #expect(success.requests == [.init(localIdentifier: "photo", targetSize: size)])
+
+        let failure = DayDetailThumbnailUseCaseFake(error: .mediaUnavailable)
+        let failingViewModel = DayDetailViewModel(
+            localDateKey: "2024-01-01",
+            loadDayDetail: DayDetailUseCaseFake(results: []),
+            loadMediaThumbnail: failure
+        )
+        await #expect(throws: DriveLogError.mediaUnavailable) {
+            try await failingViewModel.thumbnail(localIdentifier: "missing", targetSize: size)
+        }
+    }
+}
+
+@MainActor
+private final class DayDetailThumbnailUseCaseFake: LoadMediaThumbnailUseCase {
+    struct Request: Equatable {
+        let localIdentifier: String
+        let targetSize: CGSize
+    }
+
+    private(set) var requests: [Request] = []
+    private let image: UIImage
+    private let error: DriveLogError?
+
+    init(image: UIImage = UIImage(), error: DriveLogError? = nil) {
+        self.image = image
+        self.error = error
+    }
+
+    func execute(localIdentifier: String, targetSize: CGSize) async throws -> UIImage {
+        requests.append(Request(localIdentifier: localIdentifier, targetSize: targetSize))
+        if let error {
+            throw error
+        }
+        return image
     }
 }
 
