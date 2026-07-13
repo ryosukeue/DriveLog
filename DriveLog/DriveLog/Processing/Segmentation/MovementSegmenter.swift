@@ -1,0 +1,232 @@
+import Foundation
+
+nonisolated protocol MovementSegmenting: Sendable {
+    func segment(
+        locations: SanitizedLocations,
+        motions: [MotionEventData],
+        visits: [VisitEventData]
+    ) -> MovementSegmentationResult
+}
+
+nonisolated struct MovementSegmentationResult: Sendable, Equatable {
+    let segments: [MovementSegmentCandidate]
+    let gaps: [GapCandidate]
+    let discardedSegments: [MovementSegmentCandidate]
+}
+
+nonisolated struct MovementSegmentCandidate: Sendable, Equatable {
+    let localDateKey: String
+    let startDate: Date
+    let endDate: Date
+    let locations: [LocationEventData]
+    let distanceMeters: Double
+
+    var durationSeconds: TimeInterval {
+        endDate.timeIntervalSince(startDate)
+    }
+}
+
+nonisolated struct GapCandidate: Sendable, Equatable {
+    let precedingLocation: LocationEventData
+    let followingLocation: LocationEventData
+    let reason: SegmentationBoundaryReason
+
+    var durationSeconds: TimeInterval {
+        followingLocation.timestamp.timeIntervalSince(precedingLocation.timestamp)
+    }
+}
+
+nonisolated enum SegmentationBoundaryReason: Sendable, Equatable {
+    case continuousGap
+    case localDayBoundary
+    case visit
+    case motionTransition
+}
+
+nonisolated struct MovementSegmenter: MovementSegmenting {
+    private let segmentationRules: SegmentationRules
+    private let stayRules: StayRules
+    private let distanceCalculator: GeodesicDistanceCalculator
+
+    init(
+        segmentationRules: SegmentationRules,
+        stayRules: StayRules,
+        distanceCalculator: GeodesicDistanceCalculator = GeodesicDistanceCalculator()
+    ) {
+        self.segmentationRules = segmentationRules
+        self.stayRules = stayRules
+        self.distanceCalculator = distanceCalculator
+    }
+
+    func segment(
+        locations: SanitizedLocations,
+        motions: [MotionEventData],
+        visits: [VisitEventData]
+    ) -> MovementSegmentationResult {
+        guard let first = locations.accepted.first else {
+            return MovementSegmentationResult(segments: [], gaps: [], discardedSegments: [])
+        }
+
+        var chunks = [[first]]
+        var gaps: [GapCandidate] = []
+        for location in locations.accepted.dropFirst() {
+            guard let preceding = chunks.last?.last else {
+                continue
+            }
+            if let reason = boundaryReason(
+                from: preceding,
+                to: location,
+                motions: motions,
+                visits: visits
+            ) {
+                gaps.append(
+                    GapCandidate(
+                        precedingLocation: preceding,
+                        followingLocation: location,
+                        reason: reason
+                    )
+                )
+                chunks.append([location])
+            } else {
+                chunks[chunks.count - 1].append(location)
+            }
+        }
+
+        mergeShortChunks(&chunks, across: &gaps)
+        let candidates = chunks.compactMap(makeCandidate)
+        return MovementSegmentationResult(
+            segments: candidates.filter(isValid),
+            gaps: gaps,
+            discardedSegments: candidates.filter { !isValid($0) }
+        )
+    }
+
+    private func boundaryReason(
+        from start: LocationEventData,
+        to end: LocationEventData,
+        motions: [MotionEventData],
+        visits: [VisitEventData]
+    ) -> SegmentationBoundaryReason? {
+        if start.localDateKey != end.localDateKey {
+            return .localDayBoundary
+        }
+        let interval = end.timestamp.timeIntervalSince(start.timestamp)
+        if interval >= segmentationRules.maximumContinuousGap {
+            return .continuousGap
+        }
+        if visits.contains(where: { visitOverlaps($0, from: start.timestamp, to: end.timestamp) }) {
+            return .visit
+        }
+        let hasSupportedMotionTransition = interval >= stayRules.minimumStayDuration &&
+            hasTravelModeTransition(motions, from: start.timestamp, to: end.timestamp)
+        if hasSupportedMotionTransition {
+            return .motionTransition
+        }
+        return nil
+    }
+
+    private func visitOverlaps(_ visit: VisitEventData, from start: Date, to end: Date) -> Bool {
+        switch (visit.arrivalDate, visit.departureDate) {
+        case let (arrival?, departure?):
+            arrival < end && departure > start
+        case let (arrival?, nil):
+            arrival > start && arrival < end
+        case let (nil, departure?):
+            departure > start && departure < end
+        case (nil, nil):
+            false
+        }
+    }
+
+    private func hasTravelModeTransition(
+        _ motions: [MotionEventData],
+        from start: Date,
+        to end: Date
+    ) -> Bool {
+        let modes = motions
+            .filter { motionOverlaps($0, from: start, to: end) }
+            .sorted { $0.startDate < $1.startDate }
+            .compactMap(travelMode)
+        return zip(modes, modes.dropFirst()).contains { pair in pair.0 != pair.1 }
+    }
+
+    private func motionOverlaps(_ motion: MotionEventData, from start: Date, to end: Date) -> Bool {
+        motion.startDate < end && (motion.endDate ?? end) > start
+    }
+
+    private func travelMode(_ motion: MotionEventData) -> TravelMode? {
+        if motion.isAutomotive, !motion.isWalking {
+            return .automotive
+        }
+        if motion.isWalking, !motion.isAutomotive {
+            return .walking
+        }
+        return nil
+    }
+
+    private func mergeShortChunks(_ chunks: inout [[LocationEventData]], across gaps: inout [GapCandidate]) {
+        var index = 0
+        while index < chunks.count {
+            guard let candidate = makeCandidate(chunks[index]), !isValid(candidate) else {
+                index += 1
+                continue
+            }
+            let leftGapIndex = index - 1
+            let rightGapIndex = index
+            let canMergeLeft = leftGapIndex >= 0 && gaps[leftGapIndex].reason == .motionTransition
+            let canMergeRight = rightGapIndex < gaps.count && gaps[rightGapIndex].reason == .motionTransition
+            guard canMergeLeft || canMergeRight else {
+                index += 1
+                continue
+            }
+
+            let shouldMergeLeft = canMergeLeft && (
+                !canMergeRight || gaps[leftGapIndex].durationSeconds <= gaps[rightGapIndex].durationSeconds
+            )
+            if shouldMergeLeft {
+                chunks[leftGapIndex].append(contentsOf: chunks[index])
+                chunks.remove(at: index)
+                gaps.remove(at: leftGapIndex)
+                index = max(0, leftGapIndex)
+            } else {
+                chunks[index].append(contentsOf: chunks[index + 1])
+                chunks.remove(at: index + 1)
+                gaps.remove(at: rightGapIndex)
+            }
+        }
+    }
+
+    private func makeCandidate(_ locations: [LocationEventData]) -> MovementSegmentCandidate? {
+        guard let first = locations.first, let last = locations.last else {
+            return nil
+        }
+        return MovementSegmentCandidate(
+            localDateKey: first.localDateKey,
+            startDate: first.timestamp,
+            endDate: last.timestamp,
+            locations: locations,
+            distanceMeters: routeDistance(locations)
+        )
+    }
+
+    private func routeDistance(_ locations: [LocationEventData]) -> Double {
+        zip(locations, locations.dropFirst()).reduce(0) { result, pair in
+            result + distanceCalculator.meters(
+                fromLatitude: pair.0.latitude,
+                longitude: pair.0.longitude,
+                toLatitude: pair.1.latitude,
+                longitude: pair.1.longitude
+            )
+        }
+    }
+
+    private func isValid(_ candidate: MovementSegmentCandidate) -> Bool {
+        candidate.locations.count >= segmentationRules.minimumSegmentPointCount &&
+            candidate.distanceMeters >= segmentationRules.minimumSegmentDistance
+    }
+}
+
+private nonisolated enum TravelMode {
+    case automotive
+    case walking
+}

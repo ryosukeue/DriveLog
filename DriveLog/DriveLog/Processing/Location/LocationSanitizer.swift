@@ -27,10 +27,16 @@ nonisolated enum RejectedLocationReason: String, Sendable, Equatable {
 nonisolated struct LocationSanitizer: LocationSanitizing {
     private let rules: LocationRules
     private let clock: any Clock
+    private let distanceCalculator: GeodesicDistanceCalculator
 
-    init(rules: LocationRules, clock: any Clock) {
+    init(
+        rules: LocationRules,
+        clock: any Clock,
+        distanceCalculator: GeodesicDistanceCalculator = GeodesicDistanceCalculator()
+    ) {
         self.rules = rules
         self.clock = clock
+        self.distanceCalculator = distanceCalculator
     }
 
     func sanitize(_ locations: [LocationEventData]) -> SanitizedLocations {
@@ -251,18 +257,11 @@ nonisolated struct LocationSanitizer: LocationSanitizing {
     }
 
     private func surfaceDistance(from start: LocationEventData, to end: LocationEventData) -> Double {
-        let earthRadiusMeters = 6_371_000.0
-        let latitudeDelta = radians(end.latitude - start.latitude)
-        let longitudeDelta = radians(end.longitude - start.longitude)
-        let startLatitude = radians(start.latitude)
-        let endLatitude = radians(end.latitude)
-        let haversine = sin(latitudeDelta / 2) * sin(latitudeDelta / 2) +
-            cos(startLatitude) * cos(endLatitude) *
-            sin(longitudeDelta / 2) * sin(longitudeDelta / 2)
-        return 2 * earthRadiusMeters * atan2(sqrt(haversine), sqrt(max(0, 1 - haversine)))
-    }
-
-    private func radians(_ degrees: Double) -> Double {
-        degrees * .pi / 180
+        distanceCalculator.meters(
+            fromLatitude: start.latitude,
+            longitude: start.longitude,
+            toLatitude: end.latitude,
+            longitude: end.longitude
+        )
     }
 }
