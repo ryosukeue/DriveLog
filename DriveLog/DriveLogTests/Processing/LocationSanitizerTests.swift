@@ -111,6 +111,107 @@ struct LocationSanitizerTests {
         #expect(input == original)
     }
 
+    @Test("treats the 30 second and 10 meter boundaries as duplicates")
+    func duplicateBoundaries() {
+        let first = makeLocation(latitude: 0, longitude: 0, accuracy: 10, seconds: 0)
+        let second = makeLocation(
+            latitude: 0,
+            longitude: longitude(atDistanceMeters: 10),
+            accuracy: 10,
+            seconds: 30
+        )
+
+        let result = sanitizer.sanitize([second, first])
+
+        #expect(result.accepted == [second])
+        #expect(result.rejected == [RejectedLocation(location: first, reason: .duplicate)])
+    }
+
+    @Test("keeps points when either duplicate condition is outside its boundary")
+    func outsideDuplicateBoundaries() {
+        let origin = makeLocation(latitude: 0, longitude: 0, seconds: 0)
+        let tooFar = makeLocation(
+            latitude: 0,
+            longitude: longitude(atDistanceMeters: 10.01),
+            seconds: 30
+        )
+        let tooLate = makeLocation(latitude: 0, longitude: 0, seconds: 31)
+
+        #expect(sanitizer.sanitize([origin, tooFar]).accepted == [origin, tooFar])
+        #expect(sanitizer.sanitize([origin, tooLate]).accepted == [origin, tooLate])
+    }
+
+    @Test("prefers better horizontal accuracy regardless of chronological side")
+    func accuracyPriority() {
+        let earlierBetter = makeLocation(accuracy: 5, seconds: 0)
+        let laterWorse = makeLocation(accuracy: 20, seconds: 10)
+        let earlierWorse = makeLocation(longitude: 140, accuracy: 20, seconds: 20)
+        let laterBetter = makeLocation(longitude: 140, accuracy: 5, seconds: 30)
+
+        let firstResult = sanitizer.sanitize([laterWorse, earlierBetter])
+        let secondResult = sanitizer.sanitize([earlierWorse, laterBetter])
+
+        #expect(firstResult.accepted == [earlierBetter])
+        #expect(firstResult.rejected.map(\.location) == [laterWorse])
+        #expect(secondResult.accepted == [laterBetter])
+        #expect(secondResult.rejected.map(\.location) == [earlierWorse])
+    }
+
+    @Test("uses newer timestamp then earlier saved time as tie breakers")
+    func duplicateTieBreakers() {
+        let older = makeLocation(accuracy: 10, createdAt: now, seconds: 0)
+        let newer = makeLocation(accuracy: 10, createdAt: now.addingTimeInterval(1), seconds: 10)
+        let timestamp = now.addingTimeInterval(-500)
+        let savedEarlier = makeLocation(
+            latitude: 36,
+            date: timestamp,
+            accuracy: 10,
+            createdAt: now.addingTimeInterval(2)
+        )
+        let savedLater = makeLocation(
+            latitude: 36,
+            date: timestamp,
+            accuracy: 10,
+            createdAt: now.addingTimeInterval(3)
+        )
+
+        #expect(sanitizer.sanitize([newer, older]).accepted == [newer])
+        #expect(sanitizer.sanitize([savedLater, savedEarlier]).accepted == [savedEarlier])
+    }
+
+    @Test("uses injected duplicate thresholds")
+    func injectedThresholds() {
+        let rules = LocationRules(
+            futureTimestampTolerance: 86400,
+            duplicateTimeInterval: 5,
+            duplicateDistance: 2,
+            maximumHorizontalAccuracy: 500,
+            maximumPlausibleSpeed: 250 / 3.6
+        )
+        let customSanitizer = LocationSanitizer(rules: rules, clock: FixedClock(now: now))
+        let first = makeLocation(latitude: 0, longitude: 0, seconds: 0)
+        let second = makeLocation(
+            latitude: 0,
+            longitude: longitude(atDistanceMeters: 2),
+            seconds: 5
+        )
+
+        #expect(customSanitizer.sanitize([first, second]).accepted == [second])
+    }
+
+    @Test("keeps all rejection reasons in deterministic chronological order")
+    func rejectionOrder() {
+        let duplicate = makeLocation(accuracy: 20, seconds: 0)
+        let invalid = makeLocation(latitude: .nan, seconds: 5)
+        let preferred = makeLocation(accuracy: 5, seconds: 10)
+
+        let result = sanitizer.sanitize([preferred, invalid, duplicate])
+
+        #expect(result.rejected.map(\.reason) == [.duplicate, .invalidCoordinate])
+        #expect(result.rejected[0].location == duplicate)
+        #expect(result.rejected[1].location.timestamp == invalid.timestamp)
+    }
+
     private var sanitizer: LocationSanitizer {
         LocationSanitizer(rules: ProcessingConfiguration.mvp.location, clock: FixedClock(now: now))
     }
@@ -134,6 +235,10 @@ struct LocationSanitizerTests {
             utcOffsetSeconds: 32400,
             localDateKey: "2033-05-18"
         )
+    }
+
+    private func longitude(atDistanceMeters distance: Double) -> Double {
+        distance / 6_371_000 * 180 / .pi
     }
 }
 
