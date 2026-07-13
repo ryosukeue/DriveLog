@@ -1,3 +1,5 @@
+import Foundation
+
 nonisolated struct MapSceneBuilder: MapSceneBuilding {
     private let regionPaddingScale = 1.2
     private let minimumRegionDelta = 0.01
@@ -18,7 +20,8 @@ nonisolated struct MapSceneBuilder: MapSceneBuilding {
             guard let coordinate = movement.labelCoordinate else { return nil }
             return MapMovementLabel(
                 segmentStableID: movement.stableID,
-                coordinate: coordinate
+                coordinate: coordinate,
+                text: labelText(for: movement)
             )
         }
         let stayAnnotations = stays.compactMap { stay -> MapStayAnnotation? in
@@ -43,6 +46,12 @@ nonisolated struct MapSceneBuilder: MapSceneBuilding {
             mediaAnnotations: mediaAnnotations,
             initialRegion: initialRegion(coordinates: coordinates)
         )
+    }
+
+    private func labelText(for movement: MovementSegmentData) -> String {
+        let minutes = max(0, Int(movement.durationSeconds) / 60)
+        let kilometers = max(0, movement.distanceMeters) / 1000
+        return String(format: "%d分・%.1fkm", minutes, kilometers)
     }
 
     private func initialRegion(coordinates: [RouteCoordinate]) -> MapRegion? {

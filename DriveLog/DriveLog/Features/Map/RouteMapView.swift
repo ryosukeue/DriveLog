@@ -89,6 +89,7 @@ struct RouteMapView: UIViewRepresentable {
             if self.selectedSegmentID != selectedSegmentID {
                 self.selectedSegmentID = selectedSegmentID
                 mapView.overlays.forEach { mapView.renderer(for: $0)?.setNeedsDisplay() }
+                updateLabelSelection(in: mapView)
             }
             if mode == .full, tapRecognizer == nil {
                 let recognizer = UITapGestureRecognizer(target: self, action: #selector(handleTap))
@@ -156,6 +157,20 @@ struct RouteMapView: UIViewRepresentable {
 
         func mapView(_ mapView: MKMapView, viewFor annotation: any MKAnnotation) -> MKAnnotationView? {
             guard let annotation = annotation as? RouteMapPointAnnotation else { return nil }
+            if annotation.kind == .movementLabel {
+                let identifier = "RouteMapLabelAnnotation"
+                let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as?
+                    RouteMapLabelAnnotationView ?? RouteMapLabelAnnotationView(
+                        annotation: annotation,
+                        reuseIdentifier: identifier
+                    )
+                view.annotation = annotation
+                view.configure(
+                    text: annotation.labelText ?? "",
+                    isSelected: annotation.id == selectedSegmentID
+                )
+                return view
+            }
             let identifier = "RouteMapPointAnnotation"
             let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) ??
                 MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
@@ -170,6 +185,14 @@ struct RouteMapView: UIViewRepresentable {
             return view
         }
 
+        func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
+            guard let annotation = view.annotation as? RouteMapPointAnnotation,
+                  annotation.kind == .movementLabel
+            else { return }
+            onSelectSegment(annotation.id)
+            mapView.deselectAnnotation(annotation, animated: false)
+        }
+
         private func addPolylines(_ polylines: [MapPolyline], to mapView: MKMapView) {
             for value in polylines where value.coordinates.count >= 2 {
                 let coordinates = value.coordinates.map(\.mapCoordinate)
@@ -180,6 +203,14 @@ struct RouteMapView: UIViewRepresentable {
         }
 
         private func addAnnotations(scene: MapScene, to mapView: MKMapView) {
+            let labels = scene.movementLabels.map {
+                RouteMapPointAnnotation(
+                    id: $0.segmentStableID,
+                    coordinate: $0.coordinate.mapCoordinate,
+                    kind: .movementLabel,
+                    labelText: $0.text
+                )
+            }
             let stays = scene.stayAnnotations.map {
                 RouteMapPointAnnotation(
                     id: $0.stayStableID,
@@ -194,13 +225,27 @@ struct RouteMapView: UIViewRepresentable {
                     kind: .media
                 )
             }
-            mapView.addAnnotations(stays + media)
+            mapView.addAnnotations(labels + stays + media)
+        }
+
+        private func updateLabelSelection(in mapView: MKMapView) {
+            for annotation in mapView.annotations {
+                guard let value = annotation as? RouteMapPointAnnotation,
+                      value.kind == .movementLabel,
+                      let view = mapView.view(for: value) as? RouteMapLabelAnnotationView
+                else { continue }
+                view.configure(
+                    text: value.labelText ?? "",
+                    isSelected: value.id == selectedSegmentID
+                )
+            }
         }
     }
 }
 
 private final class RouteMapPointAnnotation: NSObject, MKAnnotation {
     enum Kind {
+        case movementLabel
         case stay
         case media
     }
@@ -208,11 +253,51 @@ private final class RouteMapPointAnnotation: NSObject, MKAnnotation {
     let id: String
     let coordinate: CLLocationCoordinate2D
     let kind: Kind
+    let labelText: String?
 
-    init(id: String, coordinate: CLLocationCoordinate2D, kind: Kind) {
+    init(
+        id: String,
+        coordinate: CLLocationCoordinate2D,
+        kind: Kind,
+        labelText: String? = nil
+    ) {
         self.id = id
         self.coordinate = coordinate
         self.kind = kind
+        self.labelText = labelText
+    }
+}
+
+private final class RouteMapLabelAnnotationView: MKAnnotationView {
+    private let label = UILabel()
+
+    override init(annotation: (any MKAnnotation)?, reuseIdentifier: String?) {
+        super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
+        label.font = .preferredFont(forTextStyle: .caption1)
+        label.textColor = .label
+        label.backgroundColor = .secondarySystemBackground
+        label.textAlignment = .center
+        label.layer.cornerRadius = 8
+        label.layer.masksToBounds = true
+        addSubview(label)
+        canShowCallout = false
+        isAccessibilityElement = true
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        nil
+    }
+
+    func configure(text: String, isSelected: Bool) {
+        label.text = "  \(text)  "
+        label.sizeToFit()
+        frame.size = CGSize(width: max(44, label.bounds.width), height: max(32, label.bounds.height + 8))
+        label.frame = bounds
+        label.layer.borderColor = UIColor.systemRed.cgColor
+        label.layer.borderWidth = isSelected ? 3 : 1
+        accessibilityLabel = "移動区間 \(text)"
+        accessibilityIdentifier = "map.movementLabel"
     }
 }
 

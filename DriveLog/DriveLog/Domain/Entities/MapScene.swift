@@ -22,6 +22,7 @@ nonisolated struct MapPolyline: Sendable, Equatable {
 nonisolated struct MapMovementLabel: Sendable, Equatable {
     let segmentStableID: String
     let coordinate: RouteCoordinate
+    let text: String
 }
 
 nonisolated struct MapStayAnnotation: Sendable, Equatable {

@@ -34,7 +34,11 @@ struct MapSceneBuilderTests {
             MapPolyline(segmentStableID: movement.stableID, coordinates: movement.route)
         ])
         #expect(scene.movementLabels == [
-            MapMovementLabel(segmentStableID: movement.stableID, coordinate: coordinate(35.5, 140))
+            MapMovementLabel(
+                segmentStableID: movement.stableID,
+                coordinate: coordinate(35.5, 140),
+                text: "1分・0.1km"
+            )
         ])
         #expect(scene.stayAnnotations == [
             MapStayAnnotation(stayStableID: "visible", coordinate: coordinate(34, 138))
