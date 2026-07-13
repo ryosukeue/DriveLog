@@ -14,7 +14,7 @@ nonisolated protocol DerivedDataRepository: Sendable {
     func deleteDerivedData(for localDateKey: String) async throws
 }
 
-nonisolated struct SwiftDataDerivedDataRepository: Sendable {
+nonisolated struct SwiftDataDerivedDataRepository: DerivedDataRepository {
     private let persistenceActor: PersistenceActor
     private let routeEncoding: any RouteEncoding
 
@@ -68,6 +68,31 @@ nonisolated struct SwiftDataDerivedDataRepository: Sendable {
             )
         } catch {
             throw DriveLogError.persistenceFailure(code: "fetch_stay_segments")
+        }
+    }
+
+    func replaceDerivedData(
+        for localDateKey: String,
+        result: DayProcessingResult,
+        processedRevision: Int
+    ) async throws {
+        do {
+            try await persistenceActor.replaceDerivedData(
+                for: localDateKey,
+                result: result,
+                processedRevision: processedRevision,
+                routeEncoding: routeEncoding
+            )
+        } catch {
+            throw DriveLogError.persistenceFailure(code: "replace_derived_data")
+        }
+    }
+
+    func deleteDerivedData(for localDateKey: String) async throws {
+        do {
+            try await persistenceActor.deleteDerivedData(for: localDateKey)
+        } catch {
+            throw DriveLogError.persistenceFailure(code: "delete_derived_data")
         }
     }
 }
