@@ -1,4 +1,4 @@
-struct CalendarDayData: Sendable, Equatable {
+nonisolated struct CalendarDayData: Sendable, Equatable {
     let localDateKey: String
     let day: Int
     let totalDistanceMeters: Double?
