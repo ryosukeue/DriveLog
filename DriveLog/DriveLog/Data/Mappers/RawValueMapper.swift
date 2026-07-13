@@ -1,4 +1,4 @@
-enum RawValueMapper {
+nonisolated enum RawValueMapper {
     static func rawValue(for value: MotionConfidence) -> Int {
         switch value {
         case .low: 0

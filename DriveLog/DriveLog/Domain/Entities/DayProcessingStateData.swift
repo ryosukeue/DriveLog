@@ -1,6 +1,6 @@
 import Foundation
 
-struct DayProcessingStateData: Sendable, Equatable {
+nonisolated struct DayProcessingStateData: Sendable, Equatable {
     let localDateKey: String
     let rawRevision: Int
     let processedRevision: Int

@@ -1,4 +1,4 @@
-enum ProcessingStatus: Sendable, Equatable {
+nonisolated enum ProcessingStatus: Sendable, Equatable {
     case pending
     case processing
     case completed
