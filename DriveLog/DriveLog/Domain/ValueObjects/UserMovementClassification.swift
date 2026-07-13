@@ -1,4 +1,4 @@
-enum UserMovementClassification: Sendable, Equatable {
+nonisolated enum UserMovementClassification: Sendable, Equatable {
     case automotive
     case train
     case bus

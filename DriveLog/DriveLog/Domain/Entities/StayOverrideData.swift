@@ -1,6 +1,6 @@
 import Foundation
 
-struct StayOverrideData: Sendable, Equatable {
+nonisolated struct StayOverrideData: Sendable, Equatable {
     let overrideKey: String
     let targetStableID: String
     let localDateKey: String

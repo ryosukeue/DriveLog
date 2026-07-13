@@ -1,6 +1,6 @@
 import Foundation
 
-struct VisitEventData: Sendable, Equatable {
+nonisolated struct VisitEventData: Sendable, Equatable {
     let latitude: Double
     let longitude: Double
     let arrivalDate: Date?

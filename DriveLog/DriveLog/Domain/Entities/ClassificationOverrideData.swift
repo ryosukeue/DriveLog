@@ -1,6 +1,6 @@
 import Foundation
 
-struct ClassificationOverrideData: Sendable, Equatable {
+nonisolated struct ClassificationOverrideData: Sendable, Equatable {
     let overrideKey: String
     let targetStableID: String
     let localDateKey: String

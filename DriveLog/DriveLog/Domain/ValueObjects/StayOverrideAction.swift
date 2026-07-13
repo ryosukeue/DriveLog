@@ -1,4 +1,4 @@
-enum StayOverrideAction: Sendable, Equatable {
+nonisolated enum StayOverrideAction: Sendable, Equatable {
     case confirm
     case hide
     case automatic
