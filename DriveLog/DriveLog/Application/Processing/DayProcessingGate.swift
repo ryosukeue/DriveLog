@@ -17,7 +17,16 @@ nonisolated enum ProcessingPriority: Int, Sendable {
     }
 }
 
-actor DayProcessingGate {
+nonisolated protocol DayProcessingGating: Sendable {
+    func execute(
+        localDateKey: String,
+        priority: ProcessingPriority,
+        operation: @escaping @Sendable () async throws -> DayProcessingResult
+    ) async throws -> DayProcessingResult
+    func cancelAll() async
+}
+
+actor DayProcessingGate: DayProcessingGating {
     typealias Operation = @Sendable () async throws -> DayProcessingResult
 
     private struct Entry {
@@ -49,6 +58,10 @@ actor DayProcessingGate {
             removeEntry(for: localDateKey, id: id)
             throw error
         }
+    }
+
+    func cancelAll() {
+        entries.values.forEach { $0.task.cancel() }
     }
 
     private func removeEntry(for localDateKey: String, id: UUID) {

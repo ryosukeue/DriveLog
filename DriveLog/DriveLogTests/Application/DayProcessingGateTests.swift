@@ -83,6 +83,25 @@ struct DayProcessingGateTests {
         #expect(ProcessingPriority.normal.taskPriority == .medium)
         #expect(ProcessingPriority.userVisible.taskPriority == .userInitiated)
     }
+
+    @Test("propagates cancellation to the running operation")
+    func cancellation() async {
+        let gate = DayProcessingGate()
+        let signal = StartSignal()
+        let task = Task {
+            try await gate.execute(localDateKey: "2024-01-01", priority: .background) {
+                await signal.markStarted()
+                try await Task.sleep(for: .seconds(60))
+                return makeResult(day: "2024-01-01")
+            }
+        }
+        await signal.waitUntilStarted()
+        await gate.cancelAll()
+
+        await #expect(throws: CancellationError.self) {
+            try await task.value
+        }
+    }
 }
 
 private actor ProcessingProbe {
@@ -134,6 +153,25 @@ private actor InvocationCounter {
 
     func increment() {
         value += 1
+    }
+}
+
+private actor StartSignal {
+    private var isStarted = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func markStarted() {
+        isStarted = true
+        let currentWaiters = waiters
+        waiters.removeAll()
+        currentWaiters.forEach { $0.resume() }
+    }
+
+    func waitUntilStarted() async {
+        guard !isStarted else { return }
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
     }
 }
 
