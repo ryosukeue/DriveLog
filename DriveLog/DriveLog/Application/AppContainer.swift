@@ -70,10 +70,15 @@ final class AppContainer {
     }
 
     func makeMediaPreviewViewModel(asset: MediaAssetReference) -> MediaPreviewViewModel {
-        MediaPreviewViewModel(
+        let photoLibrary = PhotoLibraryProvider()
+        return MediaPreviewViewModel(
             asset: asset,
             loadPreview: DefaultLoadMediaPreviewUseCase(
-                photoLibrary: PhotoLibraryProvider()
+                photoLibrary: photoLibrary
+            ),
+            shareMedia: DefaultShareMediaUseCase(
+                photoLibrary: photoLibrary,
+                presenter: SystemSharePresenter()
             )
         )
     }

@@ -70,6 +70,36 @@ struct MediaPreviewViewModelTests {
         #expect(player.timeControlStatus == .paused)
     }
 
+    @Test("enables sharing after load and records share failure")
+    func sharing() async {
+        let image = UIImage()
+        let success = ShareMediaUseCaseFake()
+        let successViewModel = MediaPreviewViewModel(
+            asset: asset(),
+            loadPreview: MediaPreviewUseCaseFake(results: [.success(image)]),
+            shareMedia: success
+        )
+        #expect(successViewModel.canShare == false)
+        await successViewModel.load()
+        #expect(successViewModel.canShare)
+        await successViewModel.share()
+        #expect(success.identifiers == ["photo"])
+        #expect(successViewModel.isSharing == false)
+        #expect(successViewModel.shareFailed == false)
+
+        let failure = ShareMediaUseCaseFake(error: .mediaUnavailable)
+        let failureViewModel = MediaPreviewViewModel(
+            asset: asset(),
+            loadPreview: MediaPreviewUseCaseFake(results: [.success(image)]),
+            shareMedia: failure
+        )
+        await failureViewModel.load()
+        await failureViewModel.share()
+        #expect(failureViewModel.shareFailed)
+        failureViewModel.clearShareError()
+        #expect(failureViewModel.shareFailed == false)
+    }
+
     private func asset(type: MediaType = .photo) -> MediaAssetReference {
         MediaAssetReference(
             localIdentifier: "photo",
@@ -80,6 +110,23 @@ struct MediaPreviewViewModelTests {
             isScreenshot: false,
             isScreenRecording: false
         )
+    }
+}
+
+@MainActor
+private final class ShareMediaUseCaseFake: ShareMediaUseCase {
+    private(set) var identifiers: [String] = []
+    private let error: DriveLogError?
+
+    init(error: DriveLogError? = nil) {
+        self.error = error
+    }
+
+    func execute(localIdentifier: String) async throws {
+        identifiers.append(localIdentifier)
+        if let error {
+            throw error
+        }
     }
 }
 

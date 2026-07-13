@@ -20,9 +20,11 @@ struct MediaPreviewView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button("共有", systemImage: "square.and.arrow.up") {}
-                    .disabled(viewModel.canShare == false)
-                    .accessibilityIdentifier("mediaPreview.share")
+                Button("共有", systemImage: "square.and.arrow.up") {
+                    Task { await viewModel.share() }
+                }
+                .disabled(viewModel.canShare == false)
+                .accessibilityIdentifier("mediaPreview.share")
             }
         }
         .task {
@@ -31,6 +33,27 @@ struct MediaPreviewView: View {
         }
         .onDisappear {
             viewModel.stop()
+        }
+        .overlay {
+            if viewModel.isSharing {
+                ProgressView("共有準備中")
+                    .padding()
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .accessibilityIdentifier("mediaPreview.sharing")
+            }
+        }
+        .alert(
+            "共有できませんでした",
+            isPresented: Binding(
+                get: { viewModel.shareFailed },
+                set: {
+                    if $0 == false {
+                        viewModel.clearShareError()
+                    }
+                }
+            )
+        ) {
+            Button("OK") { viewModel.clearShareError() }
         }
     }
 

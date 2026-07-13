@@ -15,15 +15,29 @@ final class MediaPreviewViewModel {
 
     let asset: MediaAssetReference
     private(set) var state: State = .idle
+    private(set) var isSharing = false
+    private(set) var shareFailed = false
     private let loadPreview: any LoadMediaPreviewUseCase
+    private let shareMedia: (any ShareMediaUseCase)?
 
-    init(asset: MediaAssetReference, loadPreview: any LoadMediaPreviewUseCase) {
+    init(
+        asset: MediaAssetReference,
+        loadPreview: any LoadMediaPreviewUseCase,
+        shareMedia: (any ShareMediaUseCase)? = nil
+    ) {
         self.asset = asset
         self.loadPreview = loadPreview
+        self.shareMedia = shareMedia
     }
 
     var canShare: Bool {
-        false
+        guard shareMedia != nil, isSharing == false else { return false }
+        switch state {
+        case .photo, .video:
+            return true
+        default:
+            return false
+        }
     }
 
     func load() async {
@@ -48,5 +62,21 @@ final class MediaPreviewViewModel {
     func stop() {
         guard case let .video(player) = state else { return }
         player.pause()
+    }
+
+    func share() async {
+        guard canShare, let shareMedia else { return }
+        isSharing = true
+        shareFailed = false
+        defer { isSharing = false }
+        do {
+            try await shareMedia.execute(localIdentifier: asset.localIdentifier)
+        } catch {
+            shareFailed = true
+        }
+    }
+
+    func clearShareError() {
+        shareFailed = false
     }
 }
