@@ -134,6 +134,7 @@ final class RouteMapCoordinator: NSObject, MKMapViewDelegate {
         if selectedStayID != interaction.selectedStayID {
             selectedStayID = interaction.selectedStayID
             updateStaySelection(in: mapView)
+            updateStayCallout(in: mapView)
         }
         if interaction.mode == .full, tapRecognizer == nil {
             let recognizer = UITapGestureRecognizer(target: self, action: #selector(handleTap))

@@ -30,6 +30,14 @@ struct MapSceneBuilderTests {
             media: [media]
         )
 
+        try expectContent(scene, movement: movement, visibleStay: visibleStay)
+    }
+
+    private func expectContent(
+        _ scene: MapScene,
+        movement: MovementSegmentData,
+        visibleStay: StaySegmentData
+    ) throws {
         #expect(scene.polylines == [
             MapPolyline(segmentStableID: movement.stableID, coordinates: movement.route)
         ])
@@ -51,7 +59,12 @@ struct MapSceneBuilderTests {
             MapStayAnnotation(
                 stayStableID: "visible",
                 coordinate: coordinate(34, 138),
-                text: "1分"
+                text: "1分",
+                arrivalDate: visibleStay.estimatedArrivalDate,
+                departureDate: visibleStay.estimatedDepartureDate,
+                durationSeconds: visibleStay.durationSeconds,
+                confidence: visibleStay.confidence,
+                isVisibleByAutomaticRule: true
             )
         ])
         #expect(scene.mediaAnnotations == [

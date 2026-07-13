@@ -44,4 +44,11 @@ struct DayDetailFormatterTests {
         #expect(formatter.averageSpeed(metersPerSecond: nil) == "--")
         #expect(formatter.averageSpeed(metersPerSecond: -.infinity) == "--")
     }
+
+    @Test("formats all stay confidence values")
+    func stayConfidence() {
+        #expect(formatter.stayConfidence(.low) == "低")
+        #expect(formatter.stayConfidence(.medium) == "中")
+        #expect(formatter.stayConfidence(.high) == "高")
+    }
 }

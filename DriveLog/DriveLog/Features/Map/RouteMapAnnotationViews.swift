@@ -5,6 +5,7 @@ final class RouteMapPointAnnotation: NSObject, MKAnnotation {
         case movementLabel
         case movementCallout
         case stay
+        case stayCallout
         case media
     }
 
@@ -13,19 +14,62 @@ final class RouteMapPointAnnotation: NSObject, MKAnnotation {
     let kind: Kind
     let labelText: String?
     let movement: MapMovementLabel?
+    let stay: MapStayAnnotation?
 
     init(
         id: String,
         coordinate: CLLocationCoordinate2D,
         kind: Kind,
         labelText: String? = nil,
-        movement: MapMovementLabel? = nil
+        movement: MapMovementLabel? = nil,
+        stay: MapStayAnnotation? = nil
     ) {
         self.id = id
         self.coordinate = coordinate
         self.kind = kind
         self.labelText = labelText
         self.movement = movement
+        self.stay = stay
+    }
+}
+
+final class RouteMapStayCalloutView: MKAnnotationView {
+    private let label = UILabel()
+
+    override init(annotation: (any MKAnnotation)?, reuseIdentifier: String?) {
+        super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
+        label.font = .preferredFont(forTextStyle: .caption1)
+        label.textColor = .label
+        label.backgroundColor = .secondarySystemBackground
+        label.numberOfLines = 0
+        label.layer.cornerRadius = 12
+        label.layer.masksToBounds = true
+        label.layer.borderColor = UIColor.systemRed.cgColor
+        label.layer.borderWidth = 2
+        addSubview(label)
+        canShowCallout = false
+        centerOffset = CGPoint(x: 0, y: -70)
+        isAccessibilityElement = true
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        nil
+    }
+
+    func configure(stay: MapStayAnnotation, formatter: DayDetailFormatter) {
+        let values = [
+            "到着 \(formatter.time(stay.arrivalDate))",
+            "出発 \(formatter.time(stay.departureDate))",
+            "滞在 \(formatter.duration(seconds: stay.durationSeconds))",
+            "信頼度 \(formatter.stayConfidence(stay.confidence))",
+            stay.isVisibleByAutomaticRule ? "自動判定 表示" : "自動判定 非表示"
+        ]
+        label.text = "  \(values.joined(separator: "\n"))  "
+        frame.size = CGSize(width: 175, height: 125)
+        label.frame = bounds
+        accessibilityLabel = values.joined(separator: "、")
+        accessibilityIdentifier = "map.stayCallout"
     }
 }
 

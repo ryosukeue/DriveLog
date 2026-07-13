@@ -38,6 +38,11 @@ nonisolated struct MapStayAnnotation: Sendable, Equatable {
     let stayStableID: String
     let coordinate: RouteCoordinate
     let text: String
+    let arrivalDate: Date
+    let departureDate: Date
+    let durationSeconds: Double
+    let confidence: StayConfidence
+    let isVisibleByAutomaticRule: Bool
 }
 
 nonisolated struct MapMediaAnnotation: Sendable, Equatable {

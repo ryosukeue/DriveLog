@@ -68,4 +68,15 @@ nonisolated struct DayDetailFormatter: Sendable {
         let kilometersPerHour = metersPerSecond * 3.6
         return String(format: "%.1fkm/h", kilometersPerHour)
     }
+
+    func stayConfidence(_ value: StayConfidence) -> String {
+        switch value {
+        case .low:
+            "低"
+        case .medium:
+            "中"
+        case .high:
+            "高"
+        }
+    }
 }

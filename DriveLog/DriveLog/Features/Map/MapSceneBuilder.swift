@@ -36,7 +36,12 @@ nonisolated struct MapSceneBuilder: MapSceneBuilding {
             return MapStayAnnotation(
                 stayStableID: stay.stableID,
                 coordinate: stay.representativeCoordinate,
-                text: stayDurationText(seconds: stay.durationSeconds)
+                text: stayDurationText(seconds: stay.durationSeconds),
+                arrivalDate: stay.estimatedArrivalDate,
+                departureDate: stay.estimatedDepartureDate,
+                durationSeconds: stay.durationSeconds,
+                confidence: stay.confidence,
+                isVisibleByAutomaticRule: stay.isVisibleByAutomaticRule
             )
         }
         let mediaAnnotations = media.map {

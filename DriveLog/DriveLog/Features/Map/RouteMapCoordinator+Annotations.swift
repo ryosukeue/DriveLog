@@ -10,6 +10,8 @@ extension RouteMapCoordinator {
             movementCalloutView(for: annotation, in: mapView)
         case .stay:
             stayView(for: annotation, in: mapView)
+        case .stayCallout:
+            stayCalloutView(for: annotation, in: mapView)
         case .media:
             mediaView(for: annotation, in: mapView)
         }
@@ -53,6 +55,15 @@ extension RouteMapCoordinator {
                 labelText: $0.text
             )
         }
+        let stayCallouts = scene.stayAnnotations.compactMap { stay -> RouteMapPointAnnotation? in
+            guard stay.stayStableID == selectedStayID else { return nil }
+            return RouteMapPointAnnotation(
+                id: stay.stayStableID,
+                coordinate: stay.coordinate.mapCoordinate,
+                kind: .stayCallout,
+                stay: stay
+            )
+        }
         let media = scene.mediaAnnotations.map {
             RouteMapPointAnnotation(
                 id: $0.localIdentifier,
@@ -60,7 +71,7 @@ extension RouteMapCoordinator {
                 kind: .media
             )
         }
-        mapView.addAnnotations(labels + callouts + stays + media)
+        mapView.addAnnotations(labels + callouts + stays + stayCallouts + media)
     }
 
     func updateLabelSelection(in mapView: MKMapView) {
@@ -108,6 +119,29 @@ extension RouteMapCoordinator {
                 coordinate: movement.coordinate.mapCoordinate,
                 kind: .movementCallout,
                 movement: movement
+            )
+        )
+    }
+
+    func updateStayCallout(in mapView: MKMapView) {
+        let existing = mapView.annotations.compactMap { annotation -> RouteMapPointAnnotation? in
+            guard let value = annotation as? RouteMapPointAnnotation,
+                  value.kind == .stayCallout
+            else { return nil }
+            return value
+        }
+        mapView.removeAnnotations(existing)
+        guard let selectedStayID,
+              let stay = renderedScene?.stayAnnotations.first(where: {
+                  $0.stayStableID == selectedStayID
+              })
+        else { return }
+        mapView.addAnnotation(
+            RouteMapPointAnnotation(
+                id: stay.stayStableID,
+                coordinate: stay.coordinate.mapCoordinate,
+                kind: .stayCallout,
+                stay: stay
             )
         )
     }
@@ -165,6 +199,26 @@ extension RouteMapCoordinator {
             text: annotation.labelText ?? "",
             isSelected: annotation.id == selectedStayID
         )
+        return view
+    }
+
+    private func stayCalloutView(
+        for annotation: RouteMapPointAnnotation,
+        in mapView: MKMapView
+    ) -> MKAnnotationView {
+        let identifier = "RouteMapStayCallout"
+        let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as?
+            RouteMapStayCalloutView ?? RouteMapStayCalloutView(
+                annotation: annotation,
+                reuseIdentifier: identifier
+            )
+        view.annotation = annotation
+        if let stay = annotation.stay {
+            view.configure(
+                stay: stay,
+                formatter: DayDetailFormatter(timeZone: SystemTimeZoneProvider().current)
+            )
+        }
         return view
     }
 
