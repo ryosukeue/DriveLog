@@ -61,7 +61,7 @@ extension PersistenceActor {
         }
     }
 
-    private func incrementRawRevision(for localDateKey: String, updatedAt: Date) throws {
+    func incrementRawRevision(for localDateKey: String, updatedAt: Date) throws {
         var descriptor = FetchDescriptor<DayProcessingStateModel>(
             predicate: #Predicate { $0.localDateKey == localDateKey }
         )
