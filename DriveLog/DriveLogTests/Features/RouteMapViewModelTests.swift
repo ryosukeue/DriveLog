@@ -144,7 +144,7 @@ struct RouteMapViewModelTests {
 
         await viewModel.updateStay(stableID: "stay", action: .confirm)
 
-        let call = try #require(await useCase.calls.first)
+        let call = try #require(useCase.calls.first)
         #expect(call.stableID == "stay")
         #expect(call.action == .confirm)
         #expect(viewModel.scene.stayAnnotations.map(\.stayStableID) == ["stay"])
@@ -201,15 +201,15 @@ struct RouteMapViewModelTests {
         let firstUpdate = Task {
             await viewModel.updateStay(stableID: "stay", action: .confirm)
         }
-        while await useCase.isSuspended == false {
+        while useCase.isSuspended == false {
             await Task.yield()
         }
 
         #expect(viewModel.staySavingSegmentID == "stay")
         await viewModel.updateStay(stableID: "stay", action: .hide)
-        #expect(await useCase.callCount == 1)
+        #expect(useCase.callCount == 1)
 
-        await useCase.resume()
+        useCase.resume()
         await firstUpdate.value
         #expect(viewModel.staySavingSegmentID == nil)
         #expect(viewModel.scene.stayAnnotations.count == 1)

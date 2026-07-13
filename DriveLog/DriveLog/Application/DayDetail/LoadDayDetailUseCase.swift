@@ -83,14 +83,15 @@ nonisolated struct DefaultLoadDayDetailUseCase: LoadDayDetailUseCase {
                 )
             )
         }
-        let visibleStays = displayStays.map(visibleStay)
-        let mapScene = makeMapScene(movements: movements, stays: visibleStays, media: media)
+        let builtScene = makeMapScene(
+            movements: movements, stays: displayStays.map(visibleStay), media: media
+        )
+        let mapScene = OverrideDisplayDataApplier().apply(
+            to: builtScene, movements: displayMovements, stays: displayStays
+        )
         return DayDetailData(
-            aggregate: aggregate,
-            movements: displayMovements,
-            stays: displayStays,
-            media: media,
-            mapScene: mapScene,
+            aggregate: aggregate, movements: displayMovements, stays: displayStays,
+            media: media, mapScene: mapScene,
             isReprocessing: state.status == .processing ||
                 state.rawRevision > state.processedRevision
         )
