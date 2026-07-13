@@ -87,6 +87,36 @@ struct RouteMapAnnotationViewTests {
         #expect(button.isEnabled == false)
         #expect(button.title(for: .normal) == "保存中…")
     }
+
+    @Test("stay callout provides all override actions")
+    func stayOverrideMenu() throws {
+        let view = RouteMapStayCalloutView(annotation: nil, reuseIdentifier: nil)
+        try view.configure(
+            stay: stay(),
+            formatter: DayDetailFormatter(timeZone: #require(TimeZone(identifier: "UTC")))
+        )
+
+        let button = try #require(view.subviews.compactMap { $0 as? UIButton }.first)
+        let actions = try #require(button.menu?.children.compactMap { $0 as? UIAction })
+        #expect(actions.map(\.title) == ["立ち寄りとして確定", "非表示", "自動判定へ戻す"])
+        #expect(actions[1].attributes.contains(.destructive))
+        #expect(button.isEnabled)
+        #expect(button.accessibilityIdentifier == "map.stayOverrideMenu")
+    }
+
+    @Test("stay override menu disables while saving")
+    func stayOverrideSaving() throws {
+        let view = RouteMapStayCalloutView(annotation: nil, reuseIdentifier: nil)
+        try view.configure(
+            stay: stay(),
+            formatter: DayDetailFormatter(timeZone: #require(TimeZone(identifier: "UTC"))),
+            isSaving: true
+        )
+
+        let button = try #require(view.subviews.compactMap { $0 as? UIButton }.first)
+        #expect(button.isEnabled == false)
+        #expect(button.title(for: .normal) == "保存中…")
+    }
 }
 
 @MainActor
@@ -121,5 +151,20 @@ private func movement(
         averageSpeedMetersPerSecond: nil,
         automaticClassification: .other,
         userClassification: userClassification
+    )
+}
+
+@MainActor
+private func stay() -> MapStayAnnotation {
+    let date = Date(timeIntervalSince1970: 0)
+    return MapStayAnnotation(
+        stayStableID: "stay",
+        coordinate: RouteCoordinate(latitude: 35, longitude: 139),
+        text: "1分",
+        arrivalDate: date,
+        departureDate: date.addingTimeInterval(60),
+        durationSeconds: 60,
+        confidence: .medium,
+        isVisibleByAutomaticRule: true
     )
 }

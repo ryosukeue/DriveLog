@@ -253,10 +253,32 @@ extension RouteMapCoordinator {
         if let stay = annotation.stay {
             view.configure(
                 stay: stay,
-                formatter: DayDetailFormatter(timeZone: SystemTimeZoneProvider().current)
+                formatter: DayDetailFormatter(timeZone: SystemTimeZoneProvider().current),
+                isSaving: stay.stayStableID == staySavingSegmentID,
+                onSelectAction: { [weak self] action in
+                    self?.onUpdateStay(stay.stayStableID, action)
+                }
             )
         }
         return view
+    }
+
+    func updateStayCalloutConfiguration(in mapView: MKMapView) {
+        for annotation in mapView.annotations {
+            guard let value = annotation as? RouteMapPointAnnotation,
+                  value.kind == .stayCallout,
+                  let stay = value.stay,
+                  let view = mapView.view(for: value) as? RouteMapStayCalloutView
+            else { continue }
+            view.configure(
+                stay: stay,
+                formatter: DayDetailFormatter(timeZone: SystemTimeZoneProvider().current),
+                isSaving: stay.stayStableID == staySavingSegmentID,
+                onSelectAction: { [weak self] action in
+                    self?.onUpdateStay(stay.stayStableID, action)
+                }
+            )
+        }
     }
 
     private func mediaView(

@@ -27,6 +27,8 @@ struct FullRouteMapView: View {
                 onSelectStay: viewModel.selectStay,
                 classificationSavingSegmentID: viewModel.classificationSavingSegmentID,
                 onUpdateClassification: updateClassification,
+                staySavingSegmentID: viewModel.staySavingSegmentID,
+                onUpdateStay: updateStay,
                 media: viewModel.visibleMedia,
                 thumbnailLoader: thumbnailLoader,
                 onSelectMedia: selectMedia,
@@ -42,6 +44,9 @@ struct FullRouteMapView: View {
             "分類を更新できませんでした",
             isPresented: classificationErrorBinding
         ) {
+            Button("OK", role: .cancel) {}
+        }
+        .alert("滞在表示を更新できませんでした", isPresented: stayErrorBinding) {
             Button("OK", role: .cancel) {}
         }
     }
@@ -112,6 +117,23 @@ struct FullRouteMapView: View {
             set: { isPresented in
                 if !isPresented {
                     viewModel.dismissClassificationError()
+                }
+            }
+        )
+    }
+
+    private func updateStay(stableID: String, action: StayOverrideAction) {
+        Task { @MainActor in
+            await viewModel.updateStay(stableID: stableID, action: action)
+        }
+    }
+
+    private var stayErrorBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.stayUpdateFailed },
+            set: { isPresented in
+                if !isPresented {
+                    viewModel.dismissStayError()
                 }
             }
         )

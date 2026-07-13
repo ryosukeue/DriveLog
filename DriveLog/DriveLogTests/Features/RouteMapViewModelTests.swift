@@ -135,6 +135,96 @@ struct RouteMapViewModelTests {
         #expect(viewModel.classificationSavingSegmentID == nil)
         #expect(viewModel.scene.movementLabels.first?.userClassification == .train)
     }
+
+    @Test("stay confirm persists and remains visible")
+    func stayConfirm() async throws {
+        let useCase = StayUseCaseSpy()
+        let viewModel = makeStayViewModel(useCase: useCase, automaticVisibility: false)
+        viewModel.selectStay(stableID: "stay")
+
+        await viewModel.updateStay(stableID: "stay", action: .confirm)
+
+        let call = try #require(await useCase.calls.first)
+        #expect(call.stableID == "stay")
+        #expect(call.action == .confirm)
+        #expect(viewModel.scene.stayAnnotations.map(\.stayStableID) == ["stay"])
+        #expect(viewModel.scene.stayAnnotations.first?.isVisibleByAutomaticRule == false)
+        #expect(viewModel.selectedStayID == "stay")
+    }
+
+    @Test("stay hide removes the annotation and closes selection")
+    func stayHide() async {
+        let useCase = StayUseCaseSpy()
+        let viewModel = makeStayViewModel(useCase: useCase)
+        viewModel.selectStay(stableID: "stay")
+
+        await viewModel.updateStay(stableID: "stay", action: .hide)
+
+        #expect(viewModel.scene.stayAnnotations.isEmpty)
+        #expect(viewModel.selectedStayID == nil)
+    }
+
+    @Test("stay automatic restores its original visibility", arguments: [true, false])
+    func stayAutomatic(automaticVisibility: Bool) async {
+        let useCase = StayUseCaseSpy()
+        let viewModel = makeStayViewModel(
+            useCase: useCase,
+            automaticVisibility: automaticVisibility
+        )
+        viewModel.selectStay(stableID: "stay")
+
+        await viewModel.updateStay(stableID: "stay", action: .automatic)
+
+        #expect(viewModel.scene.stayAnnotations.isEmpty == !automaticVisibility)
+        #expect((viewModel.selectedStayID != nil) == automaticVisibility)
+    }
+
+    @Test("stay failure keeps the annotation and exposes dismissible error")
+    func stayFailure() async {
+        let useCase = StayUseCaseSpy(error: .persistenceFailure(code: "update"))
+        let viewModel = makeStayViewModel(useCase: useCase)
+        viewModel.selectStay(stableID: "stay")
+
+        await viewModel.updateStay(stableID: "stay", action: .hide)
+
+        #expect(viewModel.scene.stayAnnotations.count == 1)
+        #expect(viewModel.selectedStayID == "stay")
+        #expect(viewModel.stayUpdateFailed)
+        viewModel.dismissStayError()
+        #expect(viewModel.stayUpdateFailed == false)
+    }
+
+    @Test("stay ignores repeated input while saving")
+    func stayDuplicate() async {
+        let useCase = SuspendedStayUseCase()
+        let viewModel = makeStayViewModel(useCase: useCase)
+        let firstUpdate = Task {
+            await viewModel.updateStay(stableID: "stay", action: .confirm)
+        }
+        while await useCase.isSuspended == false {
+            await Task.yield()
+        }
+
+        #expect(viewModel.staySavingSegmentID == "stay")
+        await viewModel.updateStay(stableID: "stay", action: .hide)
+        #expect(await useCase.callCount == 1)
+
+        await useCase.resume()
+        await firstUpdate.value
+        #expect(viewModel.staySavingSegmentID == nil)
+        #expect(viewModel.scene.stayAnnotations.count == 1)
+    }
+
+    private func makeStayViewModel(
+        useCase: any UpdateStayOverrideUseCase,
+        automaticVisibility: Bool = true
+    ) -> RouteMapViewModel {
+        RouteMapViewModel(
+            scene: makeScene(),
+            stays: [makeStayDisplay(automaticVisibility: automaticVisibility)],
+            updateStayOverride: useCase
+        )
+    }
 }
 
 private func makeScene(mediaIdentifiers: [String] = []) -> MapScene {
@@ -196,6 +286,26 @@ private func makeMovementDisplay() -> MovementDisplayData {
             generatedAt: date
         ),
         userClassification: nil
+    )
+}
+
+private func makeStayDisplay(automaticVisibility: Bool) -> StayDisplayData {
+    let date = Date(timeIntervalSince1970: 0)
+    return StayDisplayData(
+        segment: StaySegmentData(
+            stableID: "stay",
+            localDateKey: "1970-01-01",
+            representativeCoordinate: RouteCoordinate(latitude: 35, longitude: 139),
+            estimatedArrivalDate: date,
+            estimatedDepartureDate: date.addingTimeInterval(60),
+            durationSeconds: 60,
+            confidence: .medium,
+            source: .combined,
+            isVisibleByAutomaticRule: automaticVisibility,
+            sourceRawRevision: 1,
+            generatedAt: date
+        ),
+        overrideAction: automaticVisibility ? nil : .confirm
     )
 }
 

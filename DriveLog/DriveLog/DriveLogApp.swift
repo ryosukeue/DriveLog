@@ -80,6 +80,9 @@ struct DriveLogApp: App {
                     updateClassification: appContainer.makeUpdateClassificationUseCase(
                         modelContainer: modelContainer
                     ),
+                    updateStayOverride: appContainer.makeUpdateStayOverrideUseCase(
+                        modelContainer: modelContainer
+                    ),
                     makeMediaPreviewViewModel: { asset in
                         appContainer.makeMediaPreviewViewModel(
                             asset: asset,

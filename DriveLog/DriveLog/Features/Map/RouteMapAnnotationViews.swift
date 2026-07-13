@@ -147,6 +147,7 @@ final class RouteMapMediaClusterAnnotationView: MKMarkerAnnotationView {
 
 final class RouteMapStayCalloutView: MKAnnotationView {
     private let label = UILabel()
+    private let overrideButton = UIButton(type: .system)
 
     override init(annotation: (any MKAnnotation)?, reuseIdentifier: String?) {
         super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
@@ -159,9 +160,16 @@ final class RouteMapStayCalloutView: MKAnnotationView {
         label.layer.borderColor = UIColor.systemRed.cgColor
         label.layer.borderWidth = 2
         addSubview(label)
+        overrideButton.showsMenuAsPrimaryAction = true
+        overrideButton.setTitle("滞在表示を修正", for: .normal)
+        overrideButton.backgroundColor = .secondarySystemBackground
+        overrideButton.accessibilityLabel = "滞在表示を修正"
+        overrideButton.accessibilityIdentifier = "map.stayOverrideMenu"
+        addSubview(overrideButton)
         canShowCallout = false
-        centerOffset = CGPoint(x: 0, y: -70)
-        isAccessibilityElement = true
+        centerOffset = CGPoint(x: 0, y: -90)
+        isAccessibilityElement = false
+        label.isAccessibilityElement = true
         accessibilityTraits = .button
     }
 
@@ -170,7 +178,12 @@ final class RouteMapStayCalloutView: MKAnnotationView {
         nil
     }
 
-    func configure(stay: MapStayAnnotation, formatter: DayDetailFormatter) {
+    func configure(
+        stay: MapStayAnnotation,
+        formatter: DayDetailFormatter,
+        isSaving: Bool = false,
+        onSelectAction: @escaping (StayOverrideAction) -> Void = { _ in }
+    ) {
         let values = [
             "到着 \(formatter.time(stay.arrivalDate))",
             "出発 \(formatter.time(stay.departureDate))",
@@ -179,10 +192,18 @@ final class RouteMapStayCalloutView: MKAnnotationView {
             stay.isVisibleByAutomaticRule ? "自動判定 表示" : "自動判定 非表示"
         ]
         label.text = "  \(values.joined(separator: "\n"))  "
-        frame.size = CGSize(width: 175, height: 125)
-        label.frame = bounds
-        accessibilityLabel = values.joined(separator: "、")
-        accessibilityIdentifier = "map.stayCallout"
+        frame.size = CGSize(width: 185, height: 165)
+        label.frame = CGRect(x: 0, y: 0, width: bounds.width, height: 125)
+        overrideButton.frame = CGRect(x: 8, y: 125, width: 169, height: 40)
+        label.accessibilityLabel = values.joined(separator: "、")
+        label.accessibilityIdentifier = "map.stayCallout"
+        overrideButton.isEnabled = !isSaving
+        overrideButton.setTitle(isSaving ? "保存中…" : "滞在表示を修正", for: .normal)
+        overrideButton.menu = UIMenu(children: [
+            UIAction(title: "立ち寄りとして確定") { _ in onSelectAction(.confirm) },
+            UIAction(title: "非表示", attributes: .destructive) { _ in onSelectAction(.hide) },
+            UIAction(title: "自動判定へ戻す") { _ in onSelectAction(.automatic) }
+        ])
     }
 }
 

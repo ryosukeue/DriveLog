@@ -96,6 +96,15 @@ final class AppContainer {
         )
     }
 
+    func makeUpdateStayOverrideUseCase(
+        modelContainer: ModelContainer
+    ) -> any UpdateStayOverrideUseCase {
+        DefaultUpdateStayOverrideUseCase(
+            overrideRepository: SwiftDataOverrideRepository(modelContainer: modelContainer),
+            clock: clock
+        )
+    }
+
     func makeMediaPreviewViewModel(
         asset: MediaAssetReference,
         photoLibrary: any PhotoLibraryProviding = PhotoLibraryProvider()

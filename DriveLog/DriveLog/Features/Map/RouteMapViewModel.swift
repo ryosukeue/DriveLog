@@ -9,21 +9,32 @@ final class RouteMapViewModel {
     private(set) var selectedStayID: String?
     private(set) var classificationSavingSegmentID: String?
     private(set) var classificationUpdateFailed = false
+    private(set) var staySavingSegmentID: String?
+    private(set) var stayUpdateFailed = false
     private let movementsByStableID: [String: MovementSegmentData]
     private let updateClassification: (any UpdateClassificationUseCase)?
+    private let staysByStableID: [String: StayDisplayData]
+    private let updateStayOverride: (any UpdateStayOverrideUseCase)?
 
     init(
         scene: MapScene,
         media: [MediaAssetReference] = [],
         movements: [MovementDisplayData] = [],
-        updateClassification: (any UpdateClassificationUseCase)? = nil
+        updateClassification: (any UpdateClassificationUseCase)? = nil,
+        stays: [StayDisplayData] = [],
+        updateStayOverride: (any UpdateStayOverrideUseCase)? = nil
     ) {
-        self.scene = scene
         self.updateClassification = updateClassification
+        self.updateStayOverride = updateStayOverride
         movementsByStableID = Dictionary(
             movements.map { ($0.segment.stableID, $0.segment) },
             uniquingKeysWith: { first, _ in first }
         )
+        staysByStableID = Dictionary(
+            stays.map { ($0.segment.stableID, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        self.scene = scene.updatingAutomaticStayRules(staysByStableID)
         let references = Dictionary(
             media.filter { $0.location != nil }.map { ($0.localIdentifier, $0) },
             uniquingKeysWith: { first, _ in first }
@@ -84,6 +95,31 @@ final class RouteMapViewModel {
     func dismissClassificationError() {
         classificationUpdateFailed = false
     }
+
+    func updateStay(stableID: String, action: StayOverrideAction) async {
+        guard staySavingSegmentID == nil,
+              let display = staysByStableID[stableID],
+              let updateStayOverride
+        else { return }
+        staySavingSegmentID = stableID
+        stayUpdateFailed = false
+        do {
+            try await updateStayOverride.execute(stay: display.segment, action: action)
+            scene = scene.applyingStayAction(action, display: display)
+            let shouldClearSelection = action == .hide ||
+                (action == .automatic && !display.segment.isVisibleByAutomaticRule)
+            if shouldClearSelection {
+                selectedStayID = nil
+            }
+        } catch {
+            stayUpdateFailed = true
+        }
+        staySavingSegmentID = nil
+    }
+
+    func dismissStayError() {
+        stayUpdateFailed = false
+    }
 }
 
 private extension MapScene {
@@ -111,6 +147,68 @@ private extension MapScene {
             stayAnnotations: stayAnnotations,
             mediaAnnotations: mediaAnnotations,
             initialRegion: initialRegion
+        )
+    }
+
+    func updatingAutomaticStayRules(
+        _ displaysByStableID: [String: StayDisplayData]
+    ) -> MapScene {
+        MapScene(
+            polylines: polylines,
+            movementLabels: movementLabels,
+            stayAnnotations: stayAnnotations.map { annotation in
+                guard let display = displaysByStableID[annotation.stayStableID] else {
+                    return annotation
+                }
+                return annotation.copy(
+                    isVisibleByAutomaticRule: display.segment.isVisibleByAutomaticRule
+                )
+            },
+            mediaAnnotations: mediaAnnotations,
+            initialRegion: initialRegion
+        )
+    }
+
+    func applyingStayAction(
+        _ action: StayOverrideAction,
+        display: StayDisplayData
+    ) -> MapScene {
+        let shouldDisplay = switch action {
+        case .confirm:
+            true
+        case .hide:
+            false
+        case .automatic:
+            display.segment.isVisibleByAutomaticRule
+        }
+        let stableID = display.segment.stableID
+        var updated = stayAnnotations.filter { $0.stayStableID != stableID }
+        if shouldDisplay, let existing = stayAnnotations.first(where: { $0.stayStableID == stableID }) {
+            updated.append(existing.copy(
+                isVisibleByAutomaticRule: display.segment.isVisibleByAutomaticRule
+            ))
+        }
+        return MapScene(
+            polylines: polylines,
+            movementLabels: movementLabels,
+            stayAnnotations: updated,
+            mediaAnnotations: mediaAnnotations,
+            initialRegion: initialRegion
+        )
+    }
+}
+
+private extension MapStayAnnotation {
+    func copy(isVisibleByAutomaticRule: Bool) -> MapStayAnnotation {
+        MapStayAnnotation(
+            stayStableID: stayStableID,
+            coordinate: coordinate,
+            text: text,
+            arrivalDate: arrivalDate,
+            departureDate: departureDate,
+            durationSeconds: durationSeconds,
+            confidence: confidence,
+            isVisibleByAutomaticRule: isVisibleByAutomaticRule
         )
     }
 }
