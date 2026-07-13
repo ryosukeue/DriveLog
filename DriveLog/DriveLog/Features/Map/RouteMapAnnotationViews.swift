@@ -120,6 +120,31 @@ final class RouteMapMediaAnnotationView: MKAnnotationView {
     }
 }
 
+final class RouteMapMediaClusterAnnotationView: MKMarkerAnnotationView {
+    override init(annotation: (any MKAnnotation)?, reuseIdentifier: String?) {
+        super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
+        markerTintColor = .systemRed
+        glyphTintColor = .white
+        canShowCallout = false
+        displayPriority = .required
+        collisionMode = .circle
+        isAccessibilityElement = true
+        accessibilityTraits = .button
+        accessibilityIdentifier = "map.mediaCluster"
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        nil
+    }
+
+    func configure(memberCount: Int) {
+        let count = max(0, memberCount)
+        glyphText = String(count)
+        accessibilityLabel = "\(count)件の写真と動画"
+    }
+}
+
 final class RouteMapStayCalloutView: MKAnnotationView {
     private let label = UILabel()
 

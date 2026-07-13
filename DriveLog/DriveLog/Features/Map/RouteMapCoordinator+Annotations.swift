@@ -2,6 +2,9 @@ import MapKit
 
 extension RouteMapCoordinator {
     func mapView(_ mapView: MKMapView, viewFor annotation: any MKAnnotation) -> MKAnnotationView? {
+        if let cluster = annotation as? MKClusterAnnotation {
+            return mediaClusterView(for: cluster, in: mapView)
+        }
         guard let annotation = annotation as? RouteMapPointAnnotation else { return nil }
         return switch annotation.kind {
         case .movementLabel:
@@ -18,6 +21,11 @@ extension RouteMapCoordinator {
     }
 
     func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
+        if let cluster = view.annotation as? MKClusterAnnotation {
+            mapView.showAnnotations(cluster.memberAnnotations, animated: true)
+            mapView.deselectAnnotation(cluster, animated: false)
+            return
+        }
         guard let annotation = view.annotation as? RouteMapPointAnnotation else { return }
         switch annotation.kind {
         case .movementLabel:
@@ -245,6 +253,24 @@ extension RouteMapCoordinator {
             mediaType: annotation.mediaType ?? .photo,
             thumbnailLoader: thumbnailLoader
         )
+        view.clusteringIdentifier = "media"
+        view.collisionMode = .rectangle
+        view.displayPriority = .defaultHigh
+        return view
+    }
+
+    private func mediaClusterView(
+        for annotation: MKClusterAnnotation,
+        in mapView: MKMapView
+    ) -> MKAnnotationView {
+        let identifier = "RouteMapMediaCluster"
+        let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as?
+            RouteMapMediaClusterAnnotationView ?? RouteMapMediaClusterAnnotationView(
+                annotation: annotation,
+                reuseIdentifier: identifier
+            )
+        view.annotation = annotation
+        view.configure(memberCount: annotation.memberAnnotations.count)
         return view
     }
 }
