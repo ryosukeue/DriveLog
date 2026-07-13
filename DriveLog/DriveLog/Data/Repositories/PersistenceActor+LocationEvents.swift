@@ -131,7 +131,7 @@ extension PersistenceActor {
         return "\(timestampBucket)|\(latitudeBucket)|\(longitudeBucket)"
     }
 
-    private static func distanceMeters(
+    static func distanceMeters(
         latitude: Double,
         longitude: Double,
         otherLatitude: Double,

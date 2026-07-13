@@ -1,6 +1,6 @@
 import SwiftData
 
-struct SwiftDataRawEventRepository: Sendable {
+struct SwiftDataRawEventRepository: RawEventRepository {
     private let persistenceActor: PersistenceActor
     private let clock: any Clock
 
@@ -38,6 +38,30 @@ struct SwiftDataRawEventRepository: Sendable {
             return try await persistenceActor.motionEvents(for: localDateKey)
         } catch {
             throw DriveLogError.persistenceFailure(code: "fetch_motion_events")
+        }
+    }
+
+    func saveOrUpdateVisitEvent(_ event: VisitEventData) async throws -> RawEventSaveResult {
+        do {
+            return try await persistenceActor.saveOrUpdateVisitEvent(event, savedAt: clock.now)
+        } catch {
+            throw DriveLogError.persistenceFailure(code: "save_visit_event")
+        }
+    }
+
+    func rawEvents(for localDateKey: String) async throws -> RawDayEvents {
+        do {
+            return try await persistenceActor.rawEvents(for: localDateKey)
+        } catch {
+            throw DriveLogError.persistenceFailure(code: "fetch_raw_events")
+        }
+    }
+
+    func deleteRawEvents(for localDateKey: String) async throws {
+        do {
+            try await persistenceActor.deleteRawEvents(for: localDateKey)
+        } catch {
+            throw DriveLogError.persistenceFailure(code: "delete_raw_events")
         }
     }
 }
