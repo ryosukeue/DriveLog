@@ -101,6 +101,7 @@ struct CalendarView: View {
         }
         .padding(.horizontal)
         .accessibilityIdentifier("calendar.grid")
+        .accessibilityValue(Text(verbatim: calendarAccessibilityValue))
         .animation(.easeInOut(duration: 0.25), value: viewModel.displayedMonth)
         .gesture(
             DragGesture(minimumDistance: 20)
@@ -114,6 +115,10 @@ struct CalendarView: View {
         .accessibilityAction(named: Text("次の月")) {
             moveToNextMonth()
         }
+    }
+
+    private var calendarAccessibilityValue: String {
+        "\(viewModel.displayedMonth.year)-\(viewModel.displayedMonth.month)-\(viewModel.state)"
     }
 
     private func dayCell(day: Int, isToday: Bool) -> some View {

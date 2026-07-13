@@ -1,3 +1,5 @@
+import SwiftData
+
 final class AppContainer {
     let logger: any Logging
     let clock: any Clock
@@ -26,5 +28,16 @@ final class AppContainer {
         self.clock = clock
         self.timeZoneProvider = timeZoneProvider
         self.localTimeContextProvider = localTimeContextProvider
+    }
+
+    func makeCalendarViewModel(
+        modelContainer: ModelContainer,
+        displayedMonth: LocalMonth
+    ) -> CalendarViewModel {
+        let repository = SwiftDataDerivedDataRepository(modelContainer: modelContainer)
+        return CalendarViewModel(
+            displayedMonth: displayedMonth,
+            loadCalendarMonth: DefaultLoadCalendarMonthUseCase(repository: repository)
+        )
     }
 }

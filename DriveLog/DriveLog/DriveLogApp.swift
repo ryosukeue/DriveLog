@@ -1,32 +1,46 @@
-//
-//  DriveLogApp.swift
-//  DriveLog
-//
-//  Created by ryosuke on 2026/07/13.
-//
-
 import SwiftData
 import SwiftUI
 
 @main
 struct DriveLogApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+    private let calendarViewModel: CalendarViewModel?
+    private let today: Date
+    private let modelContainer: ModelContainer?
 
+    @MainActor
+    init() {
+        let container = AppContainer()
+        let now = container.clock.now
+        today = now
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            let modelContainer = try DriveLogModelContainerFactory.make()
+            self.modelContainer = modelContainer
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = container.timeZoneProvider.current
+            let components = calendar.dateComponents([.year, .month], from: now)
+            let month = LocalMonth(year: components.year ?? 1970, month: components.month ?? 1)
+            calendarViewModel = container.makeCalendarViewModel(
+                modelContainer: modelContainer,
+                displayedMonth: month
+            )
         } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+            modelContainer = nil
+            calendarViewModel = nil
         }
-    }()
+    }
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            if let calendarViewModel {
+                ContentView(calendarViewModel: calendarViewModel, today: today)
+            } else {
+                ContentUnavailableView(
+                    "起動できませんでした",
+                    systemImage: "exclamationmark.triangle",
+                    description: Text("アプリを終了して、もう一度お試しください")
+                )
+                .accessibilityIdentifier("app.startup.error")
+            }
         }
-        .modelContainer(sharedModelContainer)
     }
 }
