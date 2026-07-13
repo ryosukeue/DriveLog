@@ -48,7 +48,9 @@ nonisolated struct LocationSanitizer: LocationSanitizing {
 
         let deduplicated = removeDuplicates(from: valid)
         rejected.append(contentsOf: deduplicated.rejected)
-        return SanitizedLocations(accepted: deduplicated.accepted, rejected: sorted(rejected))
+        let accuracyFiltered = removePoorAccuracy(from: deduplicated.accepted)
+        rejected.append(contentsOf: accuracyFiltered.rejected)
+        return SanitizedLocations(accepted: accuracyFiltered.accepted, rejected: sorted(rejected))
     }
 
     private func sorted(_ locations: [LocationEventData]) -> [LocationEventData] {
@@ -148,6 +150,21 @@ nonisolated struct LocationSanitizer: LocationSanitizing {
         }
 
         return SanitizedLocations(accepted: sorted(accepted), rejected: rejected)
+    }
+
+    private func removePoorAccuracy(from locations: [LocationEventData]) -> SanitizedLocations {
+        var accepted: [LocationEventData] = []
+        var rejected: [RejectedLocation] = []
+
+        for location in locations {
+            if location.horizontalAccuracy > rules.maximumHorizontalAccuracy {
+                rejected.append(RejectedLocation(location: location, reason: .poorAccuracy))
+            } else {
+                accepted.append(location)
+            }
+        }
+
+        return SanitizedLocations(accepted: accepted, rejected: rejected)
     }
 
     private func isDuplicate(_ location: LocationEventData, of candidate: LocationEventData) -> Bool {

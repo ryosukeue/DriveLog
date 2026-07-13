@@ -212,6 +212,38 @@ struct LocationSanitizerTests {
         #expect(result.rejected[1].location.timestamp == invalid.timestamp)
     }
 
+    @Test("accepts 500 meter accuracy and rejects values above it")
+    func poorAccuracyBoundary() {
+        let boundary = makeLocation(accuracy: 500, seconds: 0)
+        let overBoundary = makeLocation(longitude: 140, accuracy: 500.001, seconds: 1)
+
+        let result = sanitizer.sanitize([overBoundary, boundary])
+
+        #expect(result.accepted == [boundary])
+        #expect(result.rejected == [
+            RejectedLocation(location: overBoundary, reason: .poorAccuracy)
+        ])
+    }
+
+    @Test("uses the injected maximum horizontal accuracy")
+    func injectedAccuracyThreshold() {
+        let rules = LocationRules(
+            futureTimestampTolerance: 86400,
+            duplicateTimeInterval: 30,
+            duplicateDistance: 10,
+            maximumHorizontalAccuracy: 100,
+            maximumPlausibleSpeed: 250 / 3.6
+        )
+        let customSanitizer = LocationSanitizer(rules: rules, clock: FixedClock(now: now))
+        let boundary = makeLocation(accuracy: 100, seconds: 0)
+        let rejected = makeLocation(longitude: 140, accuracy: 100.1, seconds: 1)
+
+        let result = customSanitizer.sanitize([boundary, rejected])
+
+        #expect(result.accepted == [boundary])
+        #expect(result.rejected.map(\.reason) == [.poorAccuracy])
+    }
+
     private var sanitizer: LocationSanitizer {
         LocationSanitizer(rules: ProcessingConfiguration.mvp.location, clock: FixedClock(now: now))
     }
