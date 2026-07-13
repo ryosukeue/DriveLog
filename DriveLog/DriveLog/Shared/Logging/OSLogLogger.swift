@@ -1,7 +1,7 @@
 import Foundation
 import OSLog
 
-struct OSLogLogger: Logging {
+nonisolated struct OSLogLogger: Logging {
     private let logger: Logger
 
     init(

@@ -1,4 +1,4 @@
-enum LogEvent: Sendable, Equatable {
+nonisolated enum LogEvent: Sendable, Equatable {
     case locationMonitoringStarted
     case locationMonitoringStopped
     case locationEventSaved(localDateKey: String)
