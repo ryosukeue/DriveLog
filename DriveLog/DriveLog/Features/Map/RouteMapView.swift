@@ -68,7 +68,31 @@ struct RouteMapView: UIViewRepresentable {
         mapView.isRotateEnabled = isFull
         mapView.isPitchEnabled = isFull
         mapView.showsCompass = false
+        mapView.showsUserLocation = isFull
         mapView.pointOfInterestFilter = .excludingAll
+        configureUserTrackingButton(in: mapView, isVisible: isFull)
+    }
+
+    private func configureUserTrackingButton(in mapView: MKMapView, isVisible: Bool) {
+        let tag = 7005
+        if isVisible, mapView.viewWithTag(tag) == nil {
+            let button = MKUserTrackingButton(mapView: mapView)
+            button.tag = tag
+            button.translatesAutoresizingMaskIntoConstraints = false
+            button.backgroundColor = .secondarySystemBackground
+            button.layer.cornerRadius = 22
+            button.accessibilityLabel = "現在地へ移動"
+            button.accessibilityIdentifier = "map.currentLocation"
+            mapView.addSubview(button)
+            NSLayoutConstraint.activate([
+                button.trailingAnchor.constraint(equalTo: mapView.safeAreaLayoutGuide.trailingAnchor, constant: -12),
+                button.bottomAnchor.constraint(equalTo: mapView.safeAreaLayoutGuide.bottomAnchor, constant: -12),
+                button.widthAnchor.constraint(greaterThanOrEqualToConstant: 44),
+                button.heightAnchor.constraint(greaterThanOrEqualToConstant: 44)
+            ])
+        } else if !isVisible {
+            mapView.viewWithTag(tag)?.removeFromSuperview()
+        }
     }
 
     private var interaction: RouteMapInteraction {
