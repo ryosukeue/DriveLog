@@ -5,7 +5,7 @@ struct DayMapPreview: View {
     let onOpenMap: () -> Void
 
     var body: some View {
-        Button(action: onOpenMap) {
+        ZStack {
             RouteMapView(scene: scene, mode: .preview)
                 .allowsHitTesting(false)
                 .overlay(alignment: .bottomTrailing) {
@@ -17,9 +17,14 @@ struct DayMapPreview: View {
                         .accessibilityHidden(true)
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 16))
+
+            Button(action: onOpenMap) {
+                Color.clear
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("全画面地図を開く")
+            .accessibilityIdentifier("dayDetail.mapPreview")
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("全画面地図を開く")
-        .accessibilityIdentifier("dayDetail.mapPreview")
     }
 }

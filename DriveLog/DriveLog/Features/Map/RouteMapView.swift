@@ -23,6 +23,7 @@ struct RouteMapView: UIViewRepresentable {
     let onSelectSegment: (String) -> Void
     let onSelectStay: (String) -> Void
     let onTapEmpty: () -> Void
+    let userTrackingRequestID: Int
 
     init(
         scene: MapScene,
@@ -31,7 +32,8 @@ struct RouteMapView: UIViewRepresentable {
         selectedStayID: String? = nil,
         onSelectSegment: @escaping (String) -> Void = { _ in },
         onSelectStay: @escaping (String) -> Void = { _ in },
-        onTapEmpty: @escaping () -> Void = {}
+        onTapEmpty: @escaping () -> Void = {},
+        userTrackingRequestID: Int = 0
     ) {
         self.scene = scene
         self.mode = mode
@@ -40,29 +42,37 @@ struct RouteMapView: UIViewRepresentable {
         self.onSelectSegment = onSelectSegment
         self.onSelectStay = onSelectStay
         self.onTapEmpty = onTapEmpty
+        self.userTrackingRequestID = userTrackingRequestID
     }
 
     func makeCoordinator() -> RouteMapCoordinator {
         RouteMapCoordinator()
     }
 
-    func makeUIView(context: Context) -> MKMapView {
-        let mapView = MKMapView()
+    func makeUIView(context: Context) -> RouteMapContainerView {
+        let container = RouteMapContainerView()
+        let mapView = container.mapView
         mapView.delegate = context.coordinator
-        configure(mapView)
+        configure(container)
         context.coordinator.configure(mapView: mapView, interaction: interaction)
         context.coordinator.update(scene: scene, in: mapView)
-        return mapView
+        container.applyUserTrackingRequest(userTrackingRequestID)
+        return container
     }
 
-    func updateUIView(_ mapView: MKMapView, context: Context) {
-        configure(mapView)
+    func updateUIView(_ container: RouteMapContainerView, context: Context) {
+        let mapView = container.mapView
+        configure(container)
         context.coordinator.configure(mapView: mapView, interaction: interaction)
         context.coordinator.update(scene: scene, in: mapView)
+        container.applyUserTrackingRequest(userTrackingRequestID)
     }
 
-    private func configure(_ mapView: MKMapView) {
+    private func configure(_ container: RouteMapContainerView) {
+        let mapView = container.mapView
         let isFull = mode == .full
+        mapView.isAccessibilityElement = false
+        mapView.accessibilityElementsHidden = false
         mapView.isScrollEnabled = isFull
         mapView.isZoomEnabled = isFull
         mapView.isRotateEnabled = isFull
@@ -70,29 +80,7 @@ struct RouteMapView: UIViewRepresentable {
         mapView.showsCompass = isFull
         mapView.showsUserLocation = isFull
         mapView.pointOfInterestFilter = .excludingAll
-        configureUserTrackingButton(in: mapView, isVisible: isFull)
-    }
-
-    private func configureUserTrackingButton(in mapView: MKMapView, isVisible: Bool) {
-        let tag = 7005
-        if isVisible, mapView.viewWithTag(tag) == nil {
-            let button = MKUserTrackingButton(mapView: mapView)
-            button.tag = tag
-            button.translatesAutoresizingMaskIntoConstraints = false
-            button.backgroundColor = .secondarySystemBackground
-            button.layer.cornerRadius = 22
-            button.accessibilityLabel = "現在地へ移動"
-            button.accessibilityIdentifier = "map.currentLocation"
-            mapView.addSubview(button)
-            NSLayoutConstraint.activate([
-                button.trailingAnchor.constraint(equalTo: mapView.safeAreaLayoutGuide.trailingAnchor, constant: -12),
-                button.bottomAnchor.constraint(equalTo: mapView.safeAreaLayoutGuide.bottomAnchor, constant: -12),
-                button.widthAnchor.constraint(greaterThanOrEqualToConstant: 44),
-                button.heightAnchor.constraint(greaterThanOrEqualToConstant: 44)
-            ])
-        } else if !isVisible {
-            mapView.viewWithTag(tag)?.removeFromSuperview()
-        }
+        container.setUserTrackingButtonVisible(isFull)
     }
 
     private var interaction: RouteMapInteraction {
@@ -104,6 +92,77 @@ struct RouteMapView: UIViewRepresentable {
             onSelectStay: onSelectStay,
             onTapEmpty: onTapEmpty
         )
+    }
+}
+
+final class RouteMapContainerView: UIView {
+    let mapView = MKMapView()
+    private var userTrackingButton: MKUserTrackingButton?
+    private var appliedUserTrackingRequestID = 0
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isAccessibilityElement = false
+        mapView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(mapView)
+        NSLayoutConstraint.activate([
+            mapView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            mapView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            mapView.topAnchor.constraint(equalTo: topAnchor),
+            mapView.bottomAnchor.constraint(equalTo: bottomAnchor)
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        nil
+    }
+
+    func setUserTrackingButtonVisible(_ isVisible: Bool) {
+        if isVisible, userTrackingButton == nil {
+            let button = MKUserTrackingButton(mapView: mapView)
+            button.translatesAutoresizingMaskIntoConstraints = false
+            button.backgroundColor = .secondarySystemBackground
+            button.layer.cornerRadius = 22
+            button.isAccessibilityElement = true
+            button.accessibilityLabel = "現在地へ移動"
+            button.accessibilityIdentifier = "map.currentLocation"
+            addSubview(button)
+            NSLayoutConstraint.activate([
+                button.trailingAnchor.constraint(equalTo: safeAreaLayoutGuide.trailingAnchor, constant: -12),
+                button.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -12),
+                button.widthAnchor.constraint(greaterThanOrEqualToConstant: 44),
+                button.heightAnchor.constraint(greaterThanOrEqualToConstant: 44)
+            ])
+            userTrackingButton = button
+        } else if !isVisible {
+            userTrackingButton?.removeFromSuperview()
+            userTrackingButton = nil
+        }
+    }
+
+    func applyUserTrackingRequest(_ requestID: Int) {
+        guard requestID != appliedUserTrackingRequestID else { return }
+        appliedUserTrackingRequestID = requestID
+        mapView.setUserTrackingMode(.follow, animated: true)
+    }
+
+    override func accessibilityElementCount() -> Int {
+        accessibilityChildren.count
+    }
+
+    override func accessibilityElement(at index: Int) -> Any? {
+        guard accessibilityChildren.indices.contains(index) else { return nil }
+        return accessibilityChildren[index]
+    }
+
+    override func index(ofAccessibilityElement element: Any) -> Int {
+        accessibilityChildren.firstIndex { ($0 as AnyObject) === (element as AnyObject) } ?? NSNotFound
+    }
+
+    private var accessibilityChildren: [UIView] {
+        let annotationViews = mapView.annotations.compactMap { mapView.view(for: $0) }
+        return [userTrackingButton].compactMap(\.self) + annotationViews
     }
 }
 

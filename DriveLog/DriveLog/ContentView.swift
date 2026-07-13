@@ -1,22 +1,57 @@
 import SwiftUI
 
+private enum ContentRoute: Hashable {
+    case dayDetail(String)
+    case fullMap(id: UUID, scene: MapScene)
+
+    static func == (lhs: ContentRoute, rhs: ContentRoute) -> Bool {
+        switch (lhs, rhs) {
+        case let (.dayDetail(lhsKey), .dayDetail(rhsKey)):
+            lhsKey == rhsKey
+        case let (.fullMap(lhsID, _), .fullMap(rhsID, _)):
+            lhsID == rhsID
+        default:
+            false
+        }
+    }
+
+    func hash(into hasher: inout Hasher) {
+        switch self {
+        case let .dayDetail(localDateKey):
+            hasher.combine(0)
+            hasher.combine(localDateKey)
+        case let .fullMap(id, _):
+            hasher.combine(1)
+            hasher.combine(id)
+        }
+    }
+}
+
 struct ContentView: View {
     let calendarViewModel: CalendarViewModel
     let today: Date
     let makeDayDetailViewModel: (String) -> DayDetailViewModel
-    @State private var selectedLocalDateKey: String?
+    @State private var path: [ContentRoute] = []
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             CalendarView(
                 viewModel: calendarViewModel,
                 today: today,
-                onSelectDate: { selectedLocalDateKey = $0 }
+                onSelectDate: { path.append(.dayDetail($0)) }
             )
-            .navigationDestination(item: $selectedLocalDateKey) { localDateKey in
-                DayDetailView(
-                    viewModel: makeDayDetailViewModel(localDateKey)
-                )
+            .navigationDestination(for: ContentRoute.self) { route in
+                switch route {
+                case let .dayDetail(localDateKey):
+                    DayDetailView(
+                        viewModel: makeDayDetailViewModel(localDateKey),
+                        onOpenMap: { scene in
+                            path.append(.fullMap(id: UUID(), scene: scene))
+                        }
+                    )
+                case let .fullMap(_, scene):
+                    FullRouteMapView(viewModel: RouteMapViewModel(scene: scene))
+                }
             }
         }
     }

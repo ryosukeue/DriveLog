@@ -86,40 +86,80 @@ struct DriveLogApp: App {
             let localDateKey = String(format: "%04d-%02d-%02d", year, month, day)
             let startDate = now.addingTimeInterval(-3600)
             let context = ModelContext(modelContainer)
+            seedSummary(context: context, localDateKey: localDateKey, startDate: startDate, now: now)
+            try seedRoute(context: context, localDateKey: localDateKey, startDate: startDate, now: now)
+            try context.save()
+        }
+
+        @MainActor
+        private static func seedSummary(
+            context: ModelContext,
+            localDateKey: String,
+            startDate: Date,
+            now: Date
+        ) {
+            context.insert(DayAggregateModel(
+                localDateKey: localDateKey, totalDistanceMeters: 5200,
+                totalMovementDurationSeconds: 3600, startDate: startDate, endDate: now,
+                locationRecordCount: 120, rejectedLocationCount: 3, mediaCountCache: 0,
+                automaticClassificationRawValue: "automotiveLike", hasValidMovement: true,
+                movementSegmentCount: 2, staySegmentCount: 1, totalStayDurationSeconds: 600,
+                automotiveDurationSeconds: 3000, walkingDurationSeconds: 600,
+                sourceRawRevision: 1, generatedAt: now
+            ))
+            context.insert(DayProcessingStateModel(
+                localDateKey: localDateKey, rawRevision: 1, processedRevision: 1,
+                statusRawValue: "completed", lastAttemptDate: now, lastSuccessfulDate: now,
+                lastErrorCode: nil, updatedAt: now
+            ))
+        }
+
+        @MainActor
+        private static func seedRoute(
+            context: ModelContext,
+            localDateKey: String,
+            startDate: Date,
+            now: Date
+        ) throws {
+            let route = try PropertyListRouteEncoder().encode([
+                RouteCoordinate(latitude: 35.680, longitude: 139.760),
+                RouteCoordinate(latitude: 35.690, longitude: 139.780),
+                RouteCoordinate(latitude: 35.700, longitude: 139.800)
+            ])
             context.insert(
-                DayAggregateModel(
+                MovementSegmentModel(
+                    stableID: "ui-movement",
                     localDateKey: localDateKey,
-                    totalDistanceMeters: 5200,
-                    totalMovementDurationSeconds: 3600,
                     startDate: startDate,
                     endDate: now,
-                    locationRecordCount: 120,
-                    rejectedLocationCount: 3,
-                    mediaCountCache: 0,
+                    distanceMeters: 5200,
+                    durationSeconds: 3600,
+                    estimatedAverageSpeedMetersPerSecond: 5200 / 3600,
                     automaticClassificationRawValue: "automotiveLike",
-                    hasValidMovement: true,
-                    movementSegmentCount: 2,
-                    staySegmentCount: 1,
-                    totalStayDurationSeconds: 600,
-                    automotiveDurationSeconds: 3000,
-                    walkingDurationSeconds: 600,
+                    classificationConfidenceRawValue: "high",
+                    encodedRouteData: route,
+                    labelLatitude: 35.690,
+                    labelLongitude: 139.780,
                     sourceRawRevision: 1,
                     generatedAt: now
                 )
             )
             context.insert(
-                DayProcessingStateModel(
+                StaySegmentModel(
+                    stableID: "ui-stay",
                     localDateKey: localDateKey,
-                    rawRevision: 1,
-                    processedRevision: 1,
-                    statusRawValue: "completed",
-                    lastAttemptDate: now,
-                    lastSuccessfulDate: now,
-                    lastErrorCode: nil,
-                    updatedAt: now
+                    representativeLatitude: 35.700,
+                    representativeLongitude: 139.800,
+                    estimatedArrivalDate: now.addingTimeInterval(-900),
+                    estimatedDepartureDate: now.addingTimeInterval(-300),
+                    durationSeconds: 600,
+                    confidenceRawValue: "high",
+                    sourceRawValue: "combined",
+                    isVisibleByAutomaticRule: true,
+                    sourceRawRevision: 1,
+                    generatedAt: now
                 )
             )
-            try context.save()
         }
     #endif
 }

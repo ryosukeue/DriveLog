@@ -54,6 +54,44 @@ final class DriveLogUITests: XCTestCase {
     }
 
     @MainActor
+    func testFullMapCalloutFlow() {
+        let app = XCUIApplication()
+        app.launchArguments.append("-ui-testing-day-detail")
+        app.launch()
+
+        let enabledDay = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'calendar.day.' AND enabled == true")
+        ).firstMatch
+        XCTAssertTrue(enabledDay.waitForExistence(timeout: 5))
+        enabledDay.tap()
+        let preview = app.buttons["dayDetail.mapPreview"]
+        XCTAssertTrue(preview.waitForExistence(timeout: 5))
+        preview.tap()
+
+        XCTAssertTrue(app.buttons["BackButton"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["map.currentLocation"].exists)
+        let movement = app.descendants(matching: .any)["map.movementLabel"].firstMatch
+        XCTAssertTrue(movement.waitForExistence(timeout: 5))
+        movement.tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["map.movementCallout"].firstMatch
+                .waitForExistence(timeout: 5)
+        )
+
+        let stay = app.descendants(matching: .any)["map.stayAnnotation"].firstMatch
+        XCTAssertTrue(stay.waitForExistence(timeout: 5))
+        stay.tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["map.stayCallout"].firstMatch
+                .waitForExistence(timeout: 5)
+        )
+        XCTAssertFalse(app.descendants(matching: .any)["map.movementCallout"].firstMatch.exists)
+
+        app.buttons["BackButton"].tap()
+        XCTAssertTrue(preview.waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     func testLaunchPerformance() {
         // This measures how long it takes to launch your application.
         measure(metrics: [XCTApplicationLaunchMetric()]) {

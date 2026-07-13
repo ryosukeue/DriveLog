@@ -50,6 +50,7 @@ final class RouteMapStayCalloutView: MKAnnotationView {
         canShowCallout = false
         centerOffset = CGPoint(x: 0, y: -70)
         isAccessibilityElement = true
+        accessibilityTraits = .button
     }
 
     @available(*, unavailable)
@@ -90,6 +91,7 @@ final class RouteMapMovementCalloutView: MKAnnotationView {
         canShowCallout = false
         centerOffset = CGPoint(x: 0, y: -85)
         isAccessibilityElement = true
+        accessibilityTraits = .button
     }
 
     @available(*, unavailable)
@@ -129,6 +131,7 @@ final class RouteMapLabelAnnotationView: MKAnnotationView {
         addSubview(label)
         canShowCallout = false
         isAccessibilityElement = true
+        accessibilityTraits = .button
     }
 
     @available(*, unavailable)
@@ -165,6 +168,7 @@ final class RouteMapStayAnnotationView: MKAnnotationView {
         addSubview(label)
         canShowCallout = false
         isAccessibilityElement = true
+        accessibilityTraits = .button
     }
 
     @available(*, unavailable)
