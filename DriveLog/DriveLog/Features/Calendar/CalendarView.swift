@@ -6,6 +6,7 @@ struct CalendarView: View {
     private let gridBuilder: CalendarGridBuilder
     private let distanceFormatter: DistanceFormatter
     private let swipeInterpreter: CalendarSwipeInterpreter
+    private let onSelectDate: (String) -> Void
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
 
     init(
@@ -13,13 +14,15 @@ struct CalendarView: View {
         today: Date,
         gridBuilder: CalendarGridBuilder = CalendarGridBuilder(),
         distanceFormatter: DistanceFormatter = DistanceFormatter(),
-        swipeInterpreter: CalendarSwipeInterpreter = CalendarSwipeInterpreter()
+        swipeInterpreter: CalendarSwipeInterpreter = CalendarSwipeInterpreter(),
+        onSelectDate: @escaping (String) -> Void = { _ in }
     ) {
         _viewModel = State(initialValue: viewModel)
         self.today = today
         self.gridBuilder = gridBuilder
         self.distanceFormatter = distanceFormatter
         self.swipeInterpreter = swipeInterpreter
+        self.onSelectDate = onSelectDate
     }
 
     var body: some View {
@@ -132,6 +135,10 @@ struct CalendarView: View {
         return Button {
             if let localDateKey = data?.localDateKey {
                 viewModel.select(localDateKey: localDateKey)
+                if viewModel.navigationLocalDateKey == localDateKey {
+                    onSelectDate(localDateKey)
+                    viewModel.consumeNavigation()
+                }
             }
         } label: {
             VStack(spacing: 2) {

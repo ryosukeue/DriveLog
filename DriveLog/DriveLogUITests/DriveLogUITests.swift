@@ -35,6 +35,25 @@ final class DriveLogUITests: XCTestCase {
     }
 
     @MainActor
+    func testCalendarNavigatesToDayDetail() {
+        let app = XCUIApplication()
+        app.launchArguments.append("-ui-testing-day-detail")
+        app.launch()
+
+        let enabledDay = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'calendar.day.' AND enabled == true")
+        ).firstMatch
+        XCTAssertTrue(enabledDay.waitForExistence(timeout: 5))
+        enabledDay.tap()
+
+        XCTAssertTrue(app.buttons["dayDetail.mapPreview"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.otherElements["dayDetail.summary"].exists)
+        XCTAssertTrue(app.otherElements["dayDetail.statistics"].exists)
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(app.otherElements["calendar.grid"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     func testLaunchPerformance() {
         // This measures how long it takes to launch your application.
         measure(metrics: [XCTApplicationLaunchMetric()]) {

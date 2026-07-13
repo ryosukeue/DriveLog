@@ -40,4 +40,26 @@ final class AppContainer {
             loadCalendarMonth: DefaultLoadCalendarMonthUseCase(repository: repository)
         )
     }
+
+    func makeDayDetailViewModel(
+        modelContainer: ModelContainer,
+        localDateKey: String
+    ) -> DayDetailViewModel {
+        DayDetailViewModel(
+            localDateKey: localDateKey,
+            loadDayDetail: DefaultLoadDayDetailUseCase(
+                derivedRepository: SwiftDataDerivedDataRepository(
+                    modelContainer: modelContainer
+                ),
+                overrideRepository: SwiftDataOverrideRepository(
+                    modelContainer: modelContainer
+                ),
+                processingStateRepository: SwiftDataProcessingStateRepository(
+                    modelContainer: modelContainer,
+                    clock: clock
+                ),
+                mapSceneBuilder: MapSceneBuilder()
+            )
+        )
+    }
 }
