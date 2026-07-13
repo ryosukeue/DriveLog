@@ -129,7 +129,15 @@ private struct Fixture {
     var scene: MapScene {
         MapScene(
             polylines: [MapPolyline(segmentStableID: "scene", coordinates: [])],
-            movementLabels: [], stayAnnotations: [], mediaAnnotations: [], initialRegion: nil
+            movementLabels: [],
+            stayAnnotations: [],
+            mediaAnnotations: [
+                MapMediaAnnotation(
+                    localIdentifier: "later",
+                    coordinate: RouteCoordinate(latitude: 35, longitude: 139)
+                )
+            ],
+            initialRegion: nil
         )
     }
 
@@ -174,6 +182,7 @@ private struct Fixture {
                 assets: media,
                 error: mediaError
             ),
+            mediaPlacementCalculator: MediaPlacementCalculator(),
             mapSceneBuilder: DayDetailMapBuilderFake(scene: scene)
         )
     }
@@ -183,7 +192,7 @@ private struct Fixture {
             localIdentifier: id,
             mediaType: .photo,
             creationDate: now.addingTimeInterval(offset),
-            location: nil,
+            location: id == "later" ? RouteCoordinate(latitude: 35, longitude: 139) : nil,
             durationSeconds: nil,
             isScreenshot: false,
             isScreenRecording: false
@@ -319,8 +328,19 @@ private struct DayDetailMapBuilderFake: MapSceneBuilding {
     func build(
         movements _: [MovementSegmentData],
         stays _: [StaySegmentData],
-        media _: [MediaPlacement]
+        media: [MediaPlacement]
     ) -> MapScene {
-        scene
+        MapScene(
+            polylines: scene.polylines,
+            movementLabels: scene.movementLabels,
+            stayAnnotations: scene.stayAnnotations,
+            mediaAnnotations: media.map {
+                MapMediaAnnotation(
+                    localIdentifier: $0.assetIdentifier,
+                    coordinate: $0.coordinate
+                )
+            },
+            initialRegion: scene.initialRegion
+        )
     }
 }

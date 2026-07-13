@@ -9,6 +9,7 @@ nonisolated struct DefaultLoadDayDetailUseCase: LoadDayDetailUseCase {
     private let overrideRepository: any OverrideRepository
     private let processingStateRepository: any ProcessingStateRepository
     private let mediaCacheRepository: any MediaCacheRepository
+    private let mediaPlacementCalculator: any MediaPlacementCalculating
     private let mapSceneBuilder: any MapSceneBuilding
     private let overrideMatcher: any OverrideMatching
 
@@ -17,6 +18,7 @@ nonisolated struct DefaultLoadDayDetailUseCase: LoadDayDetailUseCase {
         overrideRepository: any OverrideRepository,
         processingStateRepository: any ProcessingStateRepository,
         mediaCacheRepository: any MediaCacheRepository,
+        mediaPlacementCalculator: any MediaPlacementCalculating,
         mapSceneBuilder: any MapSceneBuilding,
         overrideMatcher: any OverrideMatching = OverrideMatcher(
             rules: ProcessingConfiguration.mvp.overrideMatching
@@ -26,6 +28,7 @@ nonisolated struct DefaultLoadDayDetailUseCase: LoadDayDetailUseCase {
         self.overrideRepository = overrideRepository
         self.processingStateRepository = processingStateRepository
         self.mediaCacheRepository = mediaCacheRepository
+        self.mediaPlacementCalculator = mediaPlacementCalculator
         self.mapSceneBuilder = mapSceneBuilder
         self.overrideMatcher = overrideMatcher
     }
@@ -80,15 +83,14 @@ nonisolated struct DefaultLoadDayDetailUseCase: LoadDayDetailUseCase {
                 )
             )
         }
-        let visibleStays = displayStays.map { display in
-            copy(display.segment, isVisible: display.isVisible)
-        }
+        let visibleStays = displayStays.map(visibleStay)
+        let mapScene = makeMapScene(movements: movements, stays: visibleStays, media: media)
         return DayDetailData(
             aggregate: aggregate,
             movements: displayMovements,
             stays: displayStays,
             media: media,
-            mapScene: makeMapScene(movements: movements, stays: visibleStays),
+            mapScene: mapScene,
             isReprocessing: state.status == .processing ||
                 state.rawRevision > state.processedRevision
         )
@@ -101,11 +103,20 @@ nonisolated struct DefaultLoadDayDetailUseCase: LoadDayDetailUseCase {
         return first.localIdentifier < second.localIdentifier
     }
 
+    private func visibleStay(_ display: StayDisplayData) -> StaySegmentData {
+        copy(display.segment, isVisible: display.isVisible)
+    }
+
     private func makeMapScene(
         movements: [MovementSegmentData],
-        stays: [StaySegmentData]
+        stays: [StaySegmentData],
+        media: [MediaAssetReference]
     ) -> MapScene {
-        mapSceneBuilder.build(movements: movements, stays: stays, media: [])
+        mapSceneBuilder.build(
+            movements: movements,
+            stays: stays,
+            media: mediaPlacementCalculator.place(assets: media, movements: movements)
+        )
     }
 
     private func latestClassification(

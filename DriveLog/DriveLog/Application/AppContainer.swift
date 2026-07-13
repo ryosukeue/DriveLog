@@ -61,6 +61,7 @@ final class AppContainer {
                 mediaCacheRepository: SwiftDataMediaCacheRepository(
                     modelContainer: modelContainer
                 ),
+                mediaPlacementCalculator: MediaPlacementCalculator(),
                 mapSceneBuilder: MapSceneBuilder()
             ),
             loadMediaThumbnail: makeLoadMediaThumbnailUseCase()
