@@ -28,6 +28,8 @@ struct DayDetailView: View {
                     .padding(.horizontal)
                     DaySummaryCard(aggregate: data.aggregate, formatter: formatter)
                         .padding(.horizontal)
+                    DayStatisticsCard(aggregate: data.aggregate, formatter: formatter)
+                        .padding(.horizontal)
                 }
             }
         }
