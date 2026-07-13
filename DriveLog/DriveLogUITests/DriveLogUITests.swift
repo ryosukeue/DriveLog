@@ -92,10 +92,88 @@ final class DriveLogUITests: XCTestCase {
     }
 
     @MainActor
+    func testMediaGridPhotoVideoAndUnavailablePreviewFlow() {
+        let app = launchMediaDayDetail()
+        scrollToMediaGrid(in: app)
+
+        let grid = app.otherElements["dayDetail.media.grid"]
+        XCTAssertTrue(grid.waitForExistence(timeout: 5))
+        let cells = app.descendants(matching: .any).matching(
+            identifier: "dayDetail.media.cell"
+        )
+        XCTAssertGreaterThanOrEqual(cells.count, 3)
+        XCTAssertEqual(cells.element(boundBy: 0).label, "写真")
+        XCTAssertEqual(cells.element(boundBy: 1).label, "動画")
+
+        cells.element(boundBy: 0).tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["mediaPreview.photo"].waitForExistence(timeout: 5)
+        )
+        XCTAssertTrue(app.descendants(matching: .any)["mediaPreview.metadata"].exists)
+        XCTAssertTrue(app.buttons["mediaPreview.share"].isEnabled)
+        app.buttons["BackButton"].tap()
+
+        XCTAssertTrue(grid.waitForExistence(timeout: 5))
+        cells.element(boundBy: 1).tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["mediaPreview.video"].waitForExistence(timeout: 5)
+        )
+        app.buttons["BackButton"].tap()
+
+        XCTAssertTrue(grid.waitForExistence(timeout: 5))
+        cells.element(boundBy: 2).tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["mediaPreview.error"].waitForExistence(timeout: 5)
+        )
+        XCTAssertTrue(app.buttons["再試行"].exists)
+    }
+
+    @MainActor
+    func testMediaMapClusterAndAnnotationPreviewFlow() {
+        let app = launchMediaDayDetail()
+        let preview = app.buttons["dayDetail.mapPreview"]
+        XCTAssertTrue(preview.waitForExistence(timeout: 5))
+        preview.tap()
+
+        let cluster = app.descendants(matching: .any)["map.mediaCluster"].firstMatch
+        XCTAssertTrue(cluster.waitForExistence(timeout: 5))
+        XCTAssertTrue(cluster.label.contains("写真と動画"))
+
+        let media = app.descendants(matching: .any)["map.mediaAnnotation"].firstMatch
+        XCTAssertTrue(media.waitForExistence(timeout: 5))
+        media.tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["mediaPreview.photo"].waitForExistence(timeout: 5)
+        )
+    }
+
+    @MainActor
     func testLaunchPerformance() {
         // This measures how long it takes to launch your application.
         measure(metrics: [XCTApplicationLaunchMetric()]) {
             XCUIApplication().launch()
+        }
+    }
+
+    @MainActor
+    private func launchMediaDayDetail() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments.append("-ui-testing-media")
+        app.launch()
+        let enabledDay = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'calendar.day.' AND enabled == true")
+        ).firstMatch
+        XCTAssertTrue(enabledDay.waitForExistence(timeout: 5))
+        enabledDay.tap()
+        XCTAssertTrue(app.buttons["dayDetail.mapPreview"].waitForExistence(timeout: 5))
+        return app
+    }
+
+    @MainActor
+    private func scrollToMediaGrid(in app: XCUIApplication) {
+        let grid = app.otherElements["dayDetail.media.grid"]
+        for _ in 0 ..< 4 where grid.isHittable == false {
+            app.swipeUp()
         }
     }
 }

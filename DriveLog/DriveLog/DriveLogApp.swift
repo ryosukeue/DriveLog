@@ -1,5 +1,7 @@
+import AVFoundation
 import SwiftData
 import SwiftUI
+import UIKit
 
 @main
 struct DriveLogApp: App {
@@ -7,6 +9,7 @@ struct DriveLogApp: App {
     private let appContainer: AppContainer
     private let today: Date
     private let modelContainer: ModelContainer?
+    private let photoLibrary: any PhotoLibraryProviding
 
     @MainActor
     init() {
@@ -14,12 +17,23 @@ struct DriveLogApp: App {
         appContainer = container
         let now = container.clock.now
         today = now
+        #if DEBUG
+            let arguments = ProcessInfo.processInfo.arguments
+            let isMediaUITesting = arguments.contains("-ui-testing-media")
+            let isUITesting = isMediaUITesting || arguments.contains("-ui-testing-day-detail")
+            if isMediaUITesting {
+                photoLibrary = UITestPhotoLibraryProvider(
+                    now: now,
+                    timeZone: container.timeZoneProvider.current
+                )
+            } else {
+                photoLibrary = PhotoLibraryProvider()
+            }
+        #else
+            let isUITesting = false
+            photoLibrary = PhotoLibraryProvider()
+        #endif
         do {
-            #if DEBUG
-                let isUITesting = ProcessInfo.processInfo.arguments.contains("-ui-testing-day-detail")
-            #else
-                let isUITesting = false
-            #endif
             let modelContainer = try DriveLogModelContainerFactory.make(
                 isStoredInMemoryOnly: isUITesting
             )
@@ -56,11 +70,19 @@ struct DriveLogApp: App {
                     makeDayDetailViewModel: { localDateKey in
                         appContainer.makeDayDetailViewModel(
                             modelContainer: modelContainer,
-                            localDateKey: localDateKey
+                            localDateKey: localDateKey,
+                            photoLibrary: photoLibrary
                         )
                     },
-                    loadMediaThumbnail: appContainer.makeLoadMediaThumbnailUseCase(),
-                    makeMediaPreviewViewModel: appContainer.makeMediaPreviewViewModel
+                    loadMediaThumbnail: appContainer.makeLoadMediaThumbnailUseCase(
+                        photoLibrary: photoLibrary
+                    ),
+                    makeMediaPreviewViewModel: { asset in
+                        appContainer.makeMediaPreviewViewModel(
+                            asset: asset,
+                            photoLibrary: photoLibrary
+                        )
+                    }
                 )
             } else {
                 ContentUnavailableView(
@@ -165,3 +187,86 @@ struct DriveLogApp: App {
         }
     #endif
 }
+
+#if DEBUG
+    private final class UITestPhotoLibraryProvider: PhotoLibraryProviding, @unchecked Sendable {
+        let libraryChanges = AsyncStream<PhotoLibraryChange> { $0.finish() }
+        private let assets: [MediaAssetReference]
+        private let thumbnailImage: UIImage
+
+        init(now: Date, timeZone: TimeZone) {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = timeZone
+            let start = calendar.startOfDay(for: now)
+            assets = [
+                MediaAssetReference(
+                    localIdentifier: "ui-photo",
+                    mediaType: .photo,
+                    creationDate: start.addingTimeInterval(3600),
+                    location: RouteCoordinate(latitude: 35.690, longitude: 139.780),
+                    durationSeconds: nil,
+                    isScreenshot: false,
+                    isScreenRecording: false
+                ),
+                MediaAssetReference(
+                    localIdentifier: "ui-video",
+                    mediaType: .video,
+                    creationDate: start.addingTimeInterval(7200),
+                    location: RouteCoordinate(latitude: 35.690_05, longitude: 139.780_05),
+                    durationSeconds: 10,
+                    isScreenshot: false,
+                    isScreenRecording: false
+                ),
+                MediaAssetReference(
+                    localIdentifier: "ui-unavailable",
+                    mediaType: .photo,
+                    creationDate: start.addingTimeInterval(10800),
+                    location: nil,
+                    durationSeconds: nil,
+                    isScreenshot: false,
+                    isScreenRecording: false
+                )
+            ]
+            thumbnailImage = UIImage(systemName: "car.fill") ?? UIImage()
+        }
+
+        func authorizationState() async -> PhotoPermissionState {
+            .authorized
+        }
+
+        func fetchAssets(in interval: DateInterval) async throws -> [MediaAssetReference] {
+            assets.filter { asset in
+                guard let creationDate = asset.creationDate else { return false }
+                return interval.contains(creationDate)
+            }
+        }
+
+        func requestThumbnail(localIdentifier: String, targetSize _: CGSize) async throws -> UIImage {
+            guard localIdentifier != "ui-unavailable" else {
+                throw DriveLogError.mediaUnavailable
+            }
+            return thumbnailImage
+        }
+
+        func requestPhotoPreview(localIdentifier: String) async throws -> UIImage {
+            guard localIdentifier == "ui-photo" else { throw DriveLogError.mediaUnavailable }
+            return thumbnailImage
+        }
+
+        func requestVideoAsset(localIdentifier: String) async throws -> AVAsset {
+            guard localIdentifier == "ui-video" else { throw DriveLogError.mediaUnavailable }
+            return AVURLAsset(url: URL(fileURLWithPath: "/tmp/drivelog-ui-video.mov"))
+        }
+
+        func requestShareableResource(localIdentifier: String) async throws -> ShareableMediaResource {
+            guard let asset = assets.first(where: { $0.localIdentifier == localIdentifier }) else {
+                throw DriveLogError.mediaUnavailable
+            }
+            let mediaType = asset.mediaType
+            return ShareableMediaResource(
+                fileURL: URL(fileURLWithPath: "/tmp/drivelog-ui-share"),
+                mediaType: mediaType
+            )
+        }
+    }
+#endif

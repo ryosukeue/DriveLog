@@ -43,9 +43,9 @@ final class AppContainer {
 
     func makeDayDetailViewModel(
         modelContainer: ModelContainer,
-        localDateKey: String
+        localDateKey: String,
+        photoLibrary: any PhotoLibraryProviding = PhotoLibraryProvider()
     ) -> DayDetailViewModel {
-        let photoLibrary = PhotoLibraryProvider()
         let mediaCacheRepository = SwiftDataMediaCacheRepository(
             modelContainer: modelContainer
         )
@@ -81,13 +81,17 @@ final class AppContainer {
         )
     }
 
-    func makeLoadMediaThumbnailUseCase() -> any LoadMediaThumbnailUseCase {
-        DefaultLoadMediaThumbnailUseCase(photoLibrary: PhotoLibraryProvider())
+    func makeLoadMediaThumbnailUseCase(
+        photoLibrary: any PhotoLibraryProviding = PhotoLibraryProvider()
+    ) -> any LoadMediaThumbnailUseCase {
+        DefaultLoadMediaThumbnailUseCase(photoLibrary: photoLibrary)
     }
 
-    func makeMediaPreviewViewModel(asset: MediaAssetReference) -> MediaPreviewViewModel {
-        let photoLibrary = PhotoLibraryProvider()
-        return MediaPreviewViewModel(
+    func makeMediaPreviewViewModel(
+        asset: MediaAssetReference,
+        photoLibrary: any PhotoLibraryProviding = PhotoLibraryProvider()
+    ) -> MediaPreviewViewModel {
+        MediaPreviewViewModel(
             asset: asset,
             loadPreview: DefaultLoadMediaPreviewUseCase(
                 photoLibrary: photoLibrary
