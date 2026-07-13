@@ -67,7 +67,7 @@ struct RouteMapView: UIViewRepresentable {
         mapView.isZoomEnabled = isFull
         mapView.isRotateEnabled = isFull
         mapView.isPitchEnabled = isFull
-        mapView.showsCompass = false
+        mapView.showsCompass = isFull
         mapView.showsUserLocation = isFull
         mapView.pointOfInterestFilter = .excludingAll
         configureUserTrackingButton(in: mapView, isVisible: isFull)
