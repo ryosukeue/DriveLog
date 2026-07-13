@@ -5,18 +5,21 @@ struct CalendarView: View {
     private let today: Date
     private let gridBuilder: CalendarGridBuilder
     private let distanceFormatter: DistanceFormatter
+    private let swipeInterpreter: CalendarSwipeInterpreter
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
 
     init(
         viewModel: CalendarViewModel,
         today: Date,
         gridBuilder: CalendarGridBuilder = CalendarGridBuilder(),
-        distanceFormatter: DistanceFormatter = DistanceFormatter()
+        distanceFormatter: DistanceFormatter = DistanceFormatter(),
+        swipeInterpreter: CalendarSwipeInterpreter = CalendarSwipeInterpreter()
     ) {
         _viewModel = State(initialValue: viewModel)
         self.today = today
         self.gridBuilder = gridBuilder
         self.distanceFormatter = distanceFormatter
+        self.swipeInterpreter = swipeInterpreter
     }
 
     var body: some View {
@@ -55,6 +58,19 @@ struct CalendarView: View {
         }
         .padding(.horizontal)
         .accessibilityIdentifier("calendar.grid")
+        .animation(.easeInOut(duration: 0.25), value: viewModel.displayedMonth)
+        .gesture(
+            DragGesture(minimumDistance: 20)
+                .onEnded { value in
+                    handleSwipe(translation: value.translation)
+                }
+        )
+        .accessibilityAction(named: Text("前の月")) {
+            moveToPreviousMonth()
+        }
+        .accessibilityAction(named: Text("次の月")) {
+            moveToNextMonth()
+        }
     }
 
     private func dayCell(day: Int, isToday: Bool) -> some View {
@@ -101,5 +117,31 @@ struct CalendarView: View {
     private func accessibilityLabel(day: Int, distance: String?) -> String {
         guard let distance else { return "\(day)日" }
         return "\(day)日、移動距離\(distance)"
+    }
+
+    private func handleSwipe(translation: CGSize) {
+        guard viewModel.state != .loading,
+              let direction = swipeInterpreter.direction(translation: translation)
+        else { return }
+        switch direction {
+        case .previousMonth:
+            moveToPreviousMonth()
+        case .nextMonth:
+            moveToNextMonth()
+        }
+    }
+
+    private func moveToPreviousMonth() {
+        guard viewModel.state != .loading else { return }
+        Task { @MainActor in
+            await viewModel.showPreviousMonth()
+        }
+    }
+
+    private func moveToNextMonth() {
+        guard viewModel.state != .loading else { return }
+        Task { @MainActor in
+            await viewModel.showNextMonth()
+        }
     }
 }
