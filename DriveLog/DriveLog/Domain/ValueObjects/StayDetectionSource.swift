@@ -1,4 +1,4 @@
-enum StayDetectionSource: Sendable, Equatable {
+nonisolated enum StayDetectionSource: Sendable, Equatable {
     case visit
     case locationGap
     case motionTransition

@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 
-struct SHA256StableIDGenerator: StableIDGenerating {
+nonisolated struct SHA256StableIDGenerator: StableIDGenerating {
     func movementSegmentID(
         localDateKey: String,
         startDate: Date,

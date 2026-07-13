@@ -1,6 +1,6 @@
 import Foundation
 
-protocol StableIDGenerating: Sendable {
+nonisolated protocol StableIDGenerating: Sendable {
     func movementSegmentID(
         localDateKey: String,
         startDate: Date,

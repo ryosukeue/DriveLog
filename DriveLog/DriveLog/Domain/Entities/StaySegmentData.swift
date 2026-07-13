@@ -1,6 +1,6 @@
 import Foundation
 
-struct StaySegmentData: Sendable, Equatable {
+nonisolated struct StaySegmentData: Sendable, Equatable {
     let stableID: String
     let localDateKey: String
     let representativeCoordinate: RouteCoordinate

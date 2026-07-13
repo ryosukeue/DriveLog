@@ -1,4 +1,4 @@
-enum StayConfidence: Sendable, Equatable {
+nonisolated enum StayConfidence: Sendable, Equatable {
     case low
     case medium
     case high
