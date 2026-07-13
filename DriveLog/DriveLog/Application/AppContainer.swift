@@ -68,4 +68,13 @@ final class AppContainer {
             )
         )
     }
+
+    func makeMediaPreviewViewModel(asset: MediaAssetReference) -> MediaPreviewViewModel {
+        MediaPreviewViewModel(
+            asset: asset,
+            loadPreview: DefaultLoadMediaPreviewUseCase(
+                photoLibrary: PhotoLibraryProvider()
+            )
+        )
+    }
 }

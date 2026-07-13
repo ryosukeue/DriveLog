@@ -58,7 +58,8 @@ struct DriveLogApp: App {
                             modelContainer: modelContainer,
                             localDateKey: localDateKey
                         )
-                    }
+                    },
+                    makeMediaPreviewViewModel: appContainer.makeMediaPreviewViewModel
                 )
             } else {
                 ContentUnavailableView(

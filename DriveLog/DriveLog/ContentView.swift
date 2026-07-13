@@ -3,12 +3,15 @@ import SwiftUI
 private enum ContentRoute: Hashable {
     case dayDetail(String)
     case fullMap(id: UUID, scene: MapScene)
+    case mediaPreview(id: UUID, asset: MediaAssetReference)
 
     static func == (lhs: ContentRoute, rhs: ContentRoute) -> Bool {
         switch (lhs, rhs) {
         case let (.dayDetail(lhsKey), .dayDetail(rhsKey)):
             lhsKey == rhsKey
         case let (.fullMap(lhsID, _), .fullMap(rhsID, _)):
+            lhsID == rhsID
+        case let (.mediaPreview(lhsID, _), .mediaPreview(rhsID, _)):
             lhsID == rhsID
         default:
             false
@@ -23,6 +26,9 @@ private enum ContentRoute: Hashable {
         case let .fullMap(id, _):
             hasher.combine(1)
             hasher.combine(id)
+        case let .mediaPreview(id, _):
+            hasher.combine(2)
+            hasher.combine(id)
         }
     }
 }
@@ -31,6 +37,7 @@ struct ContentView: View {
     let calendarViewModel: CalendarViewModel
     let today: Date
     let makeDayDetailViewModel: (String) -> DayDetailViewModel
+    let makeMediaPreviewViewModel: (MediaAssetReference) -> MediaPreviewViewModel
     @State private var path: [ContentRoute] = []
 
     var body: some View {
@@ -47,10 +54,16 @@ struct ContentView: View {
                         viewModel: makeDayDetailViewModel(localDateKey),
                         onOpenMap: { scene in
                             path.append(.fullMap(id: UUID(), scene: scene))
+                        },
+                        onSelectMedia: { asset in
+                            guard asset.mediaType == .photo else { return }
+                            path.append(.mediaPreview(id: UUID(), asset: asset))
                         }
                     )
                 case let .fullMap(_, scene):
                     FullRouteMapView(viewModel: RouteMapViewModel(scene: scene))
+                case let .mediaPreview(_, asset):
+                    MediaPreviewView(viewModel: makeMediaPreviewViewModel(asset))
                 }
             }
         }
