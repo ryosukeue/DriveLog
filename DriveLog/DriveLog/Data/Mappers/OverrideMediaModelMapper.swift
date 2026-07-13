@@ -1,6 +1,6 @@
 import Foundation
 
-enum OverrideMediaModelMapper {
+nonisolated enum OverrideMediaModelMapper {
     static func data(from model: ClassificationOverrideModel) -> ClassificationOverrideData {
         ClassificationOverrideData(
             overrideKey: model.overrideKey, targetStableID: model.targetStableID,
