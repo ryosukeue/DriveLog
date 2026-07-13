@@ -3,12 +3,17 @@ import SwiftUI
 struct DayDetailView: View {
     @State private var viewModel: DayDetailViewModel
     let onOpenMap: (MapScene) -> Void
+    private let formatter: DayDetailFormatter
 
     init(
         viewModel: DayDetailViewModel,
+        formatter: DayDetailFormatter = DayDetailFormatter(
+            timeZone: SystemTimeZoneProvider().current
+        ),
         onOpenMap: @escaping (MapScene) -> Void = { _ in }
     ) {
         _viewModel = State(initialValue: viewModel)
+        self.formatter = formatter
         self.onOpenMap = onOpenMap
     }
 
@@ -21,6 +26,8 @@ struct DayDetailView: View {
                     }
                     .frame(height: max(260, proxy.size.height * 0.55))
                     .padding(.horizontal)
+                    DaySummaryCard(aggregate: data.aggregate, formatter: formatter)
+                        .padding(.horizontal)
                 }
             }
         }
