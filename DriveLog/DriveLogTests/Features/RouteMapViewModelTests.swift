@@ -57,6 +57,84 @@ struct RouteMapViewModelTests {
         #expect(viewModel.media(localIdentifier: "locationless") == nil)
         #expect(viewModel.media(localIdentifier: "unknown") == nil)
     }
+
+    @Test("classification update persists and updates only the user value")
+    func classificationSuccess() async throws {
+        let useCase = ClassificationUseCaseSpy()
+        let movement = makeMovementDisplay()
+        let viewModel = RouteMapViewModel(
+            scene: makeScene(),
+            movements: [movement],
+            updateClassification: useCase
+        )
+
+        await viewModel.updateClassification(stableID: "movement", classification: .train)
+
+        let call = try #require(await useCase.calls.first)
+        #expect(call.stableID == "movement")
+        #expect(call.classification == .train)
+        let label = try #require(viewModel.scene.movementLabels.first)
+        #expect(label.userClassification == .train)
+        #expect(label.automaticClassification == .other)
+        #expect(viewModel.classificationSavingSegmentID == nil)
+        #expect(viewModel.classificationUpdateFailed == false)
+    }
+
+    @Test("classification failure keeps the display and exposes dismissible error")
+    func classificationFailure() async throws {
+        let useCase = ClassificationUseCaseSpy(error: .persistenceFailure(code: "update"))
+        let viewModel = RouteMapViewModel(
+            scene: makeScene(),
+            movements: [makeMovementDisplay()],
+            updateClassification: useCase
+        )
+
+        await viewModel.updateClassification(stableID: "movement", classification: .bus)
+
+        #expect(try #require(viewModel.scene.movementLabels.first).userClassification == nil)
+        #expect(viewModel.classificationUpdateFailed)
+        viewModel.dismissClassificationError()
+        #expect(viewModel.classificationUpdateFailed == false)
+    }
+
+    @Test("classification ignores an unknown segment")
+    func classificationUnknown() async {
+        let useCase = ClassificationUseCaseSpy()
+        let viewModel = RouteMapViewModel(
+            scene: makeScene(),
+            movements: [makeMovementDisplay()],
+            updateClassification: useCase
+        )
+
+        await viewModel.updateClassification(stableID: "unknown", classification: .other)
+
+        #expect(await useCase.calls.isEmpty)
+    }
+
+    @Test("classification ignores repeated input while saving")
+    func classificationDuplicate() async {
+        let useCase = SuspendedClassificationUseCase()
+        let viewModel = RouteMapViewModel(
+            scene: makeScene(),
+            movements: [makeMovementDisplay()],
+            updateClassification: useCase
+        )
+        let firstUpdate = Task {
+            await viewModel.updateClassification(stableID: "movement", classification: .train)
+        }
+        while await useCase.isSuspended == false {
+            await Task.yield()
+        }
+
+        #expect(viewModel.classificationSavingSegmentID == "movement")
+        await viewModel.updateClassification(stableID: "movement", classification: .bus)
+        #expect(await useCase.callCount == 1)
+
+        await useCase.resume()
+        await firstUpdate.value
+        #expect(viewModel.classificationSavingSegmentID == nil)
+        #expect(viewModel.scene.movementLabels.first?.userClassification == .train)
+    }
 }
 
 private func makeScene(mediaIdentifiers: [String] = []) -> MapScene {
@@ -97,6 +175,75 @@ private func makeScene(mediaIdentifiers: [String] = []) -> MapScene {
         },
         initialRegion: nil
     )
+}
+
+private func makeMovementDisplay() -> MovementDisplayData {
+    let date = Date(timeIntervalSince1970: 0)
+    return MovementDisplayData(
+        segment: MovementSegmentData(
+            stableID: "movement",
+            localDateKey: "1970-01-01",
+            startDate: date,
+            endDate: date.addingTimeInterval(60),
+            distanceMeters: 100,
+            durationSeconds: 60,
+            estimatedAverageSpeedMetersPerSecond: nil,
+            automaticClassification: .other,
+            classificationConfidence: .low,
+            route: [],
+            labelCoordinate: nil,
+            sourceRawRevision: 1,
+            generatedAt: date
+        ),
+        userClassification: nil
+    )
+}
+
+private actor ClassificationUseCaseSpy: UpdateClassificationUseCase {
+    struct Call: Sendable {
+        let stableID: String
+        let classification: UserMovementClassification
+    }
+
+    private(set) var calls: [Call] = []
+    private let error: DriveLogError?
+
+    init(error: DriveLogError? = nil) {
+        self.error = error
+    }
+
+    func execute(
+        segment: MovementSegmentData,
+        classification: UserMovementClassification
+    ) throws {
+        calls.append(Call(stableID: segment.stableID, classification: classification))
+        if let error {
+            throw error
+        }
+    }
+}
+
+private actor SuspendedClassificationUseCase: UpdateClassificationUseCase {
+    private(set) var callCount = 0
+    private(set) var isSuspended = false
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    func execute(
+        segment _: MovementSegmentData,
+        classification _: UserMovementClassification
+    ) async {
+        callCount += 1
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+            isSuspended = true
+        }
+    }
+
+    func resume() {
+        continuation?.resume()
+        continuation = nil
+        isSuspended = false
+    }
 }
 
 @MainActor

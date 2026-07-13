@@ -57,6 +57,36 @@ struct RouteMapAnnotationViewTests {
         #expect(movement.clusteringIdentifier == nil)
         #expect(stay.clusteringIdentifier == nil)
     }
+
+    @Test("movement callout provides all classification choices")
+    func classificationMenu() throws {
+        let view = RouteMapMovementCalloutView(annotation: nil, reuseIdentifier: nil)
+        try view.configure(
+            movement: movement(userClassification: .train),
+            formatter: DayDetailFormatter(timeZone: #require(TimeZone(identifier: "UTC")))
+        )
+
+        let button = try #require(view.subviews.compactMap { $0 as? UIButton }.first)
+        let actions = try #require(button.menu?.children.compactMap { $0 as? UIAction })
+        #expect(actions.map(\.title) == ["車", "電車", "バス", "徒歩", "その他"])
+        #expect(actions.map(\.state) == [.off, .on, .off, .off, .off])
+        #expect(button.isEnabled)
+        #expect(button.accessibilityIdentifier == "map.classificationMenu")
+    }
+
+    @Test("movement classification menu disables while saving")
+    func classificationSaving() throws {
+        let view = RouteMapMovementCalloutView(annotation: nil, reuseIdentifier: nil)
+        try view.configure(
+            movement: movement(userClassification: nil),
+            formatter: DayDetailFormatter(timeZone: #require(TimeZone(identifier: "UTC"))),
+            isSaving: true
+        )
+
+        let button = try #require(view.subviews.compactMap { $0 as? UIButton }.first)
+        #expect(button.isEnabled == false)
+        #expect(button.title(for: .normal) == "保存中…")
+    }
 }
 
 @MainActor
@@ -72,5 +102,24 @@ private func point(
         kind: kind,
         labelText: label,
         mediaType: mediaType
+    )
+}
+
+@MainActor
+private func movement(
+    userClassification: UserMovementClassification?
+) -> MapMovementLabel {
+    let date = Date(timeIntervalSince1970: 0)
+    return MapMovementLabel(
+        segmentStableID: "movement",
+        coordinate: RouteCoordinate(latitude: 35, longitude: 139),
+        text: "1分・0.1km",
+        startDate: date,
+        endDate: date.addingTimeInterval(60),
+        durationSeconds: 60,
+        distanceMeters: 100,
+        averageSpeedMetersPerSecond: nil,
+        automaticClassification: .other,
+        userClassification: userClassification
     )
 }

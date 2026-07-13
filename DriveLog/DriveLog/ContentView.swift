@@ -2,14 +2,19 @@ import SwiftUI
 
 private enum ContentRoute: Hashable {
     case dayDetail(String)
-    case fullMap(id: UUID, scene: MapScene, media: [MediaAssetReference])
+    case fullMap(
+        id: UUID,
+        scene: MapScene,
+        media: [MediaAssetReference],
+        movements: [MovementDisplayData]
+    )
     case mediaPreview(id: UUID, asset: MediaAssetReference)
 
     static func == (lhs: ContentRoute, rhs: ContentRoute) -> Bool {
         switch (lhs, rhs) {
         case let (.dayDetail(lhsKey), .dayDetail(rhsKey)):
             lhsKey == rhsKey
-        case let (.fullMap(lhsID, _, _), .fullMap(rhsID, _, _)):
+        case let (.fullMap(lhsID, _, _, _), .fullMap(rhsID, _, _, _)):
             lhsID == rhsID
         case let (.mediaPreview(lhsID, _), .mediaPreview(rhsID, _)):
             lhsID == rhsID
@@ -23,7 +28,7 @@ private enum ContentRoute: Hashable {
         case let .dayDetail(localDateKey):
             hasher.combine(0)
             hasher.combine(localDateKey)
-        case let .fullMap(id, _, _):
+        case let .fullMap(id, _, _, _):
             hasher.combine(1)
             hasher.combine(id)
         case let .mediaPreview(id, _):
@@ -38,6 +43,7 @@ struct ContentView: View {
     let today: Date
     let makeDayDetailViewModel: (String) -> DayDetailViewModel
     let loadMediaThumbnail: any LoadMediaThumbnailUseCase
+    let updateClassification: any UpdateClassificationUseCase
     let makeMediaPreviewViewModel: (MediaAssetReference) -> MediaPreviewViewModel
     @State private var path: [ContentRoute] = []
 
@@ -53,16 +59,26 @@ struct ContentView: View {
                 case let .dayDetail(localDateKey):
                     DayDetailView(
                         viewModel: makeDayDetailViewModel(localDateKey),
-                        onOpenMap: { scene, media in
-                            path.append(.fullMap(id: UUID(), scene: scene, media: media))
+                        onOpenMap: { scene, media, movements in
+                            path.append(.fullMap(
+                                id: UUID(),
+                                scene: scene,
+                                media: media,
+                                movements: movements
+                            ))
                         },
                         onSelectMedia: { asset in
                             path.append(.mediaPreview(id: UUID(), asset: asset))
                         }
                     )
-                case let .fullMap(_, scene, media):
+                case let .fullMap(_, scene, media, movements):
                     FullRouteMapView(
-                        viewModel: RouteMapViewModel(scene: scene, media: media),
+                        viewModel: RouteMapViewModel(
+                            scene: scene,
+                            media: media,
+                            movements: movements,
+                            updateClassification: updateClassification
+                        ),
                         thumbnailLoader: loadMediaThumbnail,
                         onSelectMedia: { asset in
                             path.append(.mediaPreview(id: UUID(), asset: asset))

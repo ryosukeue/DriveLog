@@ -12,6 +12,8 @@ struct RouteMapInteraction {
     let selectedStayID: String?
     let onSelectSegment: (String) -> Void
     let onSelectStay: (String) -> Void
+    let classificationSavingSegmentID: String?
+    let onUpdateClassification: (String, UserMovementClassification) -> Void
     let media: [MediaAssetReference]
     let thumbnailLoader: (any LoadMediaThumbnailUseCase)?
     let onSelectMedia: (String) -> Void
@@ -25,6 +27,8 @@ struct RouteMapView: UIViewRepresentable {
     let selectedStayID: String?
     let onSelectSegment: (String) -> Void
     let onSelectStay: (String) -> Void
+    let classificationSavingSegmentID: String?
+    let onUpdateClassification: (String, UserMovementClassification) -> Void
     let media: [MediaAssetReference]
     let thumbnailLoader: (any LoadMediaThumbnailUseCase)?
     let onSelectMedia: (String) -> Void
@@ -38,6 +42,8 @@ struct RouteMapView: UIViewRepresentable {
         selectedStayID: String? = nil,
         onSelectSegment: @escaping (String) -> Void = { _ in },
         onSelectStay: @escaping (String) -> Void = { _ in },
+        classificationSavingSegmentID: String? = nil,
+        onUpdateClassification: @escaping (String, UserMovementClassification) -> Void = { _, _ in },
         media: [MediaAssetReference] = [],
         thumbnailLoader: (any LoadMediaThumbnailUseCase)? = nil,
         onSelectMedia: @escaping (String) -> Void = { _ in },
@@ -50,6 +56,8 @@ struct RouteMapView: UIViewRepresentable {
         self.selectedStayID = selectedStayID
         self.onSelectSegment = onSelectSegment
         self.onSelectStay = onSelectStay
+        self.classificationSavingSegmentID = classificationSavingSegmentID
+        self.onUpdateClassification = onUpdateClassification
         self.media = media
         self.thumbnailLoader = thumbnailLoader
         self.onSelectMedia = onSelectMedia
@@ -102,6 +110,8 @@ struct RouteMapView: UIViewRepresentable {
             selectedStayID: selectedStayID,
             onSelectSegment: onSelectSegment,
             onSelectStay: onSelectStay,
+            classificationSavingSegmentID: classificationSavingSegmentID,
+            onUpdateClassification: onUpdateClassification,
             media: media,
             thumbnailLoader: thumbnailLoader,
             onSelectMedia: onSelectMedia,
@@ -188,6 +198,8 @@ final class RouteMapCoordinator: NSObject, MKMapViewDelegate {
     var selectedStayID: String?
     var onSelectSegment: (String) -> Void = { _ in }
     var onSelectStay: (String) -> Void = { _ in }
+    var classificationSavingSegmentID: String?
+    var onUpdateClassification: (String, UserMovementClassification) -> Void = { _, _ in }
     var onSelectMedia: (String) -> Void = { _ in }
     var mediaByIdentifier: [String: MediaAssetReference] = [:]
     var thumbnailLoader: (any LoadMediaThumbnailUseCase)?
@@ -202,6 +214,8 @@ final class RouteMapCoordinator: NSObject, MKMapViewDelegate {
         self.mapView = mapView
         onSelectSegment = interaction.onSelectSegment
         onSelectStay = interaction.onSelectStay
+        classificationSavingSegmentID = interaction.classificationSavingSegmentID
+        onUpdateClassification = interaction.onUpdateClassification
         onSelectMedia = interaction.onSelectMedia
         mediaByIdentifier = Dictionary(
             interaction.media.map { ($0.localIdentifier, $0) },
@@ -229,6 +243,7 @@ final class RouteMapCoordinator: NSObject, MKMapViewDelegate {
             mapView.removeGestureRecognizer(tapRecognizer)
             self.tapRecognizer = nil
         }
+        updateMovementCalloutConfiguration(in: mapView)
     }
 
     func update(scene: MapScene, in mapView: MKMapView) {

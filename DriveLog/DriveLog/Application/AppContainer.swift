@@ -87,6 +87,15 @@ final class AppContainer {
         DefaultLoadMediaThumbnailUseCase(photoLibrary: photoLibrary)
     }
 
+    func makeUpdateClassificationUseCase(
+        modelContainer: ModelContainer
+    ) -> any UpdateClassificationUseCase {
+        DefaultUpdateClassificationUseCase(
+            overrideRepository: SwiftDataOverrideRepository(modelContainer: modelContainer),
+            clock: clock
+        )
+    }
+
     func makeMediaPreviewViewModel(
         asset: MediaAssetReference,
         photoLibrary: any PhotoLibraryProviding = PhotoLibraryProvider()

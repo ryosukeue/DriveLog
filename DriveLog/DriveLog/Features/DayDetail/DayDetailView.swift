@@ -2,7 +2,7 @@ import SwiftUI
 
 struct DayDetailView: View {
     @State private var viewModel: DayDetailViewModel
-    let onOpenMap: (MapScene, [MediaAssetReference]) -> Void
+    let onOpenMap: (MapScene, [MediaAssetReference], [MovementDisplayData]) -> Void
     let onSelectMedia: (MediaAssetReference) -> Void
     private let formatter: DayDetailFormatter
 
@@ -11,7 +11,11 @@ struct DayDetailView: View {
         formatter: DayDetailFormatter = DayDetailFormatter(
             timeZone: SystemTimeZoneProvider().current
         ),
-        onOpenMap: @escaping (MapScene, [MediaAssetReference]) -> Void = { _, _ in },
+        onOpenMap: @escaping (
+            MapScene,
+            [MediaAssetReference],
+            [MovementDisplayData]
+        ) -> Void = { _, _, _ in },
         onSelectMedia: @escaping (MediaAssetReference) -> Void = { _ in }
     ) {
         _viewModel = State(initialValue: viewModel)
@@ -44,7 +48,7 @@ struct DayDetailView: View {
     private func loadedContent(data: DayDetailData, availableHeight: CGFloat) -> some View {
         VStack(spacing: 16) {
             DayMapPreview(scene: data.mapScene) {
-                onOpenMap(data.mapScene, data.media)
+                onOpenMap(data.mapScene, data.media, data.movements)
             }
             .frame(height: max(260, availableHeight * 0.55))
             if viewModel.isReprocessing {

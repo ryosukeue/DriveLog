@@ -188,6 +188,7 @@ final class RouteMapStayCalloutView: MKAnnotationView {
 
 final class RouteMapMovementCalloutView: MKAnnotationView {
     private let label = UILabel()
+    private let classificationButton = UIButton(type: .system)
 
     override init(annotation: (any MKAnnotation)?, reuseIdentifier: String?) {
         super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
@@ -200,9 +201,16 @@ final class RouteMapMovementCalloutView: MKAnnotationView {
         label.layer.borderColor = UIColor.systemRed.cgColor
         label.layer.borderWidth = 2
         addSubview(label)
+        classificationButton.showsMenuAsPrimaryAction = true
+        classificationButton.setTitle("分類を変更", for: .normal)
+        classificationButton.backgroundColor = .secondarySystemBackground
+        classificationButton.accessibilityLabel = "移動分類を変更"
+        classificationButton.accessibilityIdentifier = "map.classificationMenu"
+        addSubview(classificationButton)
         canShowCallout = false
-        centerOffset = CGPoint(x: 0, y: -85)
-        isAccessibilityElement = true
+        centerOffset = CGPoint(x: 0, y: -105)
+        isAccessibilityElement = false
+        label.isAccessibilityElement = true
         accessibilityTraits = .button
     }
 
@@ -211,7 +219,12 @@ final class RouteMapMovementCalloutView: MKAnnotationView {
         nil
     }
 
-    func configure(movement: MapMovementLabel, formatter: DayDetailFormatter) {
+    func configure(
+        movement: MapMovementLabel,
+        formatter: DayDetailFormatter,
+        isSaving: Bool = false,
+        onSelectClassification: @escaping (UserMovementClassification) -> Void = { _ in }
+    ) {
         let timeRange = "\(formatter.time(movement.startDate))–\(formatter.time(movement.endDate))"
         let values = [
             timeRange,
@@ -222,10 +235,38 @@ final class RouteMapMovementCalloutView: MKAnnotationView {
             "ユーザー分類 \(formatter.classification(movement.userClassification))"
         ]
         label.text = "  \(values.joined(separator: "\n"))  "
-        frame.size = CGSize(width: 190, height: 150)
-        label.frame = bounds
-        accessibilityLabel = values.joined(separator: "、")
-        accessibilityIdentifier = "map.movementCallout"
+        frame.size = CGSize(width: 200, height: 190)
+        label.frame = CGRect(x: 0, y: 0, width: bounds.width, height: 150)
+        classificationButton.frame = CGRect(x: 8, y: 150, width: 184, height: 40)
+        label.accessibilityLabel = values.joined(separator: "、")
+        label.accessibilityIdentifier = "map.movementCallout"
+        classificationButton.isEnabled = !isSaving
+        classificationButton.setTitle(isSaving ? "保存中…" : "分類を変更", for: .normal)
+        classificationButton.menu = UIMenu(children: classificationActions(
+            selected: movement.userClassification,
+            onSelect: onSelectClassification
+        ))
+    }
+
+    private func classificationActions(
+        selected: UserMovementClassification?,
+        onSelect: @escaping (UserMovementClassification) -> Void
+    ) -> [UIAction] {
+        let values: [(String, UserMovementClassification)] = [
+            ("車", .automotive),
+            ("電車", .train),
+            ("バス", .bus),
+            ("徒歩", .walking),
+            ("その他", .other)
+        ]
+        return values.map { title, classification in
+            UIAction(
+                title: title,
+                state: selected == classification ? .on : .off
+            ) { _ in
+                onSelect(classification)
+            }
+        }
     }
 }
 

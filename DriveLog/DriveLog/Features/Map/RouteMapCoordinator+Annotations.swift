@@ -193,10 +193,32 @@ extension RouteMapCoordinator {
         if let movement = annotation.movement {
             view.configure(
                 movement: movement,
-                formatter: DayDetailFormatter(timeZone: SystemTimeZoneProvider().current)
+                formatter: DayDetailFormatter(timeZone: SystemTimeZoneProvider().current),
+                isSaving: movement.segmentStableID == classificationSavingSegmentID,
+                onSelectClassification: { [weak self] classification in
+                    self?.onUpdateClassification(movement.segmentStableID, classification)
+                }
             )
         }
         return view
+    }
+
+    func updateMovementCalloutConfiguration(in mapView: MKMapView) {
+        for annotation in mapView.annotations {
+            guard let value = annotation as? RouteMapPointAnnotation,
+                  value.kind == .movementCallout,
+                  let movement = value.movement,
+                  let view = mapView.view(for: value) as? RouteMapMovementCalloutView
+            else { continue }
+            view.configure(
+                movement: movement,
+                formatter: DayDetailFormatter(timeZone: SystemTimeZoneProvider().current),
+                isSaving: movement.segmentStableID == classificationSavingSegmentID,
+                onSelectClassification: { [weak self] classification in
+                    self?.onUpdateClassification(movement.segmentStableID, classification)
+                }
+            )
+        }
     }
 
     private func stayView(

@@ -77,6 +77,9 @@ struct DriveLogApp: App {
                     loadMediaThumbnail: appContainer.makeLoadMediaThumbnailUseCase(
                         photoLibrary: photoLibrary
                     ),
+                    updateClassification: appContainer.makeUpdateClassificationUseCase(
+                        modelContainer: modelContainer
+                    ),
                     makeMediaPreviewViewModel: { asset in
                         appContainer.makeMediaPreviewViewModel(
                             asset: asset,
