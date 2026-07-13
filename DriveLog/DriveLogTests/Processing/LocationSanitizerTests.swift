@@ -8,18 +8,22 @@ struct LocationSanitizerTests {
 
     @Test("accepts coordinate boundaries and rejects out of range coordinates")
     func coordinateRanges() {
-        let locations = [
+        let accepted = [
             makeLocation(latitude: -90, longitude: -180, seconds: 1),
-            makeLocation(latitude: 90, longitude: 180, seconds: 2),
+            makeLocation(latitude: 90, longitude: 180, seconds: 2)
+        ]
+        let rejected = [
             makeLocation(latitude: -90.000_001, seconds: 3),
             makeLocation(latitude: 90.000_001, seconds: 4),
             makeLocation(longitude: -180.000_001, seconds: 5),
             makeLocation(longitude: 180.000_001, seconds: 6)
         ]
 
-        let result = sanitizer.sanitize(locations)
+        let result = sanitizer.sanitize(rejected)
 
-        #expect(result.accepted == Array(locations.prefix(2)))
+        #expect(sanitizer.sanitize([accepted[0]]).accepted == [accepted[0]])
+        #expect(sanitizer.sanitize([accepted[1]]).accepted == [accepted[1]])
+        #expect(result.accepted.isEmpty)
         #expect(result.rejected.map(\.reason) == Array(repeating: .invalidCoordinate, count: 4))
     }
 
@@ -69,30 +73,31 @@ struct LocationSanitizerTests {
         ])
     }
 
-    @Test("sorts by timestamp accuracy created date then original order")
+    @Test("sorts rejections by timestamp accuracy created date then original order")
     func deterministicSorting() {
         let timestamp = now.addingTimeInterval(-100)
         let laterCreatedAt = now.addingTimeInterval(-10)
         let earlierCreatedAt = now.addingTimeInterval(-20)
         let originalFirst = makeLocation(
-            latitude: 10, date: timestamp, accuracy: 5, createdAt: earlierCreatedAt
+            latitude: 100, date: timestamp, accuracy: 5, createdAt: earlierCreatedAt
         )
         let originalSecond = makeLocation(
-            latitude: 20, date: timestamp, accuracy: 5, createdAt: earlierCreatedAt
+            latitude: 110, date: timestamp, accuracy: 5, createdAt: earlierCreatedAt
         )
         let worseAccuracy = makeLocation(
-            latitude: 30, date: timestamp, accuracy: 10, createdAt: earlierCreatedAt
+            latitude: 120, date: timestamp, accuracy: 10, createdAt: earlierCreatedAt
         )
         let laterCreation = makeLocation(
-            latitude: 40, date: timestamp, accuracy: 5, createdAt: laterCreatedAt
+            latitude: 130, date: timestamp, accuracy: 5, createdAt: laterCreatedAt
         )
-        let earlierTimestamp = makeLocation(date: timestamp.addingTimeInterval(-1))
+        let earlierTimestamp = makeLocation(latitude: 140, date: timestamp.addingTimeInterval(-1))
 
         let result = sanitizer.sanitize([
             worseAccuracy, originalFirst, laterCreation, earlierTimestamp, originalSecond
         ])
 
-        #expect(result.accepted == [
+        #expect(result.accepted.isEmpty)
+        #expect(result.rejected.map(\.location) == [
             earlierTimestamp, originalFirst, originalSecond, laterCreation, worseAccuracy
         ])
     }
@@ -243,7 +248,9 @@ struct LocationSanitizerTests {
         #expect(result.accepted == [boundary])
         #expect(result.rejected.map(\.reason) == [.poorAccuracy])
     }
+}
 
+extension LocationSanitizerTests {
     private var sanitizer: LocationSanitizer {
         LocationSanitizer(rules: ProcessingConfiguration.mvp.location, clock: FixedClock(now: now))
     }

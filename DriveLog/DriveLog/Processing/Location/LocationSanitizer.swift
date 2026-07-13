@@ -50,7 +50,9 @@ nonisolated struct LocationSanitizer: LocationSanitizing {
         rejected.append(contentsOf: deduplicated.rejected)
         let accuracyFiltered = removePoorAccuracy(from: deduplicated.accepted)
         rejected.append(contentsOf: accuracyFiltered.rejected)
-        return SanitizedLocations(accepted: accuracyFiltered.accepted, rejected: sorted(rejected))
+        let jumpFiltered = removeImplausibleJumps(from: accuracyFiltered.accepted)
+        rejected.append(contentsOf: jumpFiltered.rejected)
+        return SanitizedLocations(accepted: jumpFiltered.accepted, rejected: sorted(rejected))
     }
 
     private func sorted(_ locations: [LocationEventData]) -> [LocationEventData] {
@@ -165,6 +167,71 @@ nonisolated struct LocationSanitizer: LocationSanitizing {
         }
 
         return SanitizedLocations(accepted: accepted, rejected: rejected)
+    }
+
+    private func removeImplausibleJumps(from locations: [LocationEventData]) -> SanitizedLocations {
+        var accepted = locations
+        var rejected: [RejectedLocation] = []
+
+        while let jumpIndex = firstImplausibleJumpIndex(in: accepted) {
+            let removalIndex = implausiblePointIndex(in: accepted, jumpIndex: jumpIndex)
+            let reason: RejectedLocationReason = hasValidTimeSequence(
+                accepted[jumpIndex], accepted[jumpIndex + 1]
+            ) ? .implausibleJump : .invalidSequence
+            rejected.append(
+                RejectedLocation(location: accepted.remove(at: removalIndex), reason: reason)
+            )
+        }
+
+        return SanitizedLocations(accepted: accepted, rejected: rejected)
+    }
+
+    private func firstImplausibleJumpIndex(in locations: [LocationEventData]) -> Int? {
+        guard locations.count >= 2 else {
+            return nil
+        }
+        return (0 ..< locations.count - 1).first {
+            estimatedSpeed(from: locations[$0], to: locations[$0 + 1]) > rules.maximumPlausibleSpeed
+        }
+    }
+
+    private func implausiblePointIndex(
+        in locations: [LocationEventData],
+        jumpIndex: Int
+    ) -> Int {
+        let leftIndex = jumpIndex
+        let rightIndex = jumpIndex + 1
+
+        let hasPlausibleSuccessor = rightIndex + 1 < locations.count &&
+            isPlausible(from: locations[leftIndex], to: locations[rightIndex + 1])
+        if hasPlausibleSuccessor {
+            return rightIndex
+        }
+        let hasPlausiblePredecessor = leftIndex > 0 &&
+            isPlausible(from: locations[leftIndex - 1], to: locations[rightIndex])
+        if hasPlausiblePredecessor {
+            return leftIndex
+        }
+        if locations[leftIndex].horizontalAccuracy > locations[rightIndex].horizontalAccuracy {
+            return leftIndex
+        }
+        return rightIndex
+    }
+
+    private func isPlausible(from start: LocationEventData, to end: LocationEventData) -> Bool {
+        estimatedSpeed(from: start, to: end) <= rules.maximumPlausibleSpeed
+    }
+
+    private func estimatedSpeed(from start: LocationEventData, to end: LocationEventData) -> Double {
+        let timeInterval = end.timestamp.timeIntervalSince(start.timestamp)
+        guard timeInterval > 0 else {
+            return .infinity
+        }
+        return surfaceDistance(from: start, to: end) / timeInterval
+    }
+
+    private func hasValidTimeSequence(_ start: LocationEventData, _ end: LocationEventData) -> Bool {
+        end.timestamp > start.timestamp
     }
 
     private func isDuplicate(_ location: LocationEventData, of candidate: LocationEventData) -> Bool {
