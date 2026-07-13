@@ -45,7 +45,11 @@ final class AppContainer {
         modelContainer: ModelContainer,
         localDateKey: String
     ) -> DayDetailViewModel {
-        DayDetailViewModel(
+        let photoLibrary = PhotoLibraryProvider()
+        let mediaCacheRepository = SwiftDataMediaCacheRepository(
+            modelContainer: modelContainer
+        )
+        return DayDetailViewModel(
             localDateKey: localDateKey,
             loadDayDetail: DefaultLoadDayDetailUseCase(
                 derivedRepository: SwiftDataDerivedDataRepository(
@@ -58,13 +62,22 @@ final class AppContainer {
                     modelContainer: modelContainer,
                     clock: clock
                 ),
-                mediaCacheRepository: SwiftDataMediaCacheRepository(
-                    modelContainer: modelContainer
-                ),
+                mediaCacheRepository: mediaCacheRepository,
                 mediaPlacementCalculator: MediaPlacementCalculator(),
                 mapSceneBuilder: MapSceneBuilder()
             ),
-            loadMediaThumbnail: makeLoadMediaThumbnailUseCase()
+            loadMediaThumbnail: DefaultLoadMediaThumbnailUseCase(photoLibrary: photoLibrary),
+            refreshMediaCache: DefaultRefreshMediaCacheUseCase(
+                photoLibrary: photoLibrary,
+                eligibilityEvaluator: DefaultMediaEligibilityEvaluator(),
+                mediaCacheRepository: mediaCacheRepository,
+                clock: clock,
+                timeZoneProvider: timeZoneProvider,
+                logger: logger
+            ),
+            observePhotoLibraryChanges: DefaultObservePhotoLibraryChangesUseCase(
+                photoLibrary: photoLibrary
+            )
         )
     }
 

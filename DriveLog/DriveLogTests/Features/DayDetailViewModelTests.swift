@@ -12,7 +12,9 @@ struct DayDetailViewModelTests {
         let viewModel = DayDetailViewModel(
             localDateKey: data.aggregate.localDateKey,
             loadDayDetail: DayDetailUseCaseFake(results: [.success(data)]),
-            loadMediaThumbnail: DayDetailThumbnailUseCaseFake()
+            loadMediaThumbnail: DayDetailThumbnailUseCaseFake(),
+            refreshMediaCache: DayDetailRefreshUseCaseFake(),
+            observePhotoLibraryChanges: DayDetailObserveChangesFake()
         )
 
         await viewModel.load()
@@ -28,7 +30,9 @@ struct DayDetailViewModelTests {
         let viewModel = DayDetailViewModel(
             localDateKey: data.aggregate.localDateKey,
             loadDayDetail: DayDetailUseCaseFake(results: [.success(data)]),
-            loadMediaThumbnail: DayDetailThumbnailUseCaseFake()
+            loadMediaThumbnail: DayDetailThumbnailUseCaseFake(),
+            refreshMediaCache: DayDetailRefreshUseCaseFake(),
+            observePhotoLibraryChanges: DayDetailObserveChangesFake()
         )
 
         await viewModel.load()
@@ -42,13 +46,17 @@ struct DayDetailViewModelTests {
         let invalidDataViewModel = DayDetailViewModel(
             localDateKey: "2024-01-01",
             loadDayDetail: DayDetailUseCaseFake(results: [.failure(DriveLogError.invalidData)]),
-            loadMediaThumbnail: DayDetailThumbnailUseCaseFake()
+            loadMediaThumbnail: DayDetailThumbnailUseCaseFake(),
+            refreshMediaCache: DayDetailRefreshUseCaseFake(),
+            observePhotoLibraryChanges: DayDetailObserveChangesFake()
         )
         let invalidAggregate = makeDayDetailData(isValid: false, isReprocessing: false)
         let invalidAggregateViewModel = DayDetailViewModel(
             localDateKey: "2024-01-01",
             loadDayDetail: DayDetailUseCaseFake(results: [.success(invalidAggregate)]),
-            loadMediaThumbnail: DayDetailThumbnailUseCaseFake()
+            loadMediaThumbnail: DayDetailThumbnailUseCaseFake(),
+            refreshMediaCache: DayDetailRefreshUseCaseFake(),
+            observePhotoLibraryChanges: DayDetailObserveChangesFake()
         )
 
         await invalidDataViewModel.load()
@@ -69,7 +77,9 @@ struct DayDetailViewModelTests {
         let viewModel = DayDetailViewModel(
             localDateKey: "2024-01-01",
             loadDayDetail: fake,
-            loadMediaThumbnail: DayDetailThumbnailUseCaseFake()
+            loadMediaThumbnail: DayDetailThumbnailUseCaseFake(),
+            refreshMediaCache: DayDetailRefreshUseCaseFake(),
+            observePhotoLibraryChanges: DayDetailObserveChangesFake()
         )
 
         await viewModel.load()
@@ -88,7 +98,9 @@ struct DayDetailViewModelTests {
         let viewModel = DayDetailViewModel(
             localDateKey: "2024-01-01",
             loadDayDetail: fake,
-            loadMediaThumbnail: DayDetailThumbnailUseCaseFake()
+            loadMediaThumbnail: DayDetailThumbnailUseCaseFake(),
+            refreshMediaCache: DayDetailRefreshUseCaseFake(),
+            observePhotoLibraryChanges: DayDetailObserveChangesFake()
         )
 
         await viewModel.load()
@@ -105,7 +117,9 @@ struct DayDetailViewModelTests {
         let viewModel = DayDetailViewModel(
             localDateKey: "2024-01-01",
             loadDayDetail: DayDetailUseCaseFake(results: []),
-            loadMediaThumbnail: success
+            loadMediaThumbnail: success,
+            refreshMediaCache: DayDetailRefreshUseCaseFake(),
+            observePhotoLibraryChanges: DayDetailObserveChangesFake()
         )
         let size = CGSize(width: 180, height: 180)
 
@@ -116,11 +130,76 @@ struct DayDetailViewModelTests {
         let failingViewModel = DayDetailViewModel(
             localDateKey: "2024-01-01",
             loadDayDetail: DayDetailUseCaseFake(results: []),
-            loadMediaThumbnail: failure
+            loadMediaThumbnail: failure,
+            refreshMediaCache: DayDetailRefreshUseCaseFake(),
+            observePhotoLibraryChanges: DayDetailObserveChangesFake()
         )
         await #expect(throws: DriveLogError.mediaUnavailable) {
             try await failingViewModel.thumbnail(localIdentifier: "missing", targetSize: size)
         }
+    }
+
+    @Test("refreshes media before loading and tolerates refresh failure")
+    func refreshBeforeLoad() async {
+        let data = makeDayDetailData(isValid: true, isReprocessing: false)
+        let success = DayDetailRefreshUseCaseFake()
+        let successViewModel = DayDetailViewModel(
+            localDateKey: "2024-01-01",
+            loadDayDetail: DayDetailUseCaseFake(results: [.success(data)]),
+            loadMediaThumbnail: DayDetailThumbnailUseCaseFake(),
+            refreshMediaCache: success,
+            observePhotoLibraryChanges: DayDetailObserveChangesFake()
+        )
+        let failure = DayDetailRefreshUseCaseFake(error: .mediaUnavailable)
+        let failureViewModel = DayDetailViewModel(
+            localDateKey: "2024-01-01",
+            loadDayDetail: DayDetailUseCaseFake(results: [.success(data)]),
+            loadMediaThumbnail: DayDetailThumbnailUseCaseFake(),
+            refreshMediaCache: failure,
+            observePhotoLibraryChanges: DayDetailObserveChangesFake()
+        )
+
+        await successViewModel.load()
+        await failureViewModel.load()
+
+        #expect(await success.recordedKeys() == ["2024-01-01"])
+        #expect(await failure.recordedKeys() == ["2024-01-01"])
+        #expect(successViewModel.state == .loaded)
+        #expect(failureViewModel.state == .loaded)
+    }
+
+    @Test("library changes refresh and reload until observation is cancelled")
+    func libraryChanges() async {
+        let first = makeDayDetailData(isValid: true, isReprocessing: false)
+        let second = makeDayDetailData(isValid: true, isReprocessing: true)
+        let refresh = DayDetailRefreshUseCaseFake()
+        let source = DayDetailChangeSource()
+        let viewModel = DayDetailViewModel(
+            localDateKey: "2024-01-01",
+            loadDayDetail: DayDetailUseCaseFake(results: [.success(first), .success(second)]),
+            loadMediaThumbnail: DayDetailThumbnailUseCaseFake(),
+            refreshMediaCache: refresh,
+            observePhotoLibraryChanges: DayDetailObserveChangesFake(changes: source.changes)
+        )
+        let observation = Task { await viewModel.observeLibraryChanges() }
+
+        source.send()
+        await waitUntil { await refresh.recordedKeys().count == 1 }
+        await waitUntil { viewModel.state == .loaded }
+        #expect(!viewModel.isReprocessing)
+
+        source.send()
+        await waitUntil { await refresh.recordedKeys().count == 2 }
+        await waitUntil { viewModel.isReprocessing }
+        #expect(viewModel.isReprocessing)
+
+        observation.cancel()
+        await observation.value
+        source.send()
+        for _ in 0 ..< 10 {
+            await Task.yield()
+        }
+        #expect(await refresh.recordedKeys().count == 2)
     }
 }
 
@@ -146,6 +225,63 @@ private final class DayDetailThumbnailUseCaseFake: LoadMediaThumbnailUseCase {
             throw error
         }
         return image
+    }
+}
+
+private actor DayDetailRefreshUseCaseFake: RefreshMediaCacheUseCase {
+    private var keys: [String] = []
+    private let error: DriveLogError?
+
+    init(error: DriveLogError? = nil) {
+        self.error = error
+    }
+
+    func execute(localDateKey: String) async throws -> [MediaAssetReference] {
+        keys.append(localDateKey)
+        if let error {
+            throw error
+        }
+        return []
+    }
+
+    func recordedKeys() -> [String] {
+        keys
+    }
+}
+
+private struct DayDetailObserveChangesFake: ObservePhotoLibraryChangesUseCase {
+    let changes: AsyncStream<PhotoLibraryChange>
+
+    init(changes: AsyncStream<PhotoLibraryChange> = AsyncStream { $0.finish() }) {
+        self.changes = changes
+    }
+}
+
+private final class DayDetailChangeSource: @unchecked Sendable {
+    let changes: AsyncStream<PhotoLibraryChange>
+    private let continuation: AsyncStream<PhotoLibraryChange>.Continuation
+
+    init() {
+        let stream = AsyncStream<PhotoLibraryChange>.makeStream(bufferingPolicy: .unbounded)
+        changes = stream.stream
+        continuation = stream.continuation
+    }
+
+    deinit {
+        continuation.finish()
+    }
+
+    func send() {
+        continuation.yield(.libraryDidChange)
+    }
+}
+
+private func waitUntil(_ condition: () async -> Bool) async {
+    for _ in 0 ..< 100 {
+        if await condition() {
+            return
+        }
+        await Task.yield()
     }
 }
 

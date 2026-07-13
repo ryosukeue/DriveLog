@@ -34,8 +34,10 @@ struct DayDetailView: View {
         .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            guard viewModel.state == .idle else { return }
-            await viewModel.load()
+            if viewModel.state == .idle {
+                await viewModel.load()
+            }
+            await viewModel.observeLibraryChanges()
         }
     }
 

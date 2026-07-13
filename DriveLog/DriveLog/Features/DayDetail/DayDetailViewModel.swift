@@ -23,16 +23,22 @@ final class DayDetailViewModel {
 
     private let loadDayDetail: any LoadDayDetailUseCase
     private let loadMediaThumbnail: any LoadMediaThumbnailUseCase
+    private let refreshMediaCache: any RefreshMediaCacheUseCase
+    private let observePhotoLibraryChanges: any ObservePhotoLibraryChangesUseCase
     private var requestID: UUID?
 
     init(
         localDateKey: String,
         loadDayDetail: any LoadDayDetailUseCase,
-        loadMediaThumbnail: any LoadMediaThumbnailUseCase
+        loadMediaThumbnail: any LoadMediaThumbnailUseCase,
+        refreshMediaCache: any RefreshMediaCacheUseCase,
+        observePhotoLibraryChanges: any ObservePhotoLibraryChangesUseCase
     ) {
         self.localDateKey = localDateKey
         self.loadDayDetail = loadDayDetail
         self.loadMediaThumbnail = loadMediaThumbnail
+        self.refreshMediaCache = refreshMediaCache
+        self.observePhotoLibraryChanges = observePhotoLibraryChanges
     }
 
     func thumbnail(localIdentifier: String, targetSize: CGSize) async throws -> UIImage {
@@ -49,6 +55,12 @@ final class DayDetailViewModel {
             state = .loading
         }
         do {
+            _ = try await refreshMediaCache.execute(localDateKey: localDateKey)
+        } catch {
+            // Cached day detail remains usable when PhotoKit is temporarily unavailable.
+        }
+        guard requestID == id, !Task.isCancelled else { return }
+        do {
             let loadedData = try await loadDayDetail.execute(localDateKey: localDateKey)
             guard requestID == id else { return }
             data = loadedData
@@ -60,6 +72,13 @@ final class DayDetailViewModel {
         } catch {
             guard requestID == id else { return }
             state = .error
+        }
+    }
+
+    func observeLibraryChanges() async {
+        for await _ in observePhotoLibraryChanges.changes {
+            guard !Task.isCancelled else { return }
+            await load()
         }
     }
 }
