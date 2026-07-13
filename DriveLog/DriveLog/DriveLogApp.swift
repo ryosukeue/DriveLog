@@ -83,6 +83,7 @@ struct DriveLogApp: App {
                     updateStayOverride: appContainer.makeUpdateStayOverrideUseCase(
                         modelContainer: modelContainer
                     ),
+                    hapticFeedback: appContainer.hapticFeedback,
                     makeMediaPreviewViewModel: { asset in
                         appContainer.makeMediaPreviewViewModel(
                             asset: asset,

@@ -46,6 +46,7 @@ struct ContentView: View {
     let loadMediaThumbnail: any LoadMediaThumbnailUseCase
     let updateClassification: any UpdateClassificationUseCase
     let updateStayOverride: any UpdateStayOverrideUseCase
+    let hapticFeedback: any HapticFeedbackProviding
     let makeMediaPreviewViewModel: (MediaAssetReference) -> MediaPreviewViewModel
     @State private var path: [ContentRoute] = []
 
@@ -82,7 +83,8 @@ struct ContentView: View {
                             movements: movements,
                             updateClassification: updateClassification,
                             stays: stays,
-                            updateStayOverride: updateStayOverride
+                            updateStayOverride: updateStayOverride,
+                            hapticFeedback: hapticFeedback
                         ),
                         thumbnailLoader: loadMediaThumbnail,
                         onSelectMedia: { asset in

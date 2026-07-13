@@ -4,6 +4,7 @@ import os
 import Testing
 
 @Suite("AppContainer")
+@MainActor
 struct AppContainerTests {
     @Test("Foundation dependencies can be injected")
     func foundationDependenciesCanBeInjected() throws {
@@ -15,11 +16,13 @@ struct AppContainerTests {
             localDateKey: "2023-11-15"
         )
         let logger = ContainerSpyLogger()
+        let hapticFeedback = ContainerSpyHapticFeedback()
         let container = AppContainer(
             logger: logger,
             clock: ContainerFixedClock(now: date),
             timeZoneProvider: ContainerFixedTimeZoneProvider(current: timeZone),
-            localTimeContextProvider: ContainerFixedLocalTimeContextProvider(context: context)
+            localTimeContextProvider: ContainerFixedLocalTimeContextProvider(context: context),
+            hapticFeedback: hapticFeedback
         )
 
         container.logger.info(.permissionStateChanged)
@@ -28,6 +31,8 @@ struct AppContainerTests {
         #expect(container.clock.now == date)
         #expect(container.timeZoneProvider.current == timeZone)
         #expect(container.localTimeContextProvider.makeContext(for: date) == context)
+        container.hapticFeedback.performLightSuccess()
+        #expect(hapticFeedback.callCount == 1)
     }
 
     @Test("Production dependencies provide current values")
@@ -84,5 +89,14 @@ private final class ContainerSpyLogger: Logging, @unchecked Sendable {
         storage.withLock { events in
             events.append(event)
         }
+    }
+}
+
+@MainActor
+private final class ContainerSpyHapticFeedback: HapticFeedbackProviding {
+    private(set) var callCount = 0
+
+    func performLightSuccess() {
+        callCount += 1
     }
 }

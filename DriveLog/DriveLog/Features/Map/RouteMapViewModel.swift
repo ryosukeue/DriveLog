@@ -15,6 +15,7 @@ final class RouteMapViewModel {
     private let updateClassification: (any UpdateClassificationUseCase)?
     private let staysByStableID: [String: StayDisplayData]
     private let updateStayOverride: (any UpdateStayOverrideUseCase)?
+    private let hapticFeedback: (any HapticFeedbackProviding)?
 
     init(
         scene: MapScene,
@@ -22,10 +23,12 @@ final class RouteMapViewModel {
         movements: [MovementDisplayData] = [],
         updateClassification: (any UpdateClassificationUseCase)? = nil,
         stays: [StayDisplayData] = [],
-        updateStayOverride: (any UpdateStayOverrideUseCase)? = nil
+        updateStayOverride: (any UpdateStayOverrideUseCase)? = nil,
+        hapticFeedback: (any HapticFeedbackProviding)? = nil
     ) {
         self.updateClassification = updateClassification
         self.updateStayOverride = updateStayOverride
+        self.hapticFeedback = hapticFeedback
         movementsByStableID = Dictionary(
             movements.map { ($0.segment.stableID, $0.segment) },
             uniquingKeysWith: { first, _ in first }
@@ -86,6 +89,7 @@ final class RouteMapViewModel {
                 stableID: stableID,
                 classification: classification
             )
+            hapticFeedback?.performLightSuccess()
         } catch {
             classificationUpdateFailed = true
         }
@@ -111,6 +115,7 @@ final class RouteMapViewModel {
             if shouldClearSelection {
                 selectedStayID = nil
             }
+            hapticFeedback?.performLightSuccess()
         } catch {
             stayUpdateFailed = true
         }

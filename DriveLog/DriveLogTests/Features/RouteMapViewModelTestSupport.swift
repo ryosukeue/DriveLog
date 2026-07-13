@@ -1,6 +1,15 @@
 @testable import DriveLog
 import os
 
+@MainActor
+final class HapticFeedbackSpy: HapticFeedbackProviding {
+    private(set) var callCount = 0
+
+    func performLightSuccess() {
+        callCount += 1
+    }
+}
+
 final class StayUseCaseSpy: UpdateStayOverrideUseCase, @unchecked Sendable {
     struct Call: Sendable {
         let stableID: String

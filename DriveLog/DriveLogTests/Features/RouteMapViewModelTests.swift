@@ -61,11 +61,13 @@ struct RouteMapViewModelTests {
     @Test("classification update persists and updates only the user value")
     func classificationSuccess() async throws {
         let useCase = ClassificationUseCaseSpy()
+        let hapticFeedback = HapticFeedbackSpy()
         let movement = makeMovementDisplay()
         let viewModel = RouteMapViewModel(
             scene: makeScene(),
             movements: [movement],
-            updateClassification: useCase
+            updateClassification: useCase,
+            hapticFeedback: hapticFeedback
         )
 
         await viewModel.updateClassification(stableID: "movement", classification: .train)
@@ -78,21 +80,25 @@ struct RouteMapViewModelTests {
         #expect(label.automaticClassification == .other)
         #expect(viewModel.classificationSavingSegmentID == nil)
         #expect(viewModel.classificationUpdateFailed == false)
+        #expect(hapticFeedback.callCount == 1)
     }
 
     @Test("classification failure keeps the display and exposes dismissible error")
     func classificationFailure() async throws {
         let useCase = ClassificationUseCaseSpy(error: .persistenceFailure(code: "update"))
+        let hapticFeedback = HapticFeedbackSpy()
         let viewModel = RouteMapViewModel(
             scene: makeScene(),
             movements: [makeMovementDisplay()],
-            updateClassification: useCase
+            updateClassification: useCase,
+            hapticFeedback: hapticFeedback
         )
 
         await viewModel.updateClassification(stableID: "movement", classification: .bus)
 
         #expect(try #require(viewModel.scene.movementLabels.first).userClassification == nil)
         #expect(viewModel.classificationUpdateFailed)
+        #expect(hapticFeedback.callCount == 0)
         viewModel.dismissClassificationError()
         #expect(viewModel.classificationUpdateFailed == false)
     }
@@ -100,24 +106,29 @@ struct RouteMapViewModelTests {
     @Test("classification ignores an unknown segment")
     func classificationUnknown() async {
         let useCase = ClassificationUseCaseSpy()
+        let hapticFeedback = HapticFeedbackSpy()
         let viewModel = RouteMapViewModel(
             scene: makeScene(),
             movements: [makeMovementDisplay()],
-            updateClassification: useCase
+            updateClassification: useCase,
+            hapticFeedback: hapticFeedback
         )
 
         await viewModel.updateClassification(stableID: "unknown", classification: .other)
 
         #expect(await useCase.calls.isEmpty)
+        #expect(hapticFeedback.callCount == 0)
     }
 
     @Test("classification ignores repeated input while saving")
     func classificationDuplicate() async {
         let useCase = SuspendedClassificationUseCase()
+        let hapticFeedback = HapticFeedbackSpy()
         let viewModel = RouteMapViewModel(
             scene: makeScene(),
             movements: [makeMovementDisplay()],
-            updateClassification: useCase
+            updateClassification: useCase,
+            hapticFeedback: hapticFeedback
         )
         let firstUpdate = Task {
             await viewModel.updateClassification(stableID: "movement", classification: .train)
@@ -129,17 +140,23 @@ struct RouteMapViewModelTests {
         #expect(viewModel.classificationSavingSegmentID == "movement")
         await viewModel.updateClassification(stableID: "movement", classification: .bus)
         #expect(await useCase.callCount == 1)
-
+        #expect(hapticFeedback.callCount == 0)
         await useCase.resume()
         await firstUpdate.value
         #expect(viewModel.classificationSavingSegmentID == nil)
         #expect(viewModel.scene.movementLabels.first?.userClassification == .train)
+        #expect(hapticFeedback.callCount == 1)
     }
 
     @Test("stay confirm persists and remains visible")
     func stayConfirm() async throws {
         let useCase = StayUseCaseSpy()
-        let viewModel = makeStayViewModel(useCase: useCase, automaticVisibility: false)
+        let hapticFeedback = HapticFeedbackSpy()
+        let viewModel = makeStayViewModel(
+            useCase: useCase,
+            automaticVisibility: false,
+            hapticFeedback: hapticFeedback
+        )
         viewModel.selectStay(stableID: "stay")
 
         await viewModel.updateStay(stableID: "stay", action: .confirm)
@@ -150,26 +167,31 @@ struct RouteMapViewModelTests {
         #expect(viewModel.scene.stayAnnotations.map(\.stayStableID) == ["stay"])
         #expect(viewModel.scene.stayAnnotations.first?.isVisibleByAutomaticRule == false)
         #expect(viewModel.selectedStayID == "stay")
+        #expect(hapticFeedback.callCount == 1)
     }
 
     @Test("stay hide removes the annotation and closes selection")
     func stayHide() async {
         let useCase = StayUseCaseSpy()
-        let viewModel = makeStayViewModel(useCase: useCase)
+        let hapticFeedback = HapticFeedbackSpy()
+        let viewModel = makeStayViewModel(useCase: useCase, hapticFeedback: hapticFeedback)
         viewModel.selectStay(stableID: "stay")
 
         await viewModel.updateStay(stableID: "stay", action: .hide)
 
         #expect(viewModel.scene.stayAnnotations.isEmpty)
         #expect(viewModel.selectedStayID == nil)
+        #expect(hapticFeedback.callCount == 1)
     }
 
     @Test("stay automatic restores its original visibility", arguments: [true, false])
     func stayAutomatic(automaticVisibility: Bool) async {
         let useCase = StayUseCaseSpy()
+        let hapticFeedback = HapticFeedbackSpy()
         let viewModel = makeStayViewModel(
             useCase: useCase,
-            automaticVisibility: automaticVisibility
+            automaticVisibility: automaticVisibility,
+            hapticFeedback: hapticFeedback
         )
         viewModel.selectStay(stableID: "stay")
 
@@ -177,12 +199,14 @@ struct RouteMapViewModelTests {
 
         #expect(viewModel.scene.stayAnnotations.isEmpty == !automaticVisibility)
         #expect((viewModel.selectedStayID != nil) == automaticVisibility)
+        #expect(hapticFeedback.callCount == 1)
     }
 
     @Test("stay failure keeps the annotation and exposes dismissible error")
     func stayFailure() async {
         let useCase = StayUseCaseSpy(error: .persistenceFailure(code: "update"))
-        let viewModel = makeStayViewModel(useCase: useCase)
+        let hapticFeedback = HapticFeedbackSpy()
+        let viewModel = makeStayViewModel(useCase: useCase, hapticFeedback: hapticFeedback)
         viewModel.selectStay(stableID: "stay")
 
         await viewModel.updateStay(stableID: "stay", action: .hide)
@@ -190,6 +214,7 @@ struct RouteMapViewModelTests {
         #expect(viewModel.scene.stayAnnotations.count == 1)
         #expect(viewModel.selectedStayID == "stay")
         #expect(viewModel.stayUpdateFailed)
+        #expect(hapticFeedback.callCount == 0)
         viewModel.dismissStayError()
         #expect(viewModel.stayUpdateFailed == false)
     }
@@ -197,7 +222,8 @@ struct RouteMapViewModelTests {
     @Test("stay ignores repeated input while saving")
     func stayDuplicate() async {
         let useCase = SuspendedStayUseCase()
-        let viewModel = makeStayViewModel(useCase: useCase)
+        let hapticFeedback = HapticFeedbackSpy()
+        let viewModel = makeStayViewModel(useCase: useCase, hapticFeedback: hapticFeedback)
         let firstUpdate = Task {
             await viewModel.updateStay(stableID: "stay", action: .confirm)
         }
@@ -208,21 +234,25 @@ struct RouteMapViewModelTests {
         #expect(viewModel.staySavingSegmentID == "stay")
         await viewModel.updateStay(stableID: "stay", action: .hide)
         #expect(useCase.callCount == 1)
+        #expect(hapticFeedback.callCount == 0)
 
         useCase.resume()
         await firstUpdate.value
         #expect(viewModel.staySavingSegmentID == nil)
         #expect(viewModel.scene.stayAnnotations.count == 1)
+        #expect(hapticFeedback.callCount == 1)
     }
 
     private func makeStayViewModel(
         useCase: any UpdateStayOverrideUseCase,
-        automaticVisibility: Bool = true
+        automaticVisibility: Bool = true,
+        hapticFeedback: (any HapticFeedbackProviding)? = nil
     ) -> RouteMapViewModel {
         RouteMapViewModel(
             scene: makeScene(),
             stays: [makeStayDisplay(automaticVisibility: automaticVisibility)],
-            updateStayOverride: useCase
+            updateStayOverride: useCase,
+            hapticFeedback: hapticFeedback
         )
     }
 }

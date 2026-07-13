@@ -5,6 +5,7 @@ final class AppContainer {
     let clock: any Clock
     let timeZoneProvider: any TimeZoneProviding
     let localTimeContextProvider: any LocalTimeContextProviding
+    let hapticFeedback: any HapticFeedbackProviding
 
     convenience init() {
         let timeZoneProvider = SystemTimeZoneProvider()
@@ -14,7 +15,8 @@ final class AppContainer {
             timeZoneProvider: timeZoneProvider,
             localTimeContextProvider: DefaultLocalTimeContextProvider(
                 timeZoneProvider: timeZoneProvider
-            )
+            ),
+            hapticFeedback: SystemHapticFeedbackProvider()
         )
     }
 
@@ -22,12 +24,14 @@ final class AppContainer {
         logger: any Logging,
         clock: any Clock,
         timeZoneProvider: any TimeZoneProviding,
-        localTimeContextProvider: any LocalTimeContextProviding
+        localTimeContextProvider: any LocalTimeContextProviding,
+        hapticFeedback: any HapticFeedbackProviding
     ) {
         self.logger = logger
         self.clock = clock
         self.timeZoneProvider = timeZoneProvider
         self.localTimeContextProvider = localTimeContextProvider
+        self.hapticFeedback = hapticFeedback
     }
 
     func makeCalendarViewModel(
