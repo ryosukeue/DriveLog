@@ -20,6 +20,23 @@ nonisolated struct MovementSegmentCandidate: Sendable, Equatable {
     let endDate: Date
     let locations: [LocationEventData]
     let distanceMeters: Double
+    let estimatedAverageSpeedMetersPerSecond: Double?
+
+    init(
+        localDateKey: String,
+        startDate: Date,
+        endDate: Date,
+        locations: [LocationEventData],
+        distanceMeters: Double,
+        estimatedAverageSpeedMetersPerSecond: Double? = nil
+    ) {
+        self.localDateKey = localDateKey
+        self.startDate = startDate
+        self.endDate = endDate
+        self.locations = locations
+        self.distanceMeters = distanceMeters
+        self.estimatedAverageSpeedMetersPerSecond = estimatedAverageSpeedMetersPerSecond
+    }
 
     var durationSeconds: TimeInterval {
         endDate.timeIntervalSince(startDate)
@@ -46,7 +63,7 @@ nonisolated enum SegmentationBoundaryReason: Sendable, Equatable {
 nonisolated struct MovementSegmenter: MovementSegmenting {
     private let segmentationRules: SegmentationRules
     private let stayRules: StayRules
-    private let distanceCalculator: GeodesicDistanceCalculator
+    private let metricsCalculator: MovementMetricsCalculator
 
     init(
         segmentationRules: SegmentationRules,
@@ -55,7 +72,10 @@ nonisolated struct MovementSegmenter: MovementSegmenting {
     ) {
         self.segmentationRules = segmentationRules
         self.stayRules = stayRules
-        self.distanceCalculator = distanceCalculator
+        metricsCalculator = MovementMetricsCalculator(
+            rules: segmentationRules,
+            distanceCalculator: distanceCalculator
+        )
     }
 
     func segment(
@@ -197,7 +217,10 @@ nonisolated struct MovementSegmenter: MovementSegmenting {
     }
 
     private func makeCandidate(_ locations: [LocationEventData]) -> MovementSegmentCandidate? {
-        guard let first = locations.first, let last = locations.last else {
+        guard let first = locations.first,
+              let last = locations.last,
+              let metrics = metricsCalculator.calculate(locations: locations)
+        else {
             return nil
         }
         return MovementSegmentCandidate(
@@ -205,19 +228,9 @@ nonisolated struct MovementSegmenter: MovementSegmenting {
             startDate: first.timestamp,
             endDate: last.timestamp,
             locations: locations,
-            distanceMeters: routeDistance(locations)
+            distanceMeters: metrics.distanceMeters,
+            estimatedAverageSpeedMetersPerSecond: metrics.estimatedAverageSpeedMetersPerSecond
         )
-    }
-
-    private func routeDistance(_ locations: [LocationEventData]) -> Double {
-        zip(locations, locations.dropFirst()).reduce(0) { result, pair in
-            result + distanceCalculator.meters(
-                fromLatitude: pair.0.latitude,
-                longitude: pair.0.longitude,
-                toLatitude: pair.1.latitude,
-                longitude: pair.1.longitude
-            )
-        }
     }
 
     private func isValid(_ candidate: MovementSegmentCandidate) -> Bool {

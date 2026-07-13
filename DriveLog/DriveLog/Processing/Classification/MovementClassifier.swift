@@ -79,7 +79,12 @@ nonisolated struct MovementClassifier: MovementClassifying {
         evidence initialEvidence: [ClassificationEvidence]
     ) -> MovementClassificationResult {
         var evidence = initialEvidence
-        let averageSpeed = segment.distanceMeters / segment.durationSeconds
+        guard let averageSpeed = segment.estimatedAverageSpeedMetersPerSecond else {
+            evidence.append(.insufficientData)
+            return MovementClassificationResult(
+                automaticType: .other, confidence: .low, evidence: evidence
+            )
+        }
         let matchesAutomotive = averageSpeed >= rules.automotiveFallbackSpeed &&
             segment.distanceMeters >= rules.automotiveFallbackDistance
         if matchesAutomotive {

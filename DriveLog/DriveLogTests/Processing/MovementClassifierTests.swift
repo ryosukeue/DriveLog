@@ -129,12 +129,14 @@ extension MovementClassifierTests {
     }
 
     private func segment(distance: Double, duration: TimeInterval) -> MovementSegmentCandidate {
-        MovementSegmentCandidate(
+        let averageSpeed = duration >= 120 && distance >= 100 && duration > 0 ? distance / duration : nil
+        return MovementSegmentCandidate(
             localDateKey: "2024-01-01",
             startDate: baseDate,
             endDate: baseDate.addingTimeInterval(duration),
             locations: [location(seconds: 0), location(seconds: duration)],
-            distanceMeters: distance
+            distanceMeters: distance,
+            estimatedAverageSpeedMetersPerSecond: averageSpeed
         )
     }
 
