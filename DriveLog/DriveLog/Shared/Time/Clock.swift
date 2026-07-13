@@ -1,5 +1,5 @@
 import Foundation
 
-protocol Clock: Sendable {
+nonisolated protocol Clock: Sendable {
     var now: Date { get }
 }

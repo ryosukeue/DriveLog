@@ -1,6 +1,6 @@
 import Foundation
 
-struct SystemClock: Clock {
+nonisolated struct SystemClock: Clock {
     var now: Date {
         Date()
     }
