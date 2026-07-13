@@ -4,16 +4,19 @@ struct CalendarView: View {
     @State private var viewModel: CalendarViewModel
     private let today: Date
     private let gridBuilder: CalendarGridBuilder
+    private let distanceFormatter: DistanceFormatter
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
 
     init(
         viewModel: CalendarViewModel,
         today: Date,
-        gridBuilder: CalendarGridBuilder = CalendarGridBuilder()
+        gridBuilder: CalendarGridBuilder = CalendarGridBuilder(),
+        distanceFormatter: DistanceFormatter = DistanceFormatter()
     ) {
         _viewModel = State(initialValue: viewModel)
         self.today = today
         self.gridBuilder = gridBuilder
+        self.distanceFormatter = distanceFormatter
     }
 
     var body: some View {
@@ -57,26 +60,46 @@ struct CalendarView: View {
     private func dayCell(day: Int, isToday: Bool) -> some View {
         let data = viewModel.days.first { $0.day == day }
         let isSelected = data?.localDateKey == viewModel.selectedLocalDateKey
+        let distance = data.flatMap { data in
+            data.hasValidMovement
+                ? data.totalDistanceMeters.flatMap(distanceFormatter.kilometers)
+                : nil
+        }
         return Button {
             if let localDateKey = data?.localDateKey {
                 viewModel.select(localDateKey: localDateKey)
             }
         } label: {
-            Text(day, format: .number)
-                .font(.body)
-                .foregroundStyle(isSelected || isToday ? Color.white : Color.primary)
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .background {
-                    if isSelected {
-                        Circle().fill(Color.accentColor)
-                    } else if isToday {
-                        Circle().fill(Color.blue)
+            VStack(spacing: 2) {
+                Text(day, format: .number)
+                    .font(.body)
+                    .foregroundStyle(isSelected || isToday ? Color.white : Color.primary)
+                    .frame(width: 32, height: 32)
+                    .background {
+                        if isSelected {
+                            Circle().fill(Color.accentColor)
+                        } else if isToday {
+                            Circle().fill(Color.blue)
+                        }
                     }
+                if let distance {
+                    Text(distance)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
+            }
+            .frame(maxWidth: .infinity, minHeight: 52, alignment: .top)
         }
         .buttonStyle(.plain)
         .disabled(data?.hasValidMovement != true)
-        .accessibilityLabel(Text("\(day)日"))
+        .accessibilityLabel(Text(accessibilityLabel(day: day, distance: distance)))
         .accessibilityIdentifier("calendar.day.\(day)")
+    }
+
+    private func accessibilityLabel(day: Int, distance: String?) -> String {
+        guard let distance else { return "\(day)日" }
+        return "\(day)日、移動距離\(distance)"
     }
 }
