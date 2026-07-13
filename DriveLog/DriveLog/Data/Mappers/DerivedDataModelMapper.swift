@@ -1,6 +1,6 @@
 import Foundation
 
-struct DerivedDataModelMapper {
+nonisolated struct DerivedDataModelMapper {
     private let routeEncoding: any RouteEncoding
 
     init(routeEncoding: any RouteEncoding) {

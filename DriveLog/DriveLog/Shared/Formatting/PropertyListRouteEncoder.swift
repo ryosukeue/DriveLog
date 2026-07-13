@@ -1,6 +1,6 @@
 import Foundation
 
-struct PropertyListRouteEncoder: RouteEncoding {
+nonisolated struct PropertyListRouteEncoder: RouteEncoding {
     func encode(_ coordinates: [RouteCoordinate]) throws -> Data {
         let payload = EncodedRoutePayloadV1(
             formatVersion: 1,
@@ -33,12 +33,12 @@ struct PropertyListRouteEncoder: RouteEncoding {
     }
 }
 
-private struct EncodedRoutePayloadV1: Codable {
+private nonisolated struct EncodedRoutePayloadV1: Codable {
     let formatVersion: Int
     let coordinates: [EncodedCoordinate]
 }
 
-private struct EncodedCoordinate: Codable {
+private nonisolated struct EncodedCoordinate: Codable {
     let latitude: Double
     let longitude: Double
 }

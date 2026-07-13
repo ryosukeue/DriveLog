@@ -1,6 +1,6 @@
 import Foundation
 
-struct MovementSegmentData: Sendable, Equatable {
+nonisolated struct MovementSegmentData: Sendable, Equatable {
     let stableID: String
     let localDateKey: String
     let startDate: Date

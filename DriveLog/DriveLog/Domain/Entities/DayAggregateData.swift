@@ -1,6 +1,6 @@
 import Foundation
 
-struct DayAggregateData: Sendable, Equatable {
+nonisolated struct DayAggregateData: Sendable, Equatable {
     let localDateKey: String
     let totalDistanceMeters: Double
     let totalMovementDurationSeconds: Double
