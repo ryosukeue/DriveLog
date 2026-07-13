@@ -1,4 +1,5 @@
 @testable import DriveLog
+import os
 import Testing
 
 @Suite("App lifecycle coordinator")
@@ -14,6 +15,7 @@ struct AppLifecycleCoordinatorTests {
         #expect(await fixture.location.callCounts().start == 1)
         #expect(await fixture.motion.callCounts().start == 1)
         #expect(await fixture.visit.callCounts().start == 1)
+        #expect(fixture.dayProcessing.pendingLimits == [1])
     }
 
     @Test("foreground refreshes permissions and rechecks active monitoring")
@@ -27,6 +29,7 @@ struct AppLifecycleCoordinatorTests {
         #expect(await fixture.location.callCounts().start == 1)
         #expect(await fixture.motion.callCounts().start == 1)
         #expect(await fixture.visit.callCounts().start == 1)
+        #expect(fixture.dayProcessing.pendingLimits == [1, 1])
     }
 
     @Test("foreground retries monitoring after a launch failure")
@@ -38,6 +41,7 @@ struct AppLifecycleCoordinatorTests {
         #expect(await fixture.location.callCounts().start == 1)
         #expect(await fixture.motion.callCounts().start == 0)
         #expect(await fixture.visit.callCounts().start == 0)
+        #expect(fixture.dayProcessing.pendingLimits == [1])
 
         await fixture.location.setStartError(nil)
         await fixture.coordinator.handleForeground()
@@ -46,6 +50,7 @@ struct AppLifecycleCoordinatorTests {
         #expect(await fixture.location.callCounts().start == 2)
         #expect(await fixture.motion.callCounts().start == 1)
         #expect(await fixture.visit.callCounts().start == 1)
+        #expect(fixture.dayProcessing.pendingLimits == [1, 1])
     }
 
     @Test("background keeps all monitoring active")
@@ -59,6 +64,8 @@ struct AppLifecycleCoordinatorTests {
         #expect(await fixture.motion.callCounts().stop == 0)
         #expect(await fixture.visit.callCounts().stop == 0)
         #expect(await fixture.storageCoordinator.isRunning())
+        #expect(fixture.dayProcessing.pendingLimits == [1])
+        #expect(fixture.dayProcessing.cancelCount == 0)
     }
 }
 
@@ -74,6 +81,7 @@ private struct Fixture {
     let location = FakeLocationProvider()
     let motion = FakeMotionProvider()
     let visit = FakeVisitProvider()
+    let dayProcessing = LifecycleProcessingCoordinatorFake()
     let storageCoordinator: RawEventStorageCoordinator
     let coordinator: AppLifecycleCoordinator
 
@@ -95,7 +103,35 @@ private struct Fixture {
                 visitProvider: visit,
                 storageCoordinator: storageCoordinator,
                 logger: logger
-            )
+            ),
+            dayProcessingCoordinator: dayProcessing
         )
+    }
+}
+
+private final class LifecycleProcessingCoordinatorFake: DayProcessingCoordinating {
+    private struct State {
+        var pendingLimits: [Int] = []
+        var cancelCount = 0
+    }
+
+    private let storage = OSAllocatedUnfairLock(initialState: State())
+
+    var pendingLimits: [Int] {
+        storage.withLock { $0.pendingLimits }
+    }
+
+    var cancelCount: Int {
+        storage.withLock { $0.cancelCount }
+    }
+
+    func processIfNeeded(localDateKey _: String, priority _: ProcessingPriority) async {}
+
+    func processPendingDays(limit: Int) async {
+        storage.withLock { $0.pendingLimits.append(limit) }
+    }
+
+    func cancelCurrentProcessing() async {
+        storage.withLock { $0.cancelCount += 1 }
     }
 }

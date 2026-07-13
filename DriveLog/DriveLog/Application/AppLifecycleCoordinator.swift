@@ -9,13 +9,16 @@ protocol AppLifecycleCoordinating: AnyObject {
 final class AppLifecycleCoordinator: AppLifecycleCoordinating {
     private let permissionManager: any PermissionManaging
     private let startMonitoringUseCase: StartMonitoringUseCase
+    private let dayProcessingCoordinator: any DayProcessingCoordinating
 
     init(
         permissionManager: any PermissionManaging,
-        startMonitoringUseCase: StartMonitoringUseCase
+        startMonitoringUseCase: StartMonitoringUseCase,
+        dayProcessingCoordinator: any DayProcessingCoordinating
     ) {
         self.permissionManager = permissionManager
         self.startMonitoringUseCase = startMonitoringUseCase
+        self.dayProcessingCoordinator = dayProcessingCoordinator
     }
 
     func handleLaunch() async {
@@ -33,5 +36,6 @@ final class AppLifecycleCoordinator: AppLifecycleCoordinating {
     private func refreshPermissionsAndMonitoring() async {
         await permissionManager.refresh()
         try? await startMonitoringUseCase.execute()
+        await dayProcessingCoordinator.processPendingDays(limit: 1)
     }
 }
