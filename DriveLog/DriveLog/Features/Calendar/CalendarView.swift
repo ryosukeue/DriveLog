@@ -28,13 +28,56 @@ struct CalendarView: View {
                 month: viewModel.displayedMonth,
                 today: today
             ) {
-                calendar(layout: layout)
+                calendarContent(layout: layout)
                     .navigationTitle(layout.monthTitle)
             }
         }
         .task {
             guard viewModel.state == .idle else { return }
             await viewModel.load()
+        }
+    }
+
+    private func calendarContent(layout: CalendarGridLayout) -> some View {
+        ZStack {
+            VStack(spacing: 16) {
+                calendar(layout: layout)
+                statusMessage
+            }
+            if viewModel.state == .loading {
+                ProgressView()
+                    .controlSize(.large)
+                    .accessibilityLabel("読み込み中")
+                    .accessibilityIdentifier("calendar.loading")
+            }
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
+    }
+
+    @ViewBuilder
+    private var statusMessage: some View {
+        switch viewModel.state {
+        case .empty:
+            Text("この月には移動記録がありません")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("calendar.empty")
+        case .error:
+            VStack(spacing: 8) {
+                Text("移動記録を読み込めませんでした")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("calendar.error")
+                Button("再試行") {
+                    Task { @MainActor in
+                        await viewModel.load()
+                    }
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("calendar.retry")
+            }
+        case .idle, .loading, .loaded:
+            EmptyView()
         }
     }
 
