@@ -27,6 +27,7 @@ struct ProcessingConfigurationTests {
         #expect(configuration.stay.minimumStayDuration == 180)
         #expect(configuration.stay.automaticStayDuration == 300)
         #expect(configuration.stay.stayRadius == 150)
+        #expect(configuration.stay.trafficDirectionChangeToleranceDegrees == 45)
         #expect(configuration.classification.lowConfidenceWeight == 0.5)
         #expect(configuration.classification.mediumConfidenceWeight == 0.75)
         #expect(configuration.classification.highConfidenceWeight == 1)

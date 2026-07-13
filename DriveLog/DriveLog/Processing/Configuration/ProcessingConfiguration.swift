@@ -29,7 +29,8 @@ nonisolated struct ProcessingConfiguration: Sendable, Equatable {
         stay: StayRules(
             minimumStayDuration: 3 * 60,
             automaticStayDuration: 5 * 60,
-            stayRadius: 150
+            stayRadius: 150,
+            trafficDirectionChangeToleranceDegrees: 45
         ),
         classification: ClassificationRules(
             lowConfidenceWeight: 0.5,
@@ -88,6 +89,7 @@ nonisolated struct StayRules: Sendable, Equatable {
     let minimumStayDuration: TimeInterval
     let automaticStayDuration: TimeInterval
     let stayRadius: Double
+    let trafficDirectionChangeToleranceDegrees: Double
 }
 
 nonisolated struct ClassificationRules: Sendable, Equatable {

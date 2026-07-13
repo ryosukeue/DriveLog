@@ -37,12 +37,19 @@ nonisolated struct StayDetector: StayDetecting {
         overrides: [StayOverrideData]
     ) -> [StaySegmentData] {
         segmentation.gaps.compactMap { gap in
-            detect(gap: gap, motions: motions, visits: visits, overrides: overrides)
+            detect(
+                gap: gap,
+                segmentation: segmentation,
+                motions: motions,
+                visits: visits,
+                overrides: overrides
+            )
         }
     }
 
     private func detect(
         gap: GapCandidate,
+        segmentation: MovementSegmentationResult,
         motions: [MotionEventData],
         visits: [VisitEventData],
         overrides: [StayOverrideData]
@@ -64,17 +71,18 @@ nonisolated struct StayDetector: StayDetecting {
         let duration = departure.timeIntervalSince(arrival)
         let hasMotionEvidence = hasAutomotiveToWalking(motions, from: arrival, to: departure)
         let coordinate = representativeCoordinate(for: gap, visit: visit)
-        let stableID = stableIDGenerator.staySegmentID(
-            localDateKey: gap.precedingLocation.localDateKey,
-            arrivalDate: arrival,
-            departureDate: departure,
-            latitude: coordinate.latitude,
-            longitude: coordinate.longitude
+        let stableID = makeStableID(
+            coordinate: coordinate, gap: gap, arrival: arrival, departure: departure
         )
         let automaticVisibility = isAutomaticallyVisible(
             duration: duration,
             hasVisit: visit != nil,
             hasMotionEvidence: hasMotionEvidence
+        ) && !isTrafficLike(
+            gap: gap,
+            segmentation: segmentation,
+            motions: motions,
+            hasVisit: visit != nil
         )
         let visibility = appliedVisibility(
             automaticVisibility,
@@ -94,6 +102,21 @@ nonisolated struct StayDetector: StayDetecting {
             isVisibleByAutomaticRule: visibility,
             sourceRawRevision: sourceRawRevision,
             generatedAt: generatedAt
+        )
+    }
+
+    private func makeStableID(
+        coordinate: RouteCoordinate,
+        gap: GapCandidate,
+        arrival: Date,
+        departure: Date
+    ) -> String {
+        stableIDGenerator.staySegmentID(
+            localDateKey: gap.precedingLocation.localDateKey,
+            arrivalDate: arrival,
+            departureDate: departure,
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude
         )
     }
 
@@ -155,6 +178,84 @@ nonisolated struct StayDetector: StayDetecting {
             return true
         }
         return duration >= rules.minimumStayDuration && (hasVisit || hasMotionEvidence)
+    }
+}
+
+private extension StayDetector {
+    private func isTrafficLike(
+        gap: GapCandidate,
+        segmentation: MovementSegmentationResult,
+        motions: [MotionEventData],
+        hasVisit: Bool
+    ) -> Bool {
+        guard !hasVisit, hasAutomotiveStationaryAutomotive(motions, gap: gap) else {
+            return false
+        }
+        guard let preceding = segmentation.segments.last(where: {
+            $0.locations.last == gap.precedingLocation
+        }),
+            let following = segmentation.segments.first(where: {
+                $0.locations.first == gap.followingLocation
+            }),
+            let precedingBearing = endingBearing(preceding),
+            let followingBearing = startingBearing(following)
+        else {
+            return false
+        }
+        let tolerance = rules.trafficDirectionChangeToleranceDegrees
+        return angularDifference(precedingBearing, followingBearing) <= tolerance + 1e-6
+    }
+
+    private func hasAutomotiveStationaryAutomotive(
+        _ motions: [MotionEventData],
+        gap: GapCandidate
+    ) -> Bool {
+        let start = gap.precedingLocation.timestamp
+        let end = gap.followingLocation.timestamp
+        let states = motions
+            .filter { $0.startDate <= end && ($0.endDate ?? end) >= start }
+            .sorted { $0.startDate < $1.startDate }
+            .compactMap(motionState)
+        guard !states.contains(.walking),
+              let firstAutomotive = states.firstIndex(of: .automotive),
+              let stationary = states.dropFirst(firstAutomotive + 1).firstIndex(of: .stationary)
+        else {
+            return false
+        }
+        return states.dropFirst(stationary + 1).contains(.automotive)
+    }
+
+    private func endingBearing(_ segment: MovementSegmentCandidate) -> Double? {
+        guard segment.locations.count >= 2 else {
+            return nil
+        }
+        return bearing(
+            from: segment.locations[segment.locations.count - 2],
+            to: segment.locations[segment.locations.count - 1]
+        )
+    }
+
+    private func startingBearing(_ segment: MovementSegmentCandidate) -> Double? {
+        guard segment.locations.count >= 2 else {
+            return nil
+        }
+        return bearing(from: segment.locations[0], to: segment.locations[1])
+    }
+
+    private func bearing(from start: LocationEventData, to end: LocationEventData) -> Double {
+        let startLatitude = start.latitude * .pi / 180
+        let endLatitude = end.latitude * .pi / 180
+        let longitudeDelta = (end.longitude - start.longitude) * .pi / 180
+        let verticalComponent = sin(longitudeDelta) * cos(endLatitude)
+        let horizontalComponent = cos(startLatitude) * sin(endLatitude) -
+            sin(startLatitude) * cos(endLatitude) * cos(longitudeDelta)
+        let degrees = atan2(verticalComponent, horizontalComponent) * 180 / .pi
+        return degrees >= 0 ? degrees : degrees + 360
+    }
+
+    private func angularDifference(_ first: Double, _ second: Double) -> Double {
+        let difference = abs(first - second)
+        return min(difference, 360 - difference)
     }
 
     private func appliedVisibility(
