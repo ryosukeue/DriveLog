@@ -63,10 +63,12 @@ final class AppContainer {
                 ),
                 mapSceneBuilder: MapSceneBuilder()
             ),
-            loadMediaThumbnail: DefaultLoadMediaThumbnailUseCase(
-                photoLibrary: PhotoLibraryProvider()
-            )
+            loadMediaThumbnail: makeLoadMediaThumbnailUseCase()
         )
+    }
+
+    func makeLoadMediaThumbnailUseCase() -> any LoadMediaThumbnailUseCase {
+        DefaultLoadMediaThumbnailUseCase(photoLibrary: PhotoLibraryProvider())
     }
 
     func makeMediaPreviewViewModel(asset: MediaAssetReference) -> MediaPreviewViewModel {

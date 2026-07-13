@@ -3,9 +3,17 @@ import SwiftUI
 struct FullRouteMapView: View {
     @State private var viewModel: RouteMapViewModel
     @State private var userTrackingRequestID = 0
+    let thumbnailLoader: any LoadMediaThumbnailUseCase
+    let onSelectMedia: (MediaAssetReference) -> Void
 
-    init(viewModel: RouteMapViewModel) {
+    init(
+        viewModel: RouteMapViewModel,
+        thumbnailLoader: any LoadMediaThumbnailUseCase,
+        onSelectMedia: @escaping (MediaAssetReference) -> Void = { _ in }
+    ) {
         _viewModel = State(initialValue: viewModel)
+        self.thumbnailLoader = thumbnailLoader
+        self.onSelectMedia = onSelectMedia
     }
 
     var body: some View {
@@ -17,6 +25,9 @@ struct FullRouteMapView: View {
                 selectedStayID: viewModel.selectedStayID,
                 onSelectSegment: viewModel.selectSegment,
                 onSelectStay: viewModel.selectStay,
+                media: viewModel.visibleMedia,
+                thumbnailLoader: thumbnailLoader,
+                onSelectMedia: selectMedia,
                 onTapEmpty: viewModel.clearSelection,
                 userTrackingRequestID: userTrackingRequestID
             )
@@ -46,6 +57,14 @@ struct FullRouteMapView: View {
                         viewModel.selectStay(stableID: stay.stayStableID)
                     }
                 }
+                ForEach(viewModel.visibleMedia, id: \.localIdentifier) { asset in
+                    accessibilityButton(
+                        identifier: "map.mediaAnnotation",
+                        label: asset.mediaType == .video ? "動画" : "写真"
+                    ) {
+                        onSelectMedia(asset)
+                    }
+                }
                 Spacer()
             }
             selectedCalloutAccessibilityElement
@@ -60,6 +79,11 @@ struct FullRouteMapView: View {
                 }
             }
         }
+    }
+
+    private func selectMedia(localIdentifier: String) {
+        guard let asset = viewModel.media(localIdentifier: localIdentifier) else { return }
+        onSelectMedia(asset)
     }
 
     private func accessibilityButton(

@@ -59,6 +59,7 @@ struct DriveLogApp: App {
                             localDateKey: localDateKey
                         )
                     },
+                    loadMediaThumbnail: appContainer.makeLoadMediaThumbnailUseCase(),
                     makeMediaPreviewViewModel: appContainer.makeMediaPreviewViewModel
                 )
             } else {

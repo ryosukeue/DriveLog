@@ -15,6 +15,7 @@ final class RouteMapPointAnnotation: NSObject, MKAnnotation {
     let labelText: String?
     let movement: MapMovementLabel?
     let stay: MapStayAnnotation?
+    let mediaType: MediaType?
 
     init(
         id: String,
@@ -22,7 +23,8 @@ final class RouteMapPointAnnotation: NSObject, MKAnnotation {
         kind: Kind,
         labelText: String? = nil,
         movement: MapMovementLabel? = nil,
-        stay: MapStayAnnotation? = nil
+        stay: MapStayAnnotation? = nil,
+        mediaType: MediaType? = nil
     ) {
         self.id = id
         self.coordinate = coordinate
@@ -30,6 +32,91 @@ final class RouteMapPointAnnotation: NSObject, MKAnnotation {
         self.labelText = labelText
         self.movement = movement
         self.stay = stay
+        self.mediaType = mediaType
+    }
+}
+
+final class RouteMapMediaAnnotationView: MKAnnotationView {
+    private let imageView = UIImageView()
+    private let videoBadge = UIImageView(image: UIImage(systemName: "play.fill"))
+    private var representedIdentifier: String?
+    private var thumbnailTask: Task<Void, Never>?
+
+    override init(annotation: (any MKAnnotation)?, reuseIdentifier: String?) {
+        super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
+        frame.size = CGSize(width: 52, height: 52)
+        centerOffset = CGPoint(x: 0, y: -26)
+        layer.cornerRadius = 9
+        layer.borderColor = UIColor.white.cgColor
+        layer.borderWidth = 2
+        layer.shadowColor = UIColor.black.cgColor
+        layer.shadowOpacity = 0.25
+        layer.shadowRadius = 3
+        layer.shadowOffset = CGSize(width: 0, height: 2)
+        backgroundColor = .secondarySystemBackground
+        clipsToBounds = false
+
+        imageView.frame = bounds
+        imageView.contentMode = .scaleAspectFill
+        imageView.clipsToBounds = true
+        imageView.layer.cornerRadius = 7
+        addSubview(imageView)
+
+        videoBadge.tintColor = .white
+        videoBadge.backgroundColor = UIColor.black.withAlphaComponent(0.65)
+        videoBadge.contentMode = .center
+        videoBadge.layer.cornerRadius = 11
+        videoBadge.frame = CGRect(x: 27, y: 27, width: 22, height: 22)
+        addSubview(videoBadge)
+
+        canShowCallout = false
+        isAccessibilityElement = true
+        accessibilityTraits = .button
+        accessibilityIdentifier = "map.mediaAnnotation"
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        nil
+    }
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        thumbnailTask?.cancel()
+        thumbnailTask = nil
+        representedIdentifier = nil
+        imageView.image = nil
+    }
+
+    func configure(
+        localIdentifier: String,
+        mediaType: MediaType,
+        thumbnailLoader: (any LoadMediaThumbnailUseCase)?
+    ) {
+        thumbnailTask?.cancel()
+        representedIdentifier = localIdentifier
+        imageView.image = UIImage(systemName: "photo")
+        imageView.tintColor = .secondaryLabel
+        videoBadge.isHidden = mediaType != .video
+        accessibilityLabel = mediaType == .video ? "動画" : "写真"
+        guard let thumbnailLoader else { return }
+        thumbnailTask = Task { @MainActor [weak self] in
+            do {
+                let image = try await thumbnailLoader.execute(
+                    localIdentifier: localIdentifier,
+                    targetSize: CGSize(width: 156, height: 156)
+                )
+                guard !Task.isCancelled,
+                      self?.representedIdentifier == localIdentifier
+                else { return }
+                self?.imageView.image = image
+            } catch is CancellationError {
+                return
+            } catch {
+                guard self?.representedIdentifier == localIdentifier else { return }
+                self?.imageView.image = UIImage(systemName: "photo.badge.exclamationmark")
+            }
+        }
     }
 }
 

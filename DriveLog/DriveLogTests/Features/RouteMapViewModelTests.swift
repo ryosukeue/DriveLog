@@ -39,9 +39,27 @@ struct RouteMapViewModelTests {
         #expect(viewModel.selectedSegmentID == nil)
         #expect(viewModel.selectedStayID == nil)
     }
+
+    @Test("resolves only located media represented by the scene")
+    func visibleMedia() {
+        let photo = makeMedia(id: "photo", type: .photo, hasLocation: true)
+        let video = makeMedia(id: "video", type: .video, hasLocation: true)
+        let locationless = makeMedia(id: "locationless", type: .photo, hasLocation: false)
+        let unknown = makeMedia(id: "unknown", type: .photo, hasLocation: true)
+        let viewModel = RouteMapViewModel(
+            scene: makeScene(mediaIdentifiers: ["photo", "video", "locationless"]),
+            media: [photo, video, locationless, unknown]
+        )
+
+        #expect(viewModel.visibleMedia == [photo, video])
+        #expect(viewModel.media(localIdentifier: "photo") == photo)
+        #expect(viewModel.media(localIdentifier: "video") == video)
+        #expect(viewModel.media(localIdentifier: "locationless") == nil)
+        #expect(viewModel.media(localIdentifier: "unknown") == nil)
+    }
 }
 
-private func makeScene() -> MapScene {
+private func makeScene(mediaIdentifiers: [String] = []) -> MapScene {
     let date = Date(timeIntervalSince1970: 0)
     return MapScene(
         polylines: [],
@@ -71,7 +89,25 @@ private func makeScene() -> MapScene {
                 isVisibleByAutomaticRule: true
             )
         ],
-        mediaAnnotations: [],
+        mediaAnnotations: mediaIdentifiers.enumerated().map { index, identifier in
+            MapMediaAnnotation(
+                localIdentifier: identifier,
+                coordinate: RouteCoordinate(latitude: 35 + Double(index), longitude: 139)
+            )
+        },
         initialRegion: nil
+    )
+}
+
+@MainActor
+private func makeMedia(id: String, type: MediaType, hasLocation: Bool) -> MediaAssetReference {
+    MediaAssetReference(
+        localIdentifier: id,
+        mediaType: type,
+        creationDate: Date(timeIntervalSince1970: 0),
+        location: hasLocation ? RouteCoordinate(latitude: 35, longitude: 139) : nil,
+        durationSeconds: type == .video ? 10 : nil,
+        isScreenshot: false,
+        isScreenRecording: false
     )
 }

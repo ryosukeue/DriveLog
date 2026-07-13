@@ -12,6 +12,9 @@ struct RouteMapInteraction {
     let selectedStayID: String?
     let onSelectSegment: (String) -> Void
     let onSelectStay: (String) -> Void
+    let media: [MediaAssetReference]
+    let thumbnailLoader: (any LoadMediaThumbnailUseCase)?
+    let onSelectMedia: (String) -> Void
     let onTapEmpty: () -> Void
 }
 
@@ -22,6 +25,9 @@ struct RouteMapView: UIViewRepresentable {
     let selectedStayID: String?
     let onSelectSegment: (String) -> Void
     let onSelectStay: (String) -> Void
+    let media: [MediaAssetReference]
+    let thumbnailLoader: (any LoadMediaThumbnailUseCase)?
+    let onSelectMedia: (String) -> Void
     let onTapEmpty: () -> Void
     let userTrackingRequestID: Int
 
@@ -32,6 +38,9 @@ struct RouteMapView: UIViewRepresentable {
         selectedStayID: String? = nil,
         onSelectSegment: @escaping (String) -> Void = { _ in },
         onSelectStay: @escaping (String) -> Void = { _ in },
+        media: [MediaAssetReference] = [],
+        thumbnailLoader: (any LoadMediaThumbnailUseCase)? = nil,
+        onSelectMedia: @escaping (String) -> Void = { _ in },
         onTapEmpty: @escaping () -> Void = {},
         userTrackingRequestID: Int = 0
     ) {
@@ -41,6 +50,9 @@ struct RouteMapView: UIViewRepresentable {
         self.selectedStayID = selectedStayID
         self.onSelectSegment = onSelectSegment
         self.onSelectStay = onSelectStay
+        self.media = media
+        self.thumbnailLoader = thumbnailLoader
+        self.onSelectMedia = onSelectMedia
         self.onTapEmpty = onTapEmpty
         self.userTrackingRequestID = userTrackingRequestID
     }
@@ -90,6 +102,9 @@ struct RouteMapView: UIViewRepresentable {
             selectedStayID: selectedStayID,
             onSelectSegment: onSelectSegment,
             onSelectStay: onSelectStay,
+            media: media,
+            thumbnailLoader: thumbnailLoader,
+            onSelectMedia: onSelectMedia,
             onTapEmpty: onTapEmpty
         )
     }
@@ -173,6 +188,10 @@ final class RouteMapCoordinator: NSObject, MKMapViewDelegate {
     var selectedStayID: String?
     var onSelectSegment: (String) -> Void = { _ in }
     var onSelectStay: (String) -> Void = { _ in }
+    var onSelectMedia: (String) -> Void = { _ in }
+    var mediaByIdentifier: [String: MediaAssetReference] = [:]
+    var thumbnailLoader: (any LoadMediaThumbnailUseCase)?
+
     private var onTapEmpty: () -> Void = {}
     private var tapRecognizer: UITapGestureRecognizer?
 
@@ -183,6 +202,12 @@ final class RouteMapCoordinator: NSObject, MKMapViewDelegate {
         self.mapView = mapView
         onSelectSegment = interaction.onSelectSegment
         onSelectStay = interaction.onSelectStay
+        onSelectMedia = interaction.onSelectMedia
+        mediaByIdentifier = Dictionary(
+            interaction.media.map { ($0.localIdentifier, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        thumbnailLoader = interaction.thumbnailLoader
         onTapEmpty = interaction.onTapEmpty
         if selectedSegmentID != interaction.selectedSegmentID {
             selectedSegmentID = interaction.selectedSegmentID

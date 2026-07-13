@@ -18,13 +18,16 @@ extension RouteMapCoordinator {
     }
 
     func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
-        guard let annotation = view.annotation as? RouteMapPointAnnotation,
-              annotation.kind == .movementLabel || annotation.kind == .stay
-        else { return }
-        if annotation.kind == .movementLabel {
+        guard let annotation = view.annotation as? RouteMapPointAnnotation else { return }
+        switch annotation.kind {
+        case .movementLabel:
             onSelectSegment(annotation.id)
-        } else {
+        case .stay:
             onSelectStay(annotation.id)
+        case .media:
+            onSelectMedia(annotation.id)
+        case .movementCallout, .stayCallout:
+            return
         }
         mapView.deselectAnnotation(annotation, animated: false)
     }
@@ -64,11 +67,15 @@ extension RouteMapCoordinator {
                 stay: stay
             )
         }
-        let media = scene.mediaAnnotations.map {
-            RouteMapPointAnnotation(
-                id: $0.localIdentifier,
-                coordinate: $0.coordinate.mapCoordinate,
-                kind: .media
+        let media = scene.mediaAnnotations.compactMap { annotation -> RouteMapPointAnnotation? in
+            guard let asset = mediaByIdentifier[annotation.localIdentifier],
+                  asset.location != nil
+            else { return nil }
+            return RouteMapPointAnnotation(
+                id: annotation.localIdentifier,
+                coordinate: annotation.coordinate.mapCoordinate,
+                kind: .media,
+                mediaType: asset.mediaType
             )
         }
         mapView.addAnnotations(labels + callouts + stays + stayCallouts + media)
@@ -226,15 +233,18 @@ extension RouteMapCoordinator {
         for annotation: RouteMapPointAnnotation,
         in mapView: MKMapView
     ) -> MKAnnotationView {
-        let identifier = "RouteMapPointAnnotation"
-        let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) ??
-            MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
+        let identifier = "RouteMapMediaAnnotation"
+        let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as?
+            RouteMapMediaAnnotationView ?? RouteMapMediaAnnotationView(
+                annotation: annotation,
+                reuseIdentifier: identifier
+            )
         view.annotation = annotation
-        view.canShowCallout = false
-        if let marker = view as? MKMarkerAnnotationView {
-            marker.markerTintColor = .systemBlue
-            marker.glyphImage = UIImage(systemName: "photo")
-        }
+        view.configure(
+            localIdentifier: annotation.id,
+            mediaType: annotation.mediaType ?? .photo,
+            thumbnailLoader: thumbnailLoader
+        )
         return view
     }
 }
