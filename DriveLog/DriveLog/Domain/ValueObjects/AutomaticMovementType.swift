@@ -1,4 +1,4 @@
-enum AutomaticMovementType: Sendable, Equatable {
+nonisolated enum AutomaticMovementType: Sendable, Equatable {
     case automotiveLike
     case walkingLike
     case other

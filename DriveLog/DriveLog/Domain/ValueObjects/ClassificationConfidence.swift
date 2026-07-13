@@ -1,4 +1,4 @@
-enum ClassificationConfidence: Sendable, Equatable {
+nonisolated enum ClassificationConfidence: Sendable, Equatable {
     case low
     case medium
     case high
