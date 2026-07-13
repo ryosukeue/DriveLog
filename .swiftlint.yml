@@ -1,0 +1,17 @@
+included:
+  - DriveLog
+  - DriveLogTests
+  - DriveLogUITests
+excluded:
+  - .build
+  - DerivedData
+analyzer_rules: []
+opt_in_rules:
+  - empty_count
+  - explicit_init
+  - force_unwrapping
+disabled_rules:
+  - trailing_comma
+line_length:
+  warning: 120
+  error: 160
