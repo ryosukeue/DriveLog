@@ -29,9 +29,22 @@
 		7755468730050BD600DDD5F2 /* DriveLogUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DriveLogUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A10000000000000000001101 /* Exceptions for "DriveLog" folder in "DriveLog" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 7755466D30050BD400DDD5F2 /* DriveLog */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		7755467030050BD400DDD5F2 /* DriveLog */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A10000000000000000001101 /* Exceptions for "DriveLog" folder in "DriveLog" target */,
+			);
 			path = DriveLog;
 			sourceTree = "<group>";
 		};
@@ -400,6 +413,7 @@
 				DEVELOPMENT_TEAM = Z5MCP6ZQJ6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DriveLog/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "移動ログをバックグラウンドで記録するために位置情報を使用します。";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "移動ログを記録するために位置情報を使用します。";
@@ -435,6 +449,7 @@
 				DEVELOPMENT_TEAM = Z5MCP6ZQJ6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DriveLog/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "移動ログをバックグラウンドで記録するために位置情報を使用します。";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "移動ログを記録するために位置情報を使用します。";
