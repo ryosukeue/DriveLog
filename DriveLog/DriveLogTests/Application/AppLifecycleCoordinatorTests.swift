@@ -69,7 +69,7 @@ struct AppLifecycleCoordinatorTests {
         #expect(await fixture.storageCoordinator.isRunning())
         #expect(fixture.dayProcessing.pendingLimits == [1])
         #expect(fixture.dayProcessing.cancelCount == 0)
-        #expect(fixture.backgroundTasks.requirements == [false])
+        #expect(fixture.backgroundTasks.requirements == [true])
     }
 
     @Test("scheduler failures keep foreground fallback and monitoring active")
@@ -83,7 +83,7 @@ struct AppLifecycleCoordinatorTests {
         #expect(await fixture.location.callCounts().start == 1)
         #expect(fixture.dayProcessing.pendingLimits == [1])
         #expect(fixture.backgroundTasks.registrationCount == 1)
-        #expect(fixture.backgroundTasks.requirements == [false])
+        #expect(fixture.backgroundTasks.requirements == [true])
     }
 }
 

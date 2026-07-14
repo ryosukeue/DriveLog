@@ -34,7 +34,7 @@ final class AppLifecycleCoordinator: AppLifecycleCoordinating {
     }
 
     func handleBackground() async {
-        try? backgroundTaskScheduler.scheduleProcessingTask(requiresExternalPower: false)
+        try? backgroundTaskScheduler.scheduleProcessingTask(requiresExternalPower: true)
         // Significant Location Change monitoring must continue in the background.
     }
 
