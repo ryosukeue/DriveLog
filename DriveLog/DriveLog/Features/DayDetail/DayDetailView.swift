@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DayDetailView: View {
     @State private var viewModel: DayDetailViewModel
+    @State private var isShowingDeletionConfirmation = false
     let onOpenMap: (
         MapScene,
         [MediaAssetReference],
@@ -50,7 +51,7 @@ struct DayDetailView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button("この日の記録を削除", role: .destructive) {
-                        onRequestDeletion()
+                        isShowingDeletionConfirmation = true
                     }
                     .accessibilityIdentifier("dayDetail.delete")
                 } label: {
@@ -58,6 +59,24 @@ struct DayDetailView: View {
                 }
                 .accessibilityIdentifier("dayDetail.menu")
             }
+        }
+        .confirmationDialog(
+            "この日の記録を削除しますか？",
+            isPresented: $isShowingDeletionConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("削除", role: .destructive) {
+                onRequestDeletion()
+            }
+            .accessibilityIdentifier("dayDetail.delete.confirm")
+            Button("キャンセル", role: .cancel) {}
+                .accessibilityIdentifier("dayDetail.delete.cancel")
+        } message: {
+            Text("""
+            位置情報、移動区間、滞在地点、分類修正が削除されます。
+            写真アプリ内の写真や動画は削除されません。
+            この操作は取り消せません。
+            """)
         }
         .task {
             if viewModel.state == .idle {

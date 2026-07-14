@@ -54,7 +54,7 @@ final class DriveLogUITests: XCTestCase {
     }
 
     @MainActor
-    func testDayDetailShowsDeleteMenu() {
+    func testDayDetailShowsDeleteConfirmation() {
         let app = XCUIApplication()
         app.launchArguments.append("-ui-testing-day-detail")
         app.launch()
@@ -69,7 +69,18 @@ final class DriveLogUITests: XCTestCase {
         XCTAssertTrue(menu.waitForExistence(timeout: 5))
         XCTAssertEqual(menu.label, "その他の操作")
         menu.tap()
-        XCTAssertTrue(app.buttons["この日の記録を削除"].waitForExistence(timeout: 5))
+        let deleteMenuItem = app.buttons["この日の記録を削除"]
+        XCTAssertTrue(deleteMenuItem.waitForExistence(timeout: 5))
+        deleteMenuItem.tap()
+
+        XCTAssertTrue(app.staticTexts["この日の記録を削除しますか？"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS '写真アプリ内の写真や動画は削除されません'")
+        ).firstMatch.exists)
+        XCTAssertTrue(app.buttons["dayDetail.delete.confirm"].exists)
+        app.otherElements["PopoverDismissRegion"].tap()
+        XCTAssertTrue(app.buttons["dayDetail.mapPreview"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["この日の記録を削除しますか？"].exists)
     }
 
     @MainActor
