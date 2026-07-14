@@ -9,6 +9,7 @@ struct DayDetailView: View {
         [StayDisplayData]
     ) -> Void
     let onSelectMedia: (MediaAssetReference) -> Void
+    let onRequestDeletion: () -> Void
     private let formatter: DayDetailFormatter
 
     init(
@@ -22,12 +23,14 @@ struct DayDetailView: View {
             [MovementDisplayData],
             [StayDisplayData]
         ) -> Void = { _, _, _, _ in },
-        onSelectMedia: @escaping (MediaAssetReference) -> Void = { _ in }
+        onSelectMedia: @escaping (MediaAssetReference) -> Void = { _ in },
+        onRequestDeletion: @escaping () -> Void = {}
     ) {
         _viewModel = State(initialValue: viewModel)
         self.formatter = formatter
         self.onOpenMap = onOpenMap
         self.onSelectMedia = onSelectMedia
+        self.onRequestDeletion = onRequestDeletion
     }
 
     var body: some View {
@@ -43,6 +46,19 @@ struct DayDetailView: View {
         }
         .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button("この日の記録を削除", role: .destructive) {
+                        onRequestDeletion()
+                    }
+                    .accessibilityIdentifier("dayDetail.delete")
+                } label: {
+                    Label("その他の操作", systemImage: "ellipsis.circle")
+                }
+                .accessibilityIdentifier("dayDetail.menu")
+            }
+        }
         .task {
             if viewModel.state == .idle {
                 await viewModel.load()
