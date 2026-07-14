@@ -5,6 +5,7 @@ import UIKit
 
 @main
 struct DriveLogApp: App {
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     private let calendarViewModel: CalendarViewModel?
     private let appContainer: AppContainer
     private let today: Date
@@ -20,7 +21,10 @@ struct DriveLogApp: App {
         #if DEBUG
             let arguments = ProcessInfo.processInfo.arguments
             let isMediaUITesting = arguments.contains("-ui-testing-media")
-            let isUITesting = isMediaUITesting || arguments.contains("-ui-testing-day-detail")
+            let isSeededUITesting = isMediaUITesting
+                || arguments.contains("-ui-testing-day-detail")
+            let isUITesting = isSeededUITesting
+                || arguments.contains("-ui-testing-calendar")
             if isMediaUITesting {
                 photoLibrary = UITestPhotoLibraryProvider(
                     now: now,
@@ -42,7 +46,7 @@ struct DriveLogApp: App {
             let components = calendar.dateComponents([.year, .month], from: now)
             let month = LocalMonth(year: components.year ?? 1970, month: components.month ?? 1)
             #if DEBUG
-                if isUITesting {
+                if isSeededUITesting {
                     try Self.seedUITestData(
                         modelContainer: modelContainer,
                         now: now,
@@ -63,7 +67,11 @@ struct DriveLogApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if let calendarViewModel, let modelContainer {
+            if shouldShowOnboarding {
+                OnboardingView {
+                    hasCompletedOnboarding = true
+                }
+            } else if let calendarViewModel, let modelContainer {
                 ContentView(
                     calendarViewModel: calendarViewModel,
                     today: today,
@@ -100,6 +108,22 @@ struct DriveLogApp: App {
                 .accessibilityIdentifier("app.startup.error")
             }
         }
+    }
+
+    private var shouldShowOnboarding: Bool {
+        #if DEBUG
+            let arguments = ProcessInfo.processInfo.arguments
+            if arguments.contains("-ui-testing-onboarding") {
+                return true
+            }
+            let bypassesOnboarding = arguments.contains("-ui-testing-day-detail")
+                || arguments.contains("-ui-testing-media")
+                || arguments.contains("-ui-testing-calendar")
+            if bypassesOnboarding {
+                return false
+            }
+        #endif
+        return !hasCompletedOnboarding
     }
 
     #if DEBUG

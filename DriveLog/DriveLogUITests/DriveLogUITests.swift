@@ -15,6 +15,7 @@ final class DriveLogUITests: XCTestCase {
     @MainActor
     func testCalendarEmptyMonthAndSwipe() throws {
         let app = XCUIApplication()
+        app.launchArguments.append("-ui-testing-calendar")
         app.launch()
 
         let grid = app.otherElements["calendar.grid"]
@@ -32,6 +33,31 @@ final class DriveLogUITests: XCTestCase {
         grid.swipeRight()
         expectation(for: NSPredicate(format: "value == %@", originalMonth), evaluatedWith: grid)
         waitForExpectations(timeout: 5)
+    }
+
+    @MainActor
+    func testOnboardingContentAndStartFlow() {
+        let app = XCUIApplication()
+        app.launchArguments.append("-ui-testing-onboarding")
+        app.launch()
+
+        XCTAssertTrue(
+            app.descendants(matching: .any)["onboarding.root"].waitForExistence(timeout: 5)
+        )
+        XCTAssertTrue(app.staticTexts["DriveLog"].exists)
+        XCTAssertTrue(app.descendants(matching: .any).matching(
+            NSPredicate(format: "label CONTAINS '位置情報'")
+        ).firstMatch.exists)
+        XCTAssertTrue(app.descendants(matching: .any).matching(
+            NSPredicate(format: "label CONTAINS 'モーション'")
+        ).firstMatch.exists)
+        XCTAssertTrue(app.descendants(matching: .any).matching(
+            NSPredicate(format: "label CONTAINS '写真と動画'")
+        ).firstMatch.exists)
+        XCTAssertTrue(app.descendants(matching: .any).matching(
+            NSPredicate(format: "label CONTAINS '外部サーバーへ送信されません'")
+        ).firstMatch.exists)
+        XCTAssertTrue(app.buttons["onboarding.start"].isEnabled)
     }
 
     @MainActor
