@@ -5,6 +5,7 @@ import UIKit
 
 @main
 struct DriveLogApp: App {
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var onboardingFlowUITestCompleted = false
     private let calendarViewModel: CalendarViewModel?
@@ -14,6 +15,7 @@ struct DriveLogApp: App {
     private let photoLibrary: any PhotoLibraryProviding
     private let permissionManager: any PermissionManaging
     private let runsOnboardingFlowUITest: Bool
+    private let lifecycleCoordinator: AppLifecycleCoordinator?
 
     @MainActor
     init() {
@@ -38,9 +40,7 @@ struct DriveLogApp: App {
             photoLibrary = PhotoLibraryProvider()
         #endif
         do {
-            let modelContainer = try DriveLogModelContainerFactory.make(
-                isStoredInMemoryOnly: isUITesting
-            )
+            let modelContainer = try Self.makeModelContainer(isUITesting: isUITesting)
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = container.timeZoneProvider.current
             let components = calendar.dateComponents([.year, .month], from: now)
@@ -55,6 +55,10 @@ struct DriveLogApp: App {
                 }
             #endif
             self.modelContainer = modelContainer
+            lifecycleCoordinator = isUITesting ? nil : container.makeAppLifecycleCoordinator(
+                modelContainer: modelContainer,
+                permissionManager: permissionManager
+            )
             calendarViewModel = container.makeCalendarViewModel(
                 modelContainer: modelContainer,
                 displayedMonth: month
@@ -62,86 +66,79 @@ struct DriveLogApp: App {
         } catch {
             modelContainer = nil
             calendarViewModel = nil
+            lifecycleCoordinator = nil
         }
     }
 
     var body: some Scene {
         WindowGroup {
-            if shouldShowOnboarding {
-                OnboardingView(
-                    viewModel: OnboardingViewModel(permissionManager: permissionManager),
-                    onCompleted: {
-                        hasCompletedOnboarding = true
-                        onboardingFlowUITestCompleted = true
-                    }
-                )
-            } else if let calendarViewModel, let modelContainer {
-                ContentView(
-                    calendarViewModel: calendarViewModel,
-                    today: today,
-                    makeDayDetailViewModel: { localDateKey in
-                        appContainer.makeDayDetailViewModel(
-                            modelContainer: modelContainer,
-                            localDateKey: localDateKey,
+            Group {
+                if shouldShowOnboarding {
+                    OnboardingView(
+                        viewModel: OnboardingViewModel(permissionManager: permissionManager),
+                        onCompleted: {
+                            hasCompletedOnboarding = true
+                            onboardingFlowUITestCompleted = true
+                        }
+                    )
+                } else if let calendarViewModel, let modelContainer {
+                    ContentView(
+                        calendarViewModel: calendarViewModel,
+                        today: today,
+                        makeDayDetailViewModel: { localDateKey in
+                            appContainer.makeDayDetailViewModel(
+                                modelContainer: modelContainer,
+                                localDateKey: localDateKey,
+                                photoLibrary: photoLibrary
+                            )
+                        },
+                        loadMediaThumbnail: appContainer.makeLoadMediaThumbnailUseCase(
                             photoLibrary: photoLibrary
-                        )
-                    },
-                    loadMediaThumbnail: appContainer.makeLoadMediaThumbnailUseCase(
-                        photoLibrary: photoLibrary
-                    ),
-                    updateClassification: appContainer.makeUpdateClassificationUseCase(
-                        modelContainer: modelContainer
-                    ),
-                    updateStayOverride: appContainer.makeUpdateStayOverrideUseCase(
-                        modelContainer: modelContainer
-                    ),
-                    hapticFeedback: appContainer.hapticFeedback,
-                    makeMediaPreviewViewModel: { asset in
-                        appContainer.makeMediaPreviewViewModel(
-                            asset: asset,
-                            photoLibrary: photoLibrary
-                        )
+                        ),
+                        updateClassification: appContainer.makeUpdateClassificationUseCase(
+                            modelContainer: modelContainer
+                        ),
+                        updateStayOverride: appContainer.makeUpdateStayOverrideUseCase(
+                            modelContainer: modelContainer
+                        ),
+                        hapticFeedback: appContainer.hapticFeedback,
+                        makeMediaPreviewViewModel: { asset in
+                            appContainer.makeMediaPreviewViewModel(
+                                asset: asset,
+                                photoLibrary: photoLibrary
+                            )
+                        }
+                    )
+                } else {
+                    ContentUnavailableView(
+                        "起動できませんでした",
+                        systemImage: "exclamationmark.triangle",
+                        description: Text("アプリを終了して、もう一度お試しください")
+                    )
+                    .accessibilityIdentifier("app.startup.error")
+                }
+            }
+            .task {
+                await lifecycleCoordinator?.handleLaunch()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                Task { @MainActor in
+                    switch phase {
+                    case .active:
+                        await lifecycleCoordinator?.handleForeground()
+                    case .background:
+                        await lifecycleCoordinator?.handleBackground()
+                    case .inactive:
+                        break
+                    @unknown default:
+                        break
                     }
-                )
-            } else {
-                ContentUnavailableView(
-                    "起動できませんでした",
-                    systemImage: "exclamationmark.triangle",
-                    description: Text("アプリを終了して、もう一度お試しください")
-                )
-                .accessibilityIdentifier("app.startup.error")
+                }
             }
         }
-    }
-
-    private var shouldShowOnboarding: Bool {
-        #if DEBUG
-            let arguments = ProcessInfo.processInfo.arguments
-            if arguments.contains("-ui-testing-onboarding") {
-                return true
-            }
-            if runsOnboardingFlowUITest {
-                return !onboardingFlowUITestCompleted
-            }
-            let bypassesOnboarding = arguments.contains("-ui-testing-day-detail")
-                || arguments.contains("-ui-testing-media")
-                || arguments.contains("-ui-testing-calendar")
-            if bypassesOnboarding {
-                return false
-            }
-        #endif
-        return !hasCompletedOnboarding
     }
 
     #if DEBUG
-        private struct UITestConfiguration {
-            let permissionManager: any PermissionManaging
-            let photoLibrary: any PhotoLibraryProviding
-            let runsOnboardingFlow: Bool
-            let isSeeded: Bool
-            let isEnabled: Bool
-        }
-
         @MainActor
         private static func makeUITestConfiguration(
             now: Date,
@@ -258,6 +255,41 @@ struct DriveLogApp: App {
             )
         }
     #endif
+}
+
+#if DEBUG
+    private struct UITestConfiguration {
+        let permissionManager: any PermissionManaging
+        let photoLibrary: any PhotoLibraryProviding
+        let runsOnboardingFlow: Bool
+        let isSeeded: Bool
+        let isEnabled: Bool
+    }
+#endif
+
+private extension DriveLogApp {
+    var shouldShowOnboarding: Bool {
+        #if DEBUG
+            let arguments = ProcessInfo.processInfo.arguments
+            if arguments.contains("-ui-testing-onboarding") {
+                return true
+            }
+            if runsOnboardingFlowUITest {
+                return !onboardingFlowUITestCompleted
+            }
+            let bypassesOnboarding = arguments.contains("-ui-testing-day-detail")
+                || arguments.contains("-ui-testing-media")
+                || arguments.contains("-ui-testing-calendar")
+            if bypassesOnboarding {
+                return false
+            }
+        #endif
+        return !hasCompletedOnboarding
+    }
+
+    static func makeModelContainer(isUITesting: Bool) throws -> ModelContainer {
+        try DriveLogModelContainerFactory.make(isStoredInMemoryOnly: isUITesting)
+    }
 }
 
 #if DEBUG

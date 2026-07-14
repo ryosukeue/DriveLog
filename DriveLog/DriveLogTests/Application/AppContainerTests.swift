@@ -48,6 +48,21 @@ struct AppContainerTests {
         let context = container.localTimeContextProvider.makeContext(for: now)
         #expect(context.timeZoneIdentifier == TimeZone.current.identifier)
     }
+
+    @Test("Production lifecycle dependency graph can be constructed")
+    func lifecycleDependencyGraph() throws {
+        let modelContainer = try DriveLogModelContainerFactory.make(
+            isStoredInMemoryOnly: true
+        )
+        _ = AppContainer().makeAppLifecycleCoordinator(
+            modelContainer: modelContainer,
+            permissionManager: FakePermissionManager(state: PermissionState(
+                location: .denied,
+                motion: .denied,
+                photos: .denied
+            ))
+        )
+    }
 }
 
 private struct ContainerFixedClock: Clock {

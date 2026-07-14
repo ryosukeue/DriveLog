@@ -129,4 +129,100 @@ final class AppContainer {
             )
         )
     }
+
+    func makeAppLifecycleCoordinator(
+        modelContainer: ModelContainer,
+        permissionManager: any PermissionManaging
+    ) -> AppLifecycleCoordinator {
+        let rawRepository = SwiftDataRawEventRepository(
+            modelContainer: modelContainer,
+            clock: clock
+        )
+        let stateRepository = SwiftDataProcessingStateRepository(
+            modelContainer: modelContainer,
+            clock: clock
+        )
+        let overrideRepository = SwiftDataOverrideRepository(modelContainer: modelContainer)
+        let derivedRepository = SwiftDataDerivedDataRepository(modelContainer: modelContainer)
+        let mediaCacheRepository = SwiftDataMediaCacheRepository(modelContainer: modelContainer)
+        let providers = makeMonitoringProviders()
+        let storageCoordinator = RawEventStorageCoordinator(
+            locationProvider: providers.location,
+            motionProvider: providers.motion,
+            visitProvider: providers.visit,
+            repository: rawRepository,
+            logger: logger
+        )
+        let startMonitoring = StartMonitoringUseCase(
+            locationProvider: providers.location,
+            motionProvider: providers.motion,
+            visitProvider: providers.visit,
+            storageCoordinator: storageCoordinator,
+            logger: logger
+        )
+        let processDay = makeProcessDayUseCase(
+            stateRepository: stateRepository,
+            rawRepository: rawRepository,
+            overrideRepository: overrideRepository,
+            derivedRepository: derivedRepository,
+            mediaCacheRepository: mediaCacheRepository
+        )
+        let dayProcessing = DefaultDayProcessingCoordinator(
+            stateRepository: stateRepository,
+            processDayUseCase: processDay
+        )
+        let backgroundCoordinator = BackgroundTaskCoordinator(
+            dayProcessingCoordinator: dayProcessing
+        )
+        let backgroundScheduler = SystemBackgroundTaskScheduler { task in
+            backgroundCoordinator.handle(task: task)
+        }
+        return AppLifecycleCoordinator(
+            permissionManager: permissionManager,
+            startMonitoringUseCase: startMonitoring,
+            dayProcessingCoordinator: dayProcessing,
+            backgroundTaskScheduler: backgroundScheduler
+        )
+    }
+
+    private func makeMonitoringProviders() -> MonitoringProviders {
+        MonitoringProviders(
+            location: CoreLocationProvider(
+                clock: clock,
+                localTimeContextProvider: localTimeContextProvider
+            ),
+            motion: CoreMotionProvider(localTimeContextProvider: localTimeContextProvider),
+            visit: CoreLocationVisitProvider(
+                clock: clock,
+                localTimeContextProvider: localTimeContextProvider
+            )
+        )
+    }
+
+    private func makeProcessDayUseCase(
+        stateRepository: SwiftDataProcessingStateRepository,
+        rawRepository: SwiftDataRawEventRepository,
+        overrideRepository: SwiftDataOverrideRepository,
+        derivedRepository: SwiftDataDerivedDataRepository,
+        mediaCacheRepository: SwiftDataMediaCacheRepository
+    ) -> DefaultProcessDayUseCase {
+        DefaultProcessDayUseCase(
+            stateRepository: stateRepository,
+            rawRepository: rawRepository,
+            overrideRepository: overrideRepository,
+            derivedRepository: derivedRepository,
+            processor: DefaultDayProcessor(clock: clock),
+            mediaCountLoader: { localDateKey in
+                try await mediaCacheRepository.cachedAssets(for: localDateKey).count
+            },
+            clock: clock,
+            logger: logger
+        )
+    }
+}
+
+private struct MonitoringProviders {
+    let location: CoreLocationProvider
+    let motion: CoreMotionProvider
+    let visit: CoreLocationVisitProvider
 }
