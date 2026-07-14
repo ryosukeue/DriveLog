@@ -46,6 +46,19 @@ struct OnboardingView: View {
                         .foregroundStyle(.accent)
                 }
                 .accessibilityElement(children: .combine)
+                if let deniedMessage = viewModel.deniedMessage {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label(deniedMessage, systemImage: "exclamationmark.triangle.fill")
+                        Button("設定を開く") {
+                            viewModel.openSystemSettings()
+                        }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("onboarding.openSettings")
+                    }
+                    .padding()
+                    .background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
+                    .accessibilityIdentifier("onboarding.permissionDenied")
+                }
                 Button(viewModel.primaryActionTitle) {
                     Task { @MainActor in
                         if await viewModel.performPrimaryAction() {

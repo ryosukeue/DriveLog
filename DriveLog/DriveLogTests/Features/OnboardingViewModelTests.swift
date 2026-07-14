@@ -87,6 +87,25 @@ struct OnboardingViewModelTests {
         }
     }
 
+    @Test("explains denied permissions, opens settings, and still completes")
+    func denied() async {
+        let permissions = FakePermissionManager(state: PermissionState(
+            location: .denied,
+            motion: .denied,
+            photos: .denied
+        ))
+        let viewModel = OnboardingViewModel(permissionManager: permissions)
+
+        #expect(viewModel.deniedMessage?.contains("バックグラウンド") == true)
+        viewModel.openSystemSettings()
+        #expect(permissions.openSettingsCount == 1)
+        #expect(await viewModel.performPrimaryAction() == false)
+        #expect(viewModel.deniedMessage?.contains("移動方法") == true)
+        #expect(await viewModel.performPrimaryAction() == false)
+        #expect(viewModel.deniedMessage?.contains("写真や動画") == true)
+        #expect(await viewModel.performPrimaryAction())
+    }
+
     private func state(location: LocationPermissionState) -> PermissionState {
         PermissionState(location: location, motion: .notDetermined, photos: .notDetermined)
     }

@@ -38,6 +38,23 @@ final class OnboardingViewModel {
         }
     }
 
+    var deniedMessage: String? {
+        switch phase {
+        case .location where isDenied(permissionState.location):
+            "位置情報が許可されていません。バックグラウンドで移動を記録するには、設定で位置情報を「常に許可」にしてください。"
+        case .motion where isDenied(permissionState.motion):
+            "モーションが許可されていません。移動方法の推定は利用できませんが、位置記録は継続できます。"
+        case .photos where isDenied(permissionState.photos):
+            "写真へのアクセスが許可されていません。移動記録は利用できますが、写真や動画は表示されません。"
+        default:
+            nil
+        }
+    }
+
+    func openSystemSettings() {
+        permissionManager.openSystemSettings()
+    }
+
     func performPrimaryAction() async -> Bool {
         guard !isRequesting else { return false }
         isRequesting = true
@@ -103,5 +120,17 @@ final class OnboardingViewModel {
 
     private func synchronizeState() {
         permissionState = permissionManager.currentState
+    }
+
+    private func isDenied(_ state: LocationPermissionState) -> Bool {
+        state == .denied || state == .restricted
+    }
+
+    private func isDenied(_ state: MotionPermissionState) -> Bool {
+        state == .denied || state == .restricted
+    }
+
+    private func isDenied(_ state: PhotoPermissionState) -> Bool {
+        state == .denied || state == .restricted
     }
 }
