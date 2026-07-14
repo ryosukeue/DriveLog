@@ -3,8 +3,14 @@ import Observation
 @MainActor
 @Observable
 final class OnboardingViewModel {
+    enum Phase: Sendable, Equatable {
+        case location
+        case motion
+    }
+
     private(set) var permissionState: PermissionState
     private(set) var isRequesting = false
+    private(set) var phase: Phase = .location
     private let permissionManager: any PermissionManaging
 
     init(permissionManager: any PermissionManaging) {
@@ -13,7 +19,11 @@ final class OnboardingViewModel {
     }
 
     var primaryActionTitle: String {
-        switch permissionState.location {
+        if phase == .motion {
+            return permissionState.motion == .notDetermined
+                ? "モーションの利用を許可する" : "次へ"
+        }
+        return switch permissionState.location {
         case .notDetermined:
             "位置情報の設定を始める"
         case .whenInUse:
@@ -23,10 +33,19 @@ final class OnboardingViewModel {
         }
     }
 
-    func performLocationAction() async -> Bool {
+    func performPrimaryAction() async -> Bool {
         guard !isRequesting else { return false }
         isRequesting = true
         defer { isRequesting = false }
+        switch phase {
+        case .location:
+            return await performLocationAction()
+        case .motion:
+            return await performMotionAction()
+        }
+    }
+
+    private func performLocationAction() async -> Bool {
         switch permissionState.location {
         case .notDetermined:
             await permissionManager.requestLocationWhenInUse()
@@ -35,8 +54,23 @@ final class OnboardingViewModel {
         case .whenInUse:
             await permissionManager.requestLocationAlways()
             synchronizeState()
-            return permissionState.location != .whenInUse
+            if permissionState.location != .whenInUse {
+                phase = .motion
+            }
+            return false
         case .always, .denied, .restricted:
+            phase = .motion
+            return false
+        }
+    }
+
+    private func performMotionAction() async -> Bool {
+        switch permissionState.motion {
+        case .notDetermined:
+            await permissionManager.requestMotion()
+            synchronizeState()
+            return false
+        case .authorized, .denied, .restricted:
             return true
         }
     }

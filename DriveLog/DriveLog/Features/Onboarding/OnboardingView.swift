@@ -48,7 +48,7 @@ struct OnboardingView: View {
                 .accessibilityElement(children: .combine)
                 Button(viewModel.primaryActionTitle) {
                     Task { @MainActor in
-                        if await viewModel.performLocationAction() {
+                        if await viewModel.performPrimaryAction() {
                             onCompleted()
                         }
                     }
