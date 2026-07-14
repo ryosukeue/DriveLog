@@ -106,6 +106,26 @@ struct OnboardingViewModelTests {
         #expect(await viewModel.performPrimaryAction())
     }
 
+    @Test("explains limited photo access, opens selection settings, and completes")
+    func limitedPhotos() async {
+        let permissions = FakePermissionManager(state: PermissionState(
+            location: .always,
+            motion: .authorized,
+            photos: .limited
+        ))
+        let viewModel = OnboardingViewModel(permissionManager: permissions)
+
+        #expect(viewModel.limitedPhotosMessage == nil)
+        #expect(await viewModel.performPrimaryAction() == false)
+        #expect(viewModel.limitedPhotosMessage == nil)
+        #expect(await viewModel.performPrimaryAction() == false)
+        #expect(viewModel.limitedPhotosMessage?.contains("選択した写真と動画だけ") == true)
+        #expect(viewModel.deniedMessage == nil)
+        viewModel.openSystemSettings()
+        #expect(permissions.openSettingsCount == 1)
+        #expect(await viewModel.performPrimaryAction())
+    }
+
     private func state(location: LocationPermissionState) -> PermissionState {
         PermissionState(location: location, motion: .notDetermined, photos: .notDetermined)
     }

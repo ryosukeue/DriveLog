@@ -51,6 +51,11 @@ final class OnboardingViewModel {
         }
     }
 
+    var limitedPhotosMessage: String? {
+        guard phase == .photos, permissionState.photos == .limited else { return nil }
+        return "選択した写真と動画だけを表示します。表示する項目は設定から変更できます。"
+    }
+
     func openSystemSettings() {
         permissionManager.openSystemSettings()
     }

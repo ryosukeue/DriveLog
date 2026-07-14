@@ -59,6 +59,19 @@ struct OnboardingView: View {
                     .background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
                     .accessibilityIdentifier("onboarding.permissionDenied")
                 }
+                if let limitedMessage = viewModel.limitedPhotosMessage {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label(limitedMessage, systemImage: "photo.badge.checkmark")
+                        Button("選択内容を変更") {
+                            viewModel.openSystemSettings()
+                        }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("onboarding.changePhotoSelection")
+                    }
+                    .padding()
+                    .background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
+                    .accessibilityIdentifier("onboarding.limitedPhotos")
+                }
                 Button(viewModel.primaryActionTitle) {
                     Task { @MainActor in
                         if await viewModel.performPrimaryAction() {
