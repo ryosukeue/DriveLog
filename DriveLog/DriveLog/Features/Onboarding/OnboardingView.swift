@@ -62,6 +62,7 @@ struct OnboardingView: View {
                 if let limitedMessage = viewModel.limitedPhotosMessage {
                     VStack(alignment: .leading, spacing: 12) {
                         Label(limitedMessage, systemImage: "photo.badge.checkmark")
+                            .accessibilityIdentifier("onboarding.limitedPhotosMessage")
                         Button("選択内容を変更") {
                             viewModel.openSystemSettings()
                         }
@@ -70,7 +71,6 @@ struct OnboardingView: View {
                     }
                     .padding()
                     .background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
-                    .accessibilityIdentifier("onboarding.limitedPhotos")
                 }
                 Button(viewModel.primaryActionTitle) {
                     Task { @MainActor in

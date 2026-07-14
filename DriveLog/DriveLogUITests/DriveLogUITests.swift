@@ -61,6 +61,31 @@ final class DriveLogUITests: XCTestCase {
     }
 
     @MainActor
+    func testOnboardingPermissionFlowReachesCalendar() {
+        let app = XCUIApplication()
+        app.launchArguments.append("-ui-testing-onboarding-flow")
+        app.launch()
+
+        let action = app.buttons["onboarding.start"]
+        XCTAssertTrue(action.waitForExistence(timeout: 5))
+        tap(action, expectingLabel: "位置情報の設定を始める")
+        tap(action, expectingLabel: "「常に許可」の設定へ進む")
+        tap(action, expectingLabel: "モーションの利用を許可する")
+        tap(action, expectingLabel: "次へ")
+        tap(action, expectingLabel: "写真と動画の利用を許可する")
+
+        let limitedPhotos = app.descendants(matching: .any)["onboarding.limitedPhotosMessage"]
+        XCTAssertTrue(limitedPhotos.waitForExistence(timeout: 5))
+        if app.buttons["onboarding.changePhotoSelection"].isHittable == false {
+            app.swipeUp()
+        }
+        XCTAssertTrue(app.buttons["onboarding.changePhotoSelection"].exists)
+        tap(action, expectingLabel: "DriveLogを始める")
+        XCTAssertTrue(app.otherElements["calendar.grid"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.otherElements["onboarding.root"].exists)
+    }
+
+    @MainActor
     func testCalendarNavigatesToDayDetail() {
         let app = XCUIApplication()
         app.launchArguments.append("-ui-testing-day-detail")
@@ -258,5 +283,12 @@ final class DriveLogUITests: XCTestCase {
         for _ in 0 ..< 4 where grid.isHittable == false {
             app.swipeUp()
         }
+    }
+
+    @MainActor
+    private func tap(_ button: XCUIElement, expectingLabel label: String) {
+        expectation(for: NSPredicate(format: "label == %@", label), evaluatedWith: button)
+        waitForExpectations(timeout: 5)
+        button.tap()
     }
 }

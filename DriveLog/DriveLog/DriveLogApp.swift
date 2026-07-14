@@ -6,36 +6,34 @@ import UIKit
 @main
 struct DriveLogApp: App {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @State private var onboardingFlowUITestCompleted = false
     private let calendarViewModel: CalendarViewModel?
     private let appContainer: AppContainer
     private let today: Date
     private let modelContainer: ModelContainer?
     private let photoLibrary: any PhotoLibraryProviding
-    private let permissionManager: PermissionCoordinator
+    private let permissionManager: any PermissionManaging
+    private let runsOnboardingFlowUITest: Bool
 
     @MainActor
     init() {
         let container = AppContainer()
-        permissionManager = PermissionCoordinator()
         appContainer = container
         let now = container.clock.now
         today = now
         #if DEBUG
-            let arguments = ProcessInfo.processInfo.arguments
-            let isMediaUITesting = arguments.contains("-ui-testing-media")
-            let isSeededUITesting = isMediaUITesting
-                || arguments.contains("-ui-testing-day-detail")
-            let isUITesting = isSeededUITesting
-                || arguments.contains("-ui-testing-calendar")
-            if isMediaUITesting {
-                photoLibrary = UITestPhotoLibraryProvider(
-                    now: now,
-                    timeZone: container.timeZoneProvider.current
-                )
-            } else {
-                photoLibrary = PhotoLibraryProvider()
-            }
+            let uiTest = Self.makeUITestConfiguration(
+                now: now,
+                timeZone: container.timeZoneProvider.current
+            )
+            runsOnboardingFlowUITest = uiTest.runsOnboardingFlow
+            permissionManager = uiTest.permissionManager
+            photoLibrary = uiTest.photoLibrary
+            let isSeededUITesting = uiTest.isSeeded
+            let isUITesting = uiTest.isEnabled
         #else
+            runsOnboardingFlowUITest = false
+            permissionManager = PermissionCoordinator()
             let isUITesting = false
             photoLibrary = PhotoLibraryProvider()
         #endif
@@ -72,7 +70,10 @@ struct DriveLogApp: App {
             if shouldShowOnboarding {
                 OnboardingView(
                     viewModel: OnboardingViewModel(permissionManager: permissionManager),
-                    onCompleted: { hasCompletedOnboarding = true }
+                    onCompleted: {
+                        hasCompletedOnboarding = true
+                        onboardingFlowUITestCompleted = true
+                    }
                 )
             } else if let calendarViewModel, let modelContainer {
                 ContentView(
@@ -119,6 +120,9 @@ struct DriveLogApp: App {
             if arguments.contains("-ui-testing-onboarding") {
                 return true
             }
+            if runsOnboardingFlowUITest {
+                return !onboardingFlowUITestCompleted
+            }
             let bypassesOnboarding = arguments.contains("-ui-testing-day-detail")
                 || arguments.contains("-ui-testing-media")
                 || arguments.contains("-ui-testing-calendar")
@@ -130,6 +134,40 @@ struct DriveLogApp: App {
     }
 
     #if DEBUG
+        private struct UITestConfiguration {
+            let permissionManager: any PermissionManaging
+            let photoLibrary: any PhotoLibraryProviding
+            let runsOnboardingFlow: Bool
+            let isSeeded: Bool
+            let isEnabled: Bool
+        }
+
+        @MainActor
+        private static func makeUITestConfiguration(
+            now: Date,
+            timeZone: TimeZone
+        ) -> UITestConfiguration {
+            let arguments = ProcessInfo.processInfo.arguments
+            let runsOnboardingFlow = arguments.contains("-ui-testing-onboarding-flow")
+            let isMedia = arguments.contains("-ui-testing-media")
+            let isSeeded = isMedia || arguments.contains("-ui-testing-day-detail")
+            let isEnabled = isSeeded
+                || arguments.contains("-ui-testing-calendar")
+                || runsOnboardingFlow
+            let permissionManager: any PermissionManaging = runsOnboardingFlow
+                ? UITestPermissionManager() : PermissionCoordinator()
+            let photoLibrary: any PhotoLibraryProviding = isMedia
+                ? UITestPhotoLibraryProvider(now: now, timeZone: timeZone)
+                : PhotoLibraryProvider()
+            return UITestConfiguration(
+                permissionManager: permissionManager,
+                photoLibrary: photoLibrary,
+                runsOnboardingFlow: runsOnboardingFlow,
+                isSeeded: isSeeded,
+                isEnabled: isEnabled
+            )
+        }
+
         @MainActor
         private static func seedUITestData(
             modelContainer: ModelContainer,
