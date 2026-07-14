@@ -8,7 +8,7 @@ struct MediaGridColumnPolicy {
 
 struct MediaGridSection: View {
     let media: [MediaAssetReference]
-    let loadThumbnail: @MainActor (String, CGSize) async throws -> UIImage
+    let loadThumbnail: @MainActor @Sendable (String, CGSize) async throws -> UIImage
     let onSelect: (MediaAssetReference) -> Void
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -29,7 +29,9 @@ struct MediaGridSection: View {
                     ForEach(media, id: \.localIdentifier) { asset in
                         MediaThumbnailCell(
                             asset: asset,
-                            loadThumbnail: loadThumbnail,
+                            loadThumbnail: { localIdentifier, targetSize in
+                                try await loadThumbnail(localIdentifier, targetSize)
+                            },
                             onSelect: onSelect
                         )
                     }
@@ -50,7 +52,7 @@ struct MediaGridSection: View {
 
 private struct MediaThumbnailCell: View {
     let asset: MediaAssetReference
-    let loadThumbnail: @MainActor (String, CGSize) async throws -> UIImage
+    let loadThumbnail: @MainActor @Sendable (String, CGSize) async throws -> UIImage
     let onSelect: (MediaAssetReference) -> Void
 
     @State private var image: UIImage?

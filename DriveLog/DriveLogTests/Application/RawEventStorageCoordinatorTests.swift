@@ -3,6 +3,7 @@ import Foundation
 import Testing
 
 @Suite("Raw event storage coordinator")
+@MainActor
 struct RawEventStorageCoordinatorTests {
     @Test("stores three provider event types and logs accepted saves")
     func savesAllEventTypes() async {
@@ -123,6 +124,7 @@ struct RawEventStorageCoordinatorTests {
     }
 }
 
+@MainActor
 private struct Fixture {
     let location = FakeLocationProvider()
     let motion = FakeMotionProvider()

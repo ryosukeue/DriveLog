@@ -1,12 +1,13 @@
+@MainActor
 protocol VisitProviding: Sendable {
     var monitoringState: VisitMonitoringState { get async }
-    var events: AsyncStream<VisitProviderEvent> { get }
+    nonisolated var events: AsyncStream<VisitProviderEvent> { get }
 
     func startMonitoring() async throws
     func stopMonitoring() async
 }
 
-enum VisitMonitoringState: Sendable, Equatable {
+nonisolated enum VisitMonitoringState: Sendable, Equatable {
     case stopped
     case starting
     case running
@@ -14,7 +15,7 @@ enum VisitMonitoringState: Sendable, Equatable {
     case failed(code: String)
 }
 
-enum VisitProviderEvent: Sendable {
+nonisolated enum VisitProviderEvent: Sendable {
     case visit(VisitEventData)
     case stateChanged(VisitMonitoringState)
     case error(DriveLogError)

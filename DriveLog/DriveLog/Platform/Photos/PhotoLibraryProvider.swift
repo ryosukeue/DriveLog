@@ -2,7 +2,8 @@ import AVFoundation
 import Photos
 import UIKit
 
-final class PhotoLibraryProvider: NSObject, PhotoLibraryProviding, PHPhotoLibraryChangeObserver, @unchecked Sendable {
+// swiftlint:disable:next line_length
+final nonisolated class PhotoLibraryProvider: NSObject, PhotoLibraryProviding, PHPhotoLibraryChangeObserver, @unchecked Sendable {
     let libraryChanges: AsyncStream<PhotoLibraryChange>
 
     private let imageManager: PHImageManager

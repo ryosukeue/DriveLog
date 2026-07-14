@@ -1,6 +1,7 @@
 @testable import DriveLog
 
-actor FakeLocationProvider: LocationProviding {
+@MainActor
+final class FakeLocationProvider: LocationProviding {
     nonisolated let events: AsyncStream<LocationProviderEvent>
 
     private let continuation: AsyncStream<LocationProviderEvent>.Continuation

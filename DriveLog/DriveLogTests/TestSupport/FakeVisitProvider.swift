@@ -1,6 +1,7 @@
 @testable import DriveLog
 
-actor FakeVisitProvider: VisitProviding {
+@MainActor
+final class FakeVisitProvider: VisitProviding {
     nonisolated let events: AsyncStream<VisitProviderEvent>
 
     private let continuation: AsyncStream<VisitProviderEvent>.Continuation

@@ -6,7 +6,7 @@ protocol RawEventRepository: Sendable {
     func deleteRawEvents(for localDateKey: String) async throws
 }
 
-enum RawEventSaveResult: Sendable, Equatable {
+nonisolated enum RawEventSaveResult: Sendable, Equatable {
     case inserted
     case updated
     case duplicateIgnored

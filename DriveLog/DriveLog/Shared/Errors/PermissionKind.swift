@@ -1,4 +1,4 @@
-enum PermissionKind: Sendable, Equatable {
+nonisolated enum PermissionKind: Sendable, Equatable {
     case location
     case motion
     case photoLibrary

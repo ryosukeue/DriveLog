@@ -129,7 +129,12 @@ struct DayDetailView: View {
             DayStatisticsCard(aggregate: data.aggregate, formatter: formatter)
             MediaGridSection(
                 media: data.media,
-                loadThumbnail: viewModel.thumbnail,
+                loadThumbnail: { localIdentifier, targetSize in
+                    try await viewModel.thumbnail(
+                        localIdentifier: localIdentifier,
+                        targetSize: targetSize
+                    )
+                },
                 onSelect: onSelectMedia
             )
         }

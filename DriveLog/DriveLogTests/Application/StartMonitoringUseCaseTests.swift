@@ -2,6 +2,7 @@
 import Testing
 
 @Suite("Start monitoring use case")
+@MainActor
 struct StartMonitoringUseCaseTests {
     @Test("starts storage and all providers once")
     func startsAllProviders() async throws {
@@ -74,6 +75,7 @@ struct StartMonitoringUseCaseTests {
     }
 }
 
+@MainActor
 private struct Fixture {
     let location: FakeLocationProvider
     let motion: FakeMotionProvider

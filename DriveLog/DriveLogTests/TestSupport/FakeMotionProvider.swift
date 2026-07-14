@@ -1,6 +1,7 @@
 @testable import DriveLog
 
-actor FakeMotionProvider: MotionProviding {
+@MainActor
+final class FakeMotionProvider: MotionProviding {
     nonisolated let events: AsyncStream<MotionProviderEvent>
 
     private let continuation: AsyncStream<MotionProviderEvent>.Continuation
