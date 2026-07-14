@@ -20,29 +20,43 @@ final nonisolated class BackgroundTaskCoordinator: BackgroundTaskCoordinating, @
     }
 
     func handle(task: any BackgroundProcessingTask) {
-        let expiration = BackgroundTaskExpirationState()
+        let lifecycle = BackgroundTaskLifecycleState()
         let dayProcessingCoordinator = dayProcessingCoordinator
         task.setExpirationHandler {
-            expiration.markExpired()
+            guard lifecycle.expire() else { return }
             Task {
                 await dayProcessingCoordinator.cancelCurrentProcessing()
             }
         }
         Task {
             await dayProcessingCoordinator.processPendingDays(limit: pendingDayLimit)
-            task.setTaskCompleted(success: !expiration.isExpired)
+            task.setTaskCompleted(success: lifecycle.complete())
         }
     }
 }
 
-private final nonisolated class BackgroundTaskExpirationState: @unchecked Sendable {
-    private let storage = OSAllocatedUnfairLock(initialState: false)
-
-    var isExpired: Bool {
-        storage.withLock { $0 }
+private final nonisolated class BackgroundTaskLifecycleState: @unchecked Sendable {
+    private enum State {
+        case active
+        case expired
+        case completed
     }
 
-    func markExpired() {
-        storage.withLock { $0 = true }
+    private let storage = OSAllocatedUnfairLock(initialState: State.active)
+
+    func expire() -> Bool {
+        storage.withLock { state in
+            guard state == .active else { return false }
+            state = .expired
+            return true
+        }
+    }
+
+    func complete() -> Bool {
+        storage.withLock { state in
+            let succeeded = state == .active
+            state = .completed
+            return succeeded
+        }
     }
 }
