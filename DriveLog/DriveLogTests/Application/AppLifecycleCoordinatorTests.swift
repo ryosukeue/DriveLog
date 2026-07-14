@@ -16,6 +16,8 @@ struct AppLifecycleCoordinatorTests {
         #expect(await fixture.motion.callCounts().start == 1)
         #expect(await fixture.visit.callCounts().start == 1)
         #expect(fixture.dayProcessing.pendingLimits == [1])
+        #expect(fixture.backgroundTasks.registrationCount == 1)
+        #expect(fixture.backgroundTasks.requirements.isEmpty)
     }
 
     @Test("foreground refreshes permissions and rechecks active monitoring")
@@ -30,6 +32,7 @@ struct AppLifecycleCoordinatorTests {
         #expect(await fixture.motion.callCounts().start == 1)
         #expect(await fixture.visit.callCounts().start == 1)
         #expect(fixture.dayProcessing.pendingLimits == [1, 1])
+        #expect(fixture.backgroundTasks.registrationCount == 1)
     }
 
     @Test("foreground retries monitoring after a launch failure")
@@ -66,6 +69,21 @@ struct AppLifecycleCoordinatorTests {
         #expect(await fixture.storageCoordinator.isRunning())
         #expect(fixture.dayProcessing.pendingLimits == [1])
         #expect(fixture.dayProcessing.cancelCount == 0)
+        #expect(fixture.backgroundTasks.requirements == [false])
+    }
+
+    @Test("scheduler failures keep foreground fallback and monitoring active")
+    func schedulerFailures() async {
+        let fixture = Fixture(backgroundTaskError: .backgroundTaskUnavailable)
+
+        await fixture.coordinator.handleLaunch()
+        await fixture.coordinator.handleBackground()
+
+        #expect(fixture.permissionManager.refreshCount == 1)
+        #expect(await fixture.location.callCounts().start == 1)
+        #expect(fixture.dayProcessing.pendingLimits == [1])
+        #expect(fixture.backgroundTasks.registrationCount == 1)
+        #expect(fixture.backgroundTasks.requirements == [false])
     }
 }
 
@@ -82,10 +100,12 @@ private struct Fixture {
     let motion = FakeMotionProvider()
     let visit = FakeVisitProvider()
     let dayProcessing = LifecycleProcessingCoordinatorFake()
+    let backgroundTasks: LifecycleBackgroundTaskSchedulerFake
     let storageCoordinator: RawEventStorageCoordinator
     let coordinator: AppLifecycleCoordinator
 
-    init() {
+    init(backgroundTaskError: DriveLogError? = nil) {
+        backgroundTasks = LifecycleBackgroundTaskSchedulerFake(error: backgroundTaskError)
         let logger = SpyEventLogger()
         let storageCoordinator = RawEventStorageCoordinator(
             locationProvider: location,
@@ -104,9 +124,48 @@ private struct Fixture {
                 storageCoordinator: storageCoordinator,
                 logger: logger
             ),
-            dayProcessingCoordinator: dayProcessing
+            dayProcessingCoordinator: dayProcessing,
+            backgroundTaskScheduler: backgroundTasks
         )
     }
+}
+
+private final class LifecycleBackgroundTaskSchedulerFake: BackgroundTaskScheduling, @unchecked Sendable {
+    private struct State {
+        var registrationCount = 0
+        var requirements: [Bool] = []
+    }
+
+    private let storage = OSAllocatedUnfairLock(initialState: State())
+    private let error: DriveLogError?
+
+    var registrationCount: Int {
+        storage.withLock(\.registrationCount)
+    }
+
+    var requirements: [Bool] {
+        storage.withLock(\.requirements)
+    }
+
+    init(error: DriveLogError?) {
+        self.error = error
+    }
+
+    func registerProcessingTask() throws {
+        storage.withLock { $0.registrationCount += 1 }
+        if let error {
+            throw error
+        }
+    }
+
+    func scheduleProcessingTask(requiresExternalPower: Bool) throws {
+        storage.withLock { $0.requirements.append(requiresExternalPower) }
+        if let error {
+            throw error
+        }
+    }
+
+    func cancelPendingProcessingTask() {}
 }
 
 private final class LifecycleProcessingCoordinatorFake: DayProcessingCoordinating {

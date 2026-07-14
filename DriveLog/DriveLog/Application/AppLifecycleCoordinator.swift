@@ -10,18 +10,22 @@ final class AppLifecycleCoordinator: AppLifecycleCoordinating {
     private let permissionManager: any PermissionManaging
     private let startMonitoringUseCase: StartMonitoringUseCase
     private let dayProcessingCoordinator: any DayProcessingCoordinating
+    private let backgroundTaskScheduler: any BackgroundTaskScheduling
 
     init(
         permissionManager: any PermissionManaging,
         startMonitoringUseCase: StartMonitoringUseCase,
-        dayProcessingCoordinator: any DayProcessingCoordinating
+        dayProcessingCoordinator: any DayProcessingCoordinating,
+        backgroundTaskScheduler: any BackgroundTaskScheduling
     ) {
         self.permissionManager = permissionManager
         self.startMonitoringUseCase = startMonitoringUseCase
         self.dayProcessingCoordinator = dayProcessingCoordinator
+        self.backgroundTaskScheduler = backgroundTaskScheduler
     }
 
     func handleLaunch() async {
+        try? backgroundTaskScheduler.registerProcessingTask()
         await refreshPermissionsAndMonitoring()
     }
 
@@ -30,6 +34,7 @@ final class AppLifecycleCoordinator: AppLifecycleCoordinating {
     }
 
     func handleBackground() async {
+        try? backgroundTaskScheduler.scheduleProcessingTask(requiresExternalPower: false)
         // Significant Location Change monitoring must continue in the background.
     }
 

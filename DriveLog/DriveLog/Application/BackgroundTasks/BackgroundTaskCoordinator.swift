@@ -35,7 +35,7 @@ final nonisolated class BackgroundTaskCoordinator: BackgroundTaskCoordinating, @
     }
 }
 
-private final class BackgroundTaskExpirationState: @unchecked Sendable {
+private final nonisolated class BackgroundTaskExpirationState: @unchecked Sendable {
     private let storage = OSAllocatedUnfairLock(initialState: false)
 
     var isExpired: Bool {
