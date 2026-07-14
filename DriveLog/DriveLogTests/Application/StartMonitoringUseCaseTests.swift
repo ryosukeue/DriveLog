@@ -10,21 +10,21 @@ struct StartMonitoringUseCaseTests {
         try await fixture.useCase.execute()
 
         #expect(await fixture.storageCoordinator.isRunning())
-        #expect(await fixture.location.callCounts().start == 1)
-        #expect(await fixture.motion.callCounts().start == 1)
-        #expect(await fixture.visit.callCounts().start == 1)
+        #expect(fixture.location.callCounts().start == 1)
+        #expect(fixture.motion.callCounts().start == 1)
+        #expect(fixture.visit.callCounts().start == 1)
         #expect(fixture.logger.records == [TestLogRecord(level: .info, event: .locationMonitoringStarted)])
 
         try await fixture.useCase.execute()
-        #expect(await fixture.location.callCounts().start == 1)
-        #expect(await fixture.motion.callCounts().start == 1)
-        #expect(await fixture.visit.callCounts().start == 1)
+        #expect(fixture.location.callCounts().start == 1)
+        #expect(fixture.motion.callCounts().start == 1)
+        #expect(fixture.visit.callCounts().start == 1)
     }
 
     @Test("motion denial does not stop location or visit")
     func motionFailureIsolation() async throws {
         let fixture = Fixture()
-        await fixture.motion.setStartError(.permissionDenied(.motion))
+        fixture.motion.setStartError(.permissionDenied(.motion))
 
         try await fixture.useCase.execute()
 
@@ -36,7 +36,7 @@ struct StartMonitoringUseCaseTests {
     @Test("visit failure does not stop location or motion")
     func visitFailureIsolation() async throws {
         let fixture = Fixture()
-        await fixture.visit.setStartError(.monitoringUnavailable)
+        fixture.visit.setStartError(.monitoringUnavailable)
 
         try await fixture.useCase.execute()
 
@@ -48,14 +48,14 @@ struct StartMonitoringUseCaseTests {
     @Test("location failure stops initial storage subscription and skips auxiliaries")
     func locationFailure() async {
         let fixture = Fixture()
-        await fixture.location.setStartError(.permissionDenied(.location))
+        fixture.location.setStartError(.permissionDenied(.location))
 
         await #expect(throws: DriveLogError.permissionDenied(.location)) {
             try await fixture.useCase.execute()
         }
         #expect(await !fixture.storageCoordinator.isRunning())
-        #expect(await fixture.motion.callCounts().start == 0)
-        #expect(await fixture.visit.callCounts().start == 0)
+        #expect(fixture.motion.callCounts().start == 0)
+        #expect(fixture.visit.callCounts().start == 0)
         #expect(fixture.logger.records.isEmpty)
     }
 
@@ -67,9 +67,9 @@ struct StartMonitoringUseCaseTests {
 
         try await fixture.useCase.execute()
 
-        #expect(await fixture.location.callCounts().start == 0)
-        #expect(await fixture.motion.callCounts().start == 0)
-        #expect(await fixture.visit.callCounts().start == 0)
+        #expect(fixture.location.callCounts().start == 0)
+        #expect(fixture.motion.callCounts().start == 0)
+        #expect(fixture.visit.callCounts().start == 0)
         #expect(fixture.logger.records.isEmpty)
         #expect(await fixture.storageCoordinator.isRunning())
     }

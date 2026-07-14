@@ -76,8 +76,8 @@ struct CoreLocationVisitProviderTests {
             Issue.record("Expected running state")
             return
         }
-        await fake.send(.visit(arrival))
-        await fake.send(.visit(update))
+        fake.send(.visit(arrival))
+        fake.send(.visit(update))
         guard case let .visit(first) = await iterator.next() else {
             Issue.record("Expected arrival")
             return
@@ -89,7 +89,7 @@ struct CoreLocationVisitProviderTests {
         #expect(first.departureDate == nil)
         #expect(second.departureDate != nil)
         await fake.stopMonitoring()
-        let counts = await fake.callCounts()
+        let counts = fake.callCounts()
         #expect(counts.start == 1)
         #expect(counts.stop == 1)
     }

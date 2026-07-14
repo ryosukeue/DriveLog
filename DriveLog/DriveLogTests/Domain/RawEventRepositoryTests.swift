@@ -12,18 +12,18 @@ struct RawEventRepositoryTests {
     }
 
     @Test("In-memory fake saves and returns events by local date")
-    func fakeStoresEventsByDate() async throws {
+    func fakeStoresEventsByDate() async {
         let repository = InMemoryRawEventRepository()
         let location = locationEvent(localDateKey: firstDateKey)
         let motion = motionEvent(localDateKey: firstDateKey)
         let visit = visitEvent(localDateKey: firstDateKey)
 
-        #expect(try await repository.saveLocationEvent(location) == .inserted)
-        #expect(try await repository.saveMotionEvent(motion) == .inserted)
-        #expect(try await repository.saveOrUpdateVisitEvent(visit) == .inserted)
-        _ = try await repository.saveLocationEvent(locationEvent(localDateKey: secondDateKey))
+        #expect(await repository.saveLocationEvent(location) == .inserted)
+        #expect(await repository.saveMotionEvent(motion) == .inserted)
+        #expect(await repository.saveOrUpdateVisitEvent(visit) == .inserted)
+        _ = await repository.saveLocationEvent(locationEvent(localDateKey: secondDateKey))
 
-        let events = try await repository.rawEvents(for: firstDateKey)
+        let events = await repository.rawEvents(for: firstDateKey)
         #expect(events.locations == [location])
         #expect(events.motions == [motion])
         #expect(events.visits == [visit])
@@ -32,35 +32,35 @@ struct RawEventRepositoryTests {
     }
 
     @Test("In-memory fake can produce configured save results")
-    func fakeProducesConfiguredResults() async throws {
+    func fakeProducesConfiguredResults() async {
         let repository = InMemoryRawEventRepository(
             locationResult: .duplicateIgnored, motionResult: .updated, visitResult: .updated
         )
 
         #expect(
-            try await repository.saveLocationEvent(locationEvent(localDateKey: firstDateKey))
+            await repository.saveLocationEvent(locationEvent(localDateKey: firstDateKey))
                 == .duplicateIgnored
         )
         #expect(
-            try await repository.saveMotionEvent(motionEvent(localDateKey: firstDateKey)) == .updated
+            await repository.saveMotionEvent(motionEvent(localDateKey: firstDateKey)) == .updated
         )
         #expect(
-            try await repository.saveOrUpdateVisitEvent(visitEvent(localDateKey: firstDateKey))
+            await repository.saveOrUpdateVisitEvent(visitEvent(localDateKey: firstDateKey))
                 == .updated
         )
     }
 
     @Test("Deleting one date preserves other dates")
-    func fakeDeletesOnlyRequestedDate() async throws {
+    func fakeDeletesOnlyRequestedDate() async {
         let repository = InMemoryRawEventRepository()
-        _ = try await repository.saveLocationEvent(locationEvent(localDateKey: firstDateKey))
+        _ = await repository.saveLocationEvent(locationEvent(localDateKey: firstDateKey))
         let retained = locationEvent(localDateKey: secondDateKey)
-        _ = try await repository.saveLocationEvent(retained)
+        _ = await repository.saveLocationEvent(retained)
 
-        try await repository.deleteRawEvents(for: firstDateKey)
+        await repository.deleteRawEvents(for: firstDateKey)
 
-        #expect(try await repository.rawEvents(for: firstDateKey) == .empty)
-        #expect(try await repository.rawEvents(for: secondDateKey).locations == [retained])
+        #expect(await repository.rawEvents(for: firstDateKey) == .empty)
+        #expect(await repository.rawEvents(for: secondDateKey).locations == [retained])
     }
 
     private var firstDateKey: String {

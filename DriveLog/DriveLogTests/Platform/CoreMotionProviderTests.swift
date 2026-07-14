@@ -59,25 +59,25 @@ struct CoreMotionProviderTests {
     @Test("fake reproduces denial, calls, events, and stream completion")
     func fakeProvider() async {
         let fake = FakeMotionProvider()
-        await fake.setStartError(.permissionDenied(.motion))
+        fake.setStartError(.permissionDenied(.motion))
         await #expect(throws: DriveLogError.permissionDenied(.motion)) {
             try await fake.startMonitoring()
         }
-        await fake.setStartError(nil)
+        fake.setStartError(nil)
         try? await fake.startMonitoring()
         await fake.stopMonitoring()
-        let counts = await fake.callCounts()
+        let counts = fake.callCounts()
         #expect(counts.start == 2)
         #expect(counts.stop == 1)
 
         let eventFake = FakeMotionProvider()
         var iterator = eventFake.events.makeAsyncIterator()
-        await eventFake.send(.error(.monitoringUnavailable))
+        eventFake.send(.error(.monitoringUnavailable))
         guard case .error(.monitoringUnavailable) = await iterator.next() else {
             Issue.record("Expected fake error")
             return
         }
-        await eventFake.finish()
+        eventFake.finish()
         #expect(await iterator.next() == nil)
     }
 

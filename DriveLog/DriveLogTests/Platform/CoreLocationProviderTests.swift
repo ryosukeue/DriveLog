@@ -84,7 +84,7 @@ struct CoreLocationProviderTests {
             Issue.record("Expected running state")
             return
         }
-        await fake.send(.error(.monitoringUnavailable))
+        fake.send(.error(.monitoringUnavailable))
         guard case .error(.monitoringUnavailable) = await iterator.next() else {
             Issue.record("Expected fake error")
             return
@@ -95,7 +95,7 @@ struct CoreLocationProviderTests {
             return
         }
         #expect(await fake.monitoringState == .stopped)
-        let counts = await fake.callCounts()
+        let counts = fake.callCounts()
         #expect(counts.start == 1)
         #expect(counts.stop == 1)
     }

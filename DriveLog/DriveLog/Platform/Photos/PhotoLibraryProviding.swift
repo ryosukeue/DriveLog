@@ -12,11 +12,11 @@ protocol PhotoLibraryProviding: Sendable {
     var libraryChanges: AsyncStream<PhotoLibraryChange> { get }
 }
 
-enum PhotoLibraryChange: Sendable, Equatable {
+nonisolated enum PhotoLibraryChange: Sendable, Equatable {
     case libraryDidChange
 }
 
-struct ShareableMediaResource: Sendable, Equatable {
+nonisolated struct ShareableMediaResource: Sendable, Equatable {
     let fileURL: URL
     let mediaType: MediaType
 }

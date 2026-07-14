@@ -12,9 +12,9 @@ struct AppLifecycleCoordinatorTests {
         await fixture.coordinator.handleLaunch()
 
         #expect(fixture.permissionManager.refreshCount == 1)
-        #expect(await fixture.location.callCounts().start == 1)
-        #expect(await fixture.motion.callCounts().start == 1)
-        #expect(await fixture.visit.callCounts().start == 1)
+        #expect(fixture.location.callCounts().start == 1)
+        #expect(fixture.motion.callCounts().start == 1)
+        #expect(fixture.visit.callCounts().start == 1)
         #expect(fixture.dayProcessing.pendingLimits == [1])
         #expect(fixture.backgroundTasks.registrationCount == 1)
         #expect(fixture.backgroundTasks.requirements.isEmpty)
@@ -28,9 +28,9 @@ struct AppLifecycleCoordinatorTests {
         await fixture.coordinator.handleForeground()
 
         #expect(fixture.permissionManager.refreshCount == 2)
-        #expect(await fixture.location.callCounts().start == 1)
-        #expect(await fixture.motion.callCounts().start == 1)
-        #expect(await fixture.visit.callCounts().start == 1)
+        #expect(fixture.location.callCounts().start == 1)
+        #expect(fixture.motion.callCounts().start == 1)
+        #expect(fixture.visit.callCounts().start == 1)
         #expect(fixture.dayProcessing.pendingLimits == [1, 1])
         #expect(fixture.backgroundTasks.registrationCount == 1)
     }
@@ -38,21 +38,21 @@ struct AppLifecycleCoordinatorTests {
     @Test("foreground retries monitoring after a launch failure")
     func retry() async {
         let fixture = Fixture()
-        await fixture.location.setStartError(.permissionDenied(.location))
+        fixture.location.setStartError(.permissionDenied(.location))
 
         await fixture.coordinator.handleLaunch()
-        #expect(await fixture.location.callCounts().start == 1)
-        #expect(await fixture.motion.callCounts().start == 0)
-        #expect(await fixture.visit.callCounts().start == 0)
+        #expect(fixture.location.callCounts().start == 1)
+        #expect(fixture.motion.callCounts().start == 0)
+        #expect(fixture.visit.callCounts().start == 0)
         #expect(fixture.dayProcessing.pendingLimits == [1])
 
-        await fixture.location.setStartError(nil)
+        fixture.location.setStartError(nil)
         await fixture.coordinator.handleForeground()
 
         #expect(fixture.permissionManager.refreshCount == 2)
-        #expect(await fixture.location.callCounts().start == 2)
-        #expect(await fixture.motion.callCounts().start == 1)
-        #expect(await fixture.visit.callCounts().start == 1)
+        #expect(fixture.location.callCounts().start == 2)
+        #expect(fixture.motion.callCounts().start == 1)
+        #expect(fixture.visit.callCounts().start == 1)
         #expect(fixture.dayProcessing.pendingLimits == [1, 1])
     }
 
@@ -63,9 +63,9 @@ struct AppLifecycleCoordinatorTests {
 
         await fixture.coordinator.handleBackground()
 
-        #expect(await fixture.location.callCounts().stop == 0)
-        #expect(await fixture.motion.callCounts().stop == 0)
-        #expect(await fixture.visit.callCounts().stop == 0)
+        #expect(fixture.location.callCounts().stop == 0)
+        #expect(fixture.motion.callCounts().stop == 0)
+        #expect(fixture.visit.callCounts().stop == 0)
         #expect(await fixture.storageCoordinator.isRunning())
         #expect(fixture.dayProcessing.pendingLimits == [1])
         #expect(fixture.dayProcessing.cancelCount == 0)
@@ -80,7 +80,7 @@ struct AppLifecycleCoordinatorTests {
         await fixture.coordinator.handleBackground()
 
         #expect(fixture.permissionManager.refreshCount == 1)
-        #expect(await fixture.location.callCounts().start == 1)
+        #expect(fixture.location.callCounts().start == 1)
         #expect(fixture.dayProcessing.pendingLimits == [1])
         #expect(fixture.backgroundTasks.registrationCount == 1)
         #expect(fixture.backgroundTasks.requirements == [true])

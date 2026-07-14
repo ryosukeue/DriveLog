@@ -19,7 +19,7 @@ enum MotionPermissionState: Sendable, Equatable {
     case authorized
 }
 
-enum PhotoPermissionState: Sendable, Equatable {
+nonisolated enum PhotoPermissionState: Sendable, Equatable {
     case notDetermined
     case restricted
     case denied

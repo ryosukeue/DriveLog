@@ -1,6 +1,6 @@
 import Foundation
 
-struct MediaAssetReference: Sendable, Equatable {
+nonisolated struct MediaAssetReference: Sendable, Equatable {
     let localIdentifier: String
     let mediaType: MediaType
     let creationDate: Date?

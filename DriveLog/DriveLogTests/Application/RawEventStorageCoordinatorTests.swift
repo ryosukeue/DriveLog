@@ -12,9 +12,9 @@ struct RawEventStorageCoordinatorTests {
         var logIterator = fixture.logger.updates.makeAsyncIterator()
         await fixture.coordinator.start()
 
-        await fixture.location.send(.location(location()))
-        await fixture.motion.send(.motion(motion()))
-        await fixture.visit.send(.visit(visit()))
+        fixture.location.send(.location(location()))
+        fixture.motion.send(.motion(motion()))
+        fixture.visit.send(.visit(visit()))
 
         var saved: [SavedRawEventKind] = []
         var logs: [TestLogRecord] = []
@@ -42,9 +42,9 @@ struct RawEventStorageCoordinatorTests {
         var logIterator = fixture.logger.updates.makeAsyncIterator()
         await fixture.coordinator.start()
 
-        await fixture.location.send(.location(location(timestamp: Date(timeIntervalSince1970: 100))))
-        await fixture.location.send(.location(location(timestamp: Date(timeIntervalSince1970: 200))))
-        await fixture.motion.send(.motion(motion()))
+        fixture.location.send(.location(location(timestamp: Date(timeIntervalSince1970: 100))))
+        fixture.location.send(.location(location(timestamp: Date(timeIntervalSince1970: 200))))
+        fixture.motion.send(.motion(motion()))
 
         var saved: [SavedRawEventKind] = []
         for _ in 0 ..< 2 {
@@ -76,8 +76,8 @@ struct RawEventStorageCoordinatorTests {
         var iterator = fixture.logger.updates.makeAsyncIterator()
         await fixture.coordinator.start()
 
-        await fixture.location.send(.location(location()))
-        await fixture.location.send(.error(.monitoringUnavailable))
+        fixture.location.send(.location(location()))
+        fixture.location.send(.error(.monitoringUnavailable))
 
         let duplicate = TestLogRecord(
             level: .debug, event: .locationEventRejected(reasonCode: "duplicate")
@@ -90,7 +90,7 @@ struct RawEventStorageCoordinatorTests {
         #expect(await fixture.coordinator.isRunning())
         await fixture.coordinator.stop()
         #expect(await !fixture.coordinator.isRunning())
-        #expect(await fixture.location.callCounts().stop == 0)
+        #expect(fixture.location.callCounts().stop == 0)
     }
 
     private static let key = "2026-01-01"

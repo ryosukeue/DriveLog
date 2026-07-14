@@ -1,4 +1,4 @@
-enum MediaType: Sendable, Equatable {
+nonisolated enum MediaType: Sendable, Equatable {
     case photo
     case video
 }
