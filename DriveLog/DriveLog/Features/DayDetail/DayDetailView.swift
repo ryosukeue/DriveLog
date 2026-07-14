@@ -10,7 +10,7 @@ struct DayDetailView: View {
         [StayDisplayData]
     ) -> Void
     let onSelectMedia: (MediaAssetReference) -> Void
-    let onRequestDeletion: () -> Void
+    let onDeletionCompleted: () -> Void
     private let formatter: DayDetailFormatter
 
     init(
@@ -25,13 +25,13 @@ struct DayDetailView: View {
             [StayDisplayData]
         ) -> Void = { _, _, _, _ in },
         onSelectMedia: @escaping (MediaAssetReference) -> Void = { _ in },
-        onRequestDeletion: @escaping () -> Void = {}
+        onDeletionCompleted: @escaping () -> Void = {}
     ) {
         _viewModel = State(initialValue: viewModel)
         self.formatter = formatter
         self.onOpenMap = onOpenMap
         self.onSelectMedia = onSelectMedia
-        self.onRequestDeletion = onRequestDeletion
+        self.onDeletionCompleted = onDeletionCompleted
     }
 
     var body: some View {
@@ -58,6 +58,7 @@ struct DayDetailView: View {
                     Label("その他の操作", systemImage: "ellipsis.circle")
                 }
                 .accessibilityIdentifier("dayDetail.menu")
+                .disabled(viewModel.isDeleting)
             }
         }
         .confirmationDialog(
@@ -66,7 +67,11 @@ struct DayDetailView: View {
             titleVisibility: .visible
         ) {
             Button("削除", role: .destructive) {
-                onRequestDeletion()
+                Task { @MainActor in
+                    if await viewModel.deleteDay() {
+                        onDeletionCompleted()
+                    }
+                }
             }
             .accessibilityIdentifier("dayDetail.delete.confirm")
             Button("キャンセル", role: .cancel) {}
@@ -77,6 +82,13 @@ struct DayDetailView: View {
             写真アプリ内の写真や動画は削除されません。
             この操作は取り消せません。
             """)
+        }
+        .alert("削除できませんでした", isPresented: deletionErrorBinding) {
+            Button("OK") {
+                viewModel.dismissDeletionError()
+            }
+        } message: {
+            Text("時間をおいて、もう一度お試しください")
         }
         .task {
             if viewModel.state == .idle {
@@ -100,6 +112,15 @@ struct DayDetailView: View {
                 .font(.callout)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityIdentifier("dayDetail.reprocessing")
+            }
+            if viewModel.isDeleting {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("削除中…")
+                }
+                .font(.callout)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("dayDetail.deleting")
             }
             if viewModel.state == .error {
                 inlineError
@@ -169,5 +190,16 @@ struct DayDetailView: View {
               let day = Int(components[2])
         else { return viewModel.localDateKey }
         return "\(month)月\(day)日"
+    }
+
+    private var deletionErrorBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.deletionFailed },
+            set: { isPresented in
+                if !isPresented {
+                    viewModel.dismissDeletionError()
+                }
+            }
+        )
     }
 }

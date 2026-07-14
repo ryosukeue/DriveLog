@@ -73,6 +73,14 @@ struct ContentView: View {
                         },
                         onSelectMedia: { asset in
                             path.append(.mediaPreview(id: UUID(), asset: asset))
+                        },
+                        onDeletionCompleted: {
+                            if case .dayDetail = path.last {
+                                path.removeLast()
+                            }
+                            Task { @MainActor in
+                                await calendarViewModel.load()
+                            }
                         }
                     )
                 case let .fullMap(_, scene, media, movements, stays):

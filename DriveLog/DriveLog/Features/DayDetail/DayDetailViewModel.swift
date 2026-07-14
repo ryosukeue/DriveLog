@@ -16,6 +16,8 @@ final class DayDetailViewModel {
     let localDateKey: String
     private(set) var data: DayDetailData?
     private(set) var state: DayDetailViewState = .idle
+    private(set) var isDeleting = false
+    private(set) var deletionFailed = false
 
     var isReprocessing: Bool {
         data?.isReprocessing == true
@@ -25,6 +27,8 @@ final class DayDetailViewModel {
     private let loadMediaThumbnail: any LoadMediaThumbnailUseCase
     private let refreshMediaCache: any RefreshMediaCacheUseCase
     private let observePhotoLibraryChanges: any ObservePhotoLibraryChangesUseCase
+    private let deleteDayLog: (any DeleteDayLogUseCase)?
+    private let hapticFeedback: (any HapticFeedbackProviding)?
     private var requestID: UUID?
 
     init(
@@ -32,13 +36,17 @@ final class DayDetailViewModel {
         loadDayDetail: any LoadDayDetailUseCase,
         loadMediaThumbnail: any LoadMediaThumbnailUseCase,
         refreshMediaCache: any RefreshMediaCacheUseCase,
-        observePhotoLibraryChanges: any ObservePhotoLibraryChangesUseCase
+        observePhotoLibraryChanges: any ObservePhotoLibraryChangesUseCase,
+        deleteDayLog: (any DeleteDayLogUseCase)? = nil,
+        hapticFeedback: (any HapticFeedbackProviding)? = nil
     ) {
         self.localDateKey = localDateKey
         self.loadDayDetail = loadDayDetail
         self.loadMediaThumbnail = loadMediaThumbnail
         self.refreshMediaCache = refreshMediaCache
         self.observePhotoLibraryChanges = observePhotoLibraryChanges
+        self.deleteDayLog = deleteDayLog
+        self.hapticFeedback = hapticFeedback
     }
 
     func thumbnail(localIdentifier: String, targetSize: CGSize) async throws -> UIImage {
@@ -80,5 +88,24 @@ final class DayDetailViewModel {
             guard !Task.isCancelled else { return }
             await load()
         }
+    }
+
+    func deleteDay() async -> Bool {
+        guard !isDeleting, let deleteDayLog else { return false }
+        isDeleting = true
+        deletionFailed = false
+        defer { isDeleting = false }
+        do {
+            try await deleteDayLog.execute(localDateKey: localDateKey)
+            hapticFeedback?.performLightSuccess()
+            return true
+        } catch {
+            deletionFailed = true
+            return false
+        }
+    }
+
+    func dismissDeletionError() {
+        deletionFailed = false
     }
 }

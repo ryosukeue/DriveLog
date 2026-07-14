@@ -81,7 +81,12 @@ final class AppContainer {
             ),
             observePhotoLibraryChanges: DefaultObservePhotoLibraryChangesUseCase(
                 photoLibrary: photoLibrary
-            )
+            ),
+            deleteDayLog: DefaultDeleteDayLogUseCase(
+                repository: SwiftDataDayDeletionRepository(modelContainer: modelContainer),
+                logger: logger
+            ),
+            hapticFeedback: hapticFeedback
         )
     }
 

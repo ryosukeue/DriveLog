@@ -84,6 +84,33 @@ final class DriveLogUITests: XCTestCase {
     }
 
     @MainActor
+    func testDayDeletionReturnsToCalendarAndRemovesDistance() {
+        let app = XCUIApplication()
+        app.launchArguments.append("-ui-testing-day-detail")
+        app.launch()
+
+        let enabledDay = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'calendar.day.' AND enabled == true")
+        ).firstMatch
+        XCTAssertTrue(enabledDay.waitForExistence(timeout: 5))
+        let dayIdentifier = enabledDay.identifier
+        enabledDay.tap()
+        let menu = app.buttons["dayDetail.menu"]
+        XCTAssertTrue(menu.waitForExistence(timeout: 5))
+        menu.tap()
+        app.buttons["この日の記録を削除"].tap()
+        let confirm = app.buttons["dayDetail.delete.confirm"].firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
+
+        XCTAssertTrue(app.otherElements["calendar.grid"].waitForExistence(timeout: 5))
+        let deletedDay = app.buttons[dayIdentifier]
+        XCTAssertTrue(deletedDay.exists)
+        XCTAssertFalse(deletedDay.isEnabled)
+        XCTAssertFalse(deletedDay.label.contains("移動距離"))
+    }
+
+    @MainActor
     func testFullMapCalloutFlow() {
         let app = XCUIApplication()
         app.launchArguments.append("-ui-testing-day-detail")
