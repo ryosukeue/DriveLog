@@ -6,6 +6,7 @@ final class OnboardingViewModel {
     enum Phase: Sendable, Equatable {
         case location
         case motion
+        case photos
     }
 
     private(set) var permissionState: PermissionState
@@ -22,6 +23,10 @@ final class OnboardingViewModel {
         if phase == .motion {
             return permissionState.motion == .notDetermined
                 ? "モーションの利用を許可する" : "次へ"
+        }
+        if phase == .photos {
+            return permissionState.photos == .notDetermined
+                ? "写真と動画の利用を許可する" : "DriveLogを始める"
         }
         return switch permissionState.location {
         case .notDetermined:
@@ -42,6 +47,8 @@ final class OnboardingViewModel {
             return await performLocationAction()
         case .motion:
             return await performMotionAction()
+        case .photos:
+            return await performPhotosAction()
         }
     }
 
@@ -71,6 +78,18 @@ final class OnboardingViewModel {
             synchronizeState()
             return false
         case .authorized, .denied, .restricted:
+            phase = .photos
+            return false
+        }
+    }
+
+    private func performPhotosAction() async -> Bool {
+        switch permissionState.photos {
+        case .notDetermined:
+            await permissionManager.requestPhotos()
+            synchronizeState()
+            return false
+        case .authorized, .limited, .denied, .restricted:
             return true
         }
     }

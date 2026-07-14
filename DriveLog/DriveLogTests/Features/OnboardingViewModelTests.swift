@@ -51,8 +51,39 @@ struct OnboardingViewModelTests {
             ))
             let terminalViewModel = OnboardingViewModel(permissionManager: terminal)
             #expect(await terminalViewModel.performPrimaryAction() == false)
-            #expect(await terminalViewModel.performPrimaryAction())
+            #expect(await terminalViewModel.performPrimaryAction() == false)
+            #expect(terminalViewModel.phase == .photos)
             #expect(terminal.motionRequestCount == 0)
+        }
+    }
+
+    @Test("requests photos last and completes for every terminal photo state")
+    func photos() async {
+        let permissions = FakePermissionManager(state: PermissionState(
+            location: .always,
+            motion: .authorized,
+            photos: .notDetermined
+        ))
+        let viewModel = OnboardingViewModel(permissionManager: permissions)
+        #expect(await viewModel.performPrimaryAction() == false)
+        #expect(await viewModel.performPrimaryAction() == false)
+        #expect(viewModel.phase == .photos)
+        #expect(await viewModel.performPrimaryAction() == false)
+        #expect(permissions.photosRequestCount == 1)
+
+        for photos in [
+            PhotoPermissionState.authorized, .limited, .denied, .restricted
+        ] {
+            let terminal = FakePermissionManager(state: PermissionState(
+                location: .always,
+                motion: .authorized,
+                photos: photos
+            ))
+            let terminalViewModel = OnboardingViewModel(permissionManager: terminal)
+            #expect(await terminalViewModel.performPrimaryAction() == false)
+            #expect(await terminalViewModel.performPrimaryAction() == false)
+            #expect(await terminalViewModel.performPrimaryAction())
+            #expect(terminal.photosRequestCount == 0)
         }
     }
 
