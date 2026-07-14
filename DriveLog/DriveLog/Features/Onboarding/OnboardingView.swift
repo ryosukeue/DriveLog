@@ -1,7 +1,13 @@
 import SwiftUI
 
 struct OnboardingView: View {
-    let onStart: () -> Void
+    @State private var viewModel: OnboardingViewModel
+    let onCompleted: () -> Void
+
+    init(viewModel: OnboardingViewModel, onCompleted: @escaping () -> Void) {
+        _viewModel = State(initialValue: viewModel)
+        self.onCompleted = onCompleted
+    }
 
     var body: some View {
         ScrollView {
@@ -40,18 +46,26 @@ struct OnboardingView: View {
                         .foregroundStyle(.accent)
                 }
                 .accessibilityElement(children: .combine)
-                Button("権限設定を始める") {
-                    onStart()
+                Button(viewModel.primaryActionTitle) {
+                    Task { @MainActor in
+                        if await viewModel.performLocationAction() {
+                            onCompleted()
+                        }
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .frame(maxWidth: .infinity)
+                .disabled(viewModel.isRequesting)
                 .accessibilityIdentifier("onboarding.start")
             }
             .frame(maxWidth: 560, alignment: .leading)
             .padding(24)
         }
         .accessibilityIdentifier("onboarding.root")
+        .task {
+            await viewModel.observePermissionUpdates()
+        }
     }
 
     private func permissionRow(

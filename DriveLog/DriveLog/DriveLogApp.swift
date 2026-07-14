@@ -11,10 +11,12 @@ struct DriveLogApp: App {
     private let today: Date
     private let modelContainer: ModelContainer?
     private let photoLibrary: any PhotoLibraryProviding
+    private let permissionManager: PermissionCoordinator
 
     @MainActor
     init() {
         let container = AppContainer()
+        permissionManager = PermissionCoordinator()
         appContainer = container
         let now = container.clock.now
         today = now
@@ -68,9 +70,10 @@ struct DriveLogApp: App {
     var body: some Scene {
         WindowGroup {
             if shouldShowOnboarding {
-                OnboardingView {
-                    hasCompletedOnboarding = true
-                }
+                OnboardingView(
+                    viewModel: OnboardingViewModel(permissionManager: permissionManager),
+                    onCompleted: { hasCompletedOnboarding = true }
+                )
             } else if let calendarViewModel, let modelContainer {
                 ContentView(
                     calendarViewModel: calendarViewModel,
