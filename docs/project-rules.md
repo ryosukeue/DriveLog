@@ -1,5 +1,14 @@
 # Project Rules
 
+## 実機フィードバックによる優先ルール（2026-07-15）
+
+この節は後続の旧記述「月送りは左右スワイプのみ」「Significant Location Changeのみ」より優先する。
+
+- Locationは非充電時SLC、充電中/満充電時のみ単一Managerの高精度Modeとする。常時高精度は禁止する。
+- Calendarは縦方向の連続月Sectionとし、横Swipe月送りを使用しない。
+- Movement分類変更と詳細統計はProduction UIへ表示しない。既存Schema/Overrideデータは削除しない。
+- Stay修正と位置情報付きMedia Annotationは維持する。
+
 ## 1. 目的
 
 この文書は、DriveLog Repository全体で常に適用する最上位の作業ルールを定義する。

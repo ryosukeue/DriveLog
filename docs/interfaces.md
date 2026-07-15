@@ -1,5 +1,11 @@
 # Interfaces
 
+## 実機フィードバックによるLocation契約補足（2026-07-15）
+
+`LocationProviding`は従来のSLC開始/停止に加え、`lowPower`と`chargingHighAccuracy`を排他的に切り替える`setRecordingMode(_:)`を持つ。`PowerStateProviding`は現在状態と変更Streamを提供し、AppleのBattery型をApplicationへ露出しない。Location callbackの診断はMode、受信件数、emit件数だけを返す。
+
+`MapMediaAnnotation`はMedia種別を保持し、Presentationが別のMedia配列を持たなくてもfallback Annotationを構築できる。Identifierと座標はDomainデータとしてのみ扱い、Loggerへ渡さない。
+
 ## 1. 目的
 
 この文書は、DriveLog内の各コンポーネントが持つ責務、公開インターフェース、入力、出力、エラー、依存方向を定義する。

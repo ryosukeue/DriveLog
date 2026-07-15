@@ -1,5 +1,9 @@
 # Data Model
 
+## 実機フィードバック変更のMigration方針（2026-07-15）
+
+Issue 14の変更ではV1 Schemaを変更しない。`ClassificationOverrideModel`と集計詳細PropertyはProduction UIから未使用になっても、既存Store互換と将来利用のため保持する。Raw LocationとPhotos Assetは自動削除しない。
+
 ## 1. 目的
 
 この文書は、DriveLogのMVPで使用するSwiftDataモデル、永続化対象、識別子、重複判定、リレーション、削除ルール、キャッシュ方針、スキーマ移行方針を定義する。

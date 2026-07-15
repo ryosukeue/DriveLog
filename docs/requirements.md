@@ -1,5 +1,13 @@
 # Requirements
 
+## 実機フィードバックによるMVP改訂（2026-07-15）
+
+- 非充電時はSignificant Location Changeを維持し、充電中/満充電時だけ単一Location Managerの高精度更新へ排他的に切り替える。保存目標はOS制約下で約1分間隔とする。
+- Calendarは現在月付近から始まる縦方向の連続月Sectionとし、端で月を遅延追加する。横Swipe月送りは使用しない。
+- Production UIからMovement分類変更を削除する。自動分類と既存OverrideのSchema/表示互換は維持する。
+- Day Detailの詳細統計を削除し、日付、地図、基本距離/時間、写真・動画を中心にする。
+- Stay Overrideの3操作と、位置情報付きMediaのThumbnail Annotation/Cluster/Previewを維持する。
+
 ## 1. 対象環境と制約
 
 - アプリ仮称は `DriveLog` とする

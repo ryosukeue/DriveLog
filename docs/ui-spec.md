@@ -1,5 +1,16 @@
 # UI Specification
 
+## 実機フィードバックによる優先仕様（2026-07-15）
+
+この節は、後続の旧MVP記述にある単月横Swipe、Movement分類変更、詳細統計より優先する。
+
+- Calendarは月見出し付きSectionを縦方向へ連続表示し、現在月前後5か月から開始して端で3か月ずつ遅延追加する。
+- 横Swipeによる月送りは削除する。Today/選択日、記録なし日の無効化は維持する。
+- Movement Calloutは読み取り専用で、分類変更Menu、保存状態、成功Haptic、専用Errorを持たない。
+- Stay Calloutは「滞在として確定」「非表示」「自動判定へ戻す」を持つ。
+- Day Detailは地図、距離、移動時間、開始/終了、Mediaを中心とし、詳細統計Sectionを持たない。
+- 位置情報付きMediaは角丸Thumbnail Annotationとして表示し、動画Badge、Cluster、fallback、Preview遷移を持つ。位置情報なしMediaはGridだけに表示する。
+
 ## 1. 目的
 
 この文書は、DriveLog MVPの画面構成、見た目、操作、状態表示、画面遷移、レスポンシブ対応、アクセシビリティ方針を定義する。

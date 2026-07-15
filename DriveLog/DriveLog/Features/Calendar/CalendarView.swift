@@ -15,7 +15,6 @@ struct CalendarView: View {
         today: Date,
         gridBuilder: CalendarGridBuilder = CalendarGridBuilder(),
         distanceFormatter: DistanceFormatter = DistanceFormatter(),
-        swipeInterpreter _: CalendarSwipeInterpreter = CalendarSwipeInterpreter(),
         onSelectDate: @escaping (String) -> Void = { _ in }
     ) {
         _viewModel = State(initialValue: viewModel)

@@ -1,5 +1,11 @@
 # Architecture
 
+## 実機フィードバックによるLocation補足（2026-07-15）
+
+Power stateはPlatform Protocolへ隔離し、ApplicationのMonitoring coordinatorが`lowPower`と`chargingHighAccuracy`を選ぶ。単一`CLLocationManager`内でSLCとstandard updateを排他的に停止/開始し、Providerを重複起動しない。高精度Modeは充電中だけで、Best accuracy、50m distance filter、automotive navigation、約60秒のemit filterを使用する。
+
+Mediaの表示可否は`MapScene`を正とし、Map描画時に別のMedia snapshotとの再照合でAnnotationを破棄しない。Thumbnail取得に失敗してもfallback Annotationを維持する。
+
 ## 1. 対象環境
 
 - アプリ仮称：`DriveLog`

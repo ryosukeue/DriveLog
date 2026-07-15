@@ -1,5 +1,17 @@
 # Implementation Plan
 
+## Phase 14: 実機フィードバック改善（完了）
+
+- [x] 14-1 Polyline/Location段階診断と不要分断修正
+- [x] 14-2 充電中限定の高精度Location Mode
+- [x] 14-3 Media Annotation表示修正と診断
+- [x] 14-4 Movement分類変更UI削除（Schema互換維持）
+- [x] 14-5 Stay Override UI整理
+- [x] 14-6 詳細統計UI削除
+- [x] 14-7 Calendar縦連続Scroll
+- [x] 14-8 地図/写真中心のUI整理
+- [x] 14-9 Integration監査と実機Checklist
+
 ## 1. 目的
 
 この文書は、DriveLog MVPを安全に実装するためのPhase構成、Issue分割、依存関係、完了条件、Codexへ渡す順序を定義する。
