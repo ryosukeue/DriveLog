@@ -93,9 +93,10 @@ struct RouteMapAnnotationViewTests {
 
         let button = try #require(view.subviews.compactMap { $0 as? UIButton }.first)
         let actions = try #require(button.menu?.children.compactMap { $0 as? UIAction })
-        #expect(actions.map(\.title) == ["立ち寄りとして確定", "非表示", "自動判定へ戻す"])
+        #expect(actions.map(\.title) == ["滞在として確定", "非表示", "自動判定へ戻す"])
         #expect(actions[1].attributes.contains(.destructive))
         #expect(button.isEnabled)
+        #expect(button.accessibilityValue == "操作可能")
         #expect(button.accessibilityIdentifier == "map.stayOverrideMenu")
     }
 
@@ -111,6 +112,7 @@ struct RouteMapAnnotationViewTests {
         let button = try #require(view.subviews.compactMap { $0 as? UIButton }.first)
         #expect(button.isEnabled == false)
         #expect(button.title(for: .normal) == "保存中…")
+        #expect(button.accessibilityValue == "保存中")
     }
 }
 

@@ -199,8 +199,9 @@ final class RouteMapStayCalloutView: MKAnnotationView {
         label.accessibilityIdentifier = "map.stayCallout"
         overrideButton.isEnabled = !isSaving
         overrideButton.setTitle(isSaving ? "保存中…" : "滞在表示を修正", for: .normal)
+        overrideButton.accessibilityValue = isSaving ? "保存中" : "操作可能"
         overrideButton.menu = UIMenu(children: [
-            UIAction(title: "立ち寄りとして確定") { _ in onSelectAction(.confirm) },
+            UIAction(title: "滞在として確定") { _ in onSelectAction(.confirm) },
             UIAction(title: "非表示", attributes: .destructive) { _ in onSelectAction(.hide) },
             UIAction(title: "自動判定へ戻す") { _ in onSelectAction(.automatic) }
         ])
