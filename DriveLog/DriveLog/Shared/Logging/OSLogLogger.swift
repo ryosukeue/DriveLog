@@ -67,6 +67,11 @@ nonisolated struct OSLogLogger: Logging {
                 level: level,
                 "Media cache refreshed. dateKey: \(localDateKey, privacy: .private), count: \(count, privacy: .private)"
             )
+        case let .mediaPlacementDiagnosed(permissionCode, fetched, eligible, located):
+            logger.log(level: level, "Media permission: \(permissionCode, privacy: .private)")
+            logger.log(level: level, "Media fetched: \(fetched, privacy: .private)")
+            logger.log(level: level, "Media eligible: \(eligible, privacy: .private)")
+            logger.log(level: level, "Media located and placed: \(located, privacy: .private)")
         case let .dayDeletionCompleted(localDateKey):
             logger.log(
                 level: level,

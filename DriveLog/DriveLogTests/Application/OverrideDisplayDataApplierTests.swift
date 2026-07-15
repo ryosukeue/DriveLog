@@ -120,6 +120,7 @@ struct OverrideDisplayDataApplierTests {
             )],
             mediaAnnotations: [MapMediaAnnotation(
                 localIdentifier: "media",
+                mediaType: .photo,
                 coordinate: RouteCoordinate(latitude: 35, longitude: 139)
             )],
             initialRegion: MapRegion(

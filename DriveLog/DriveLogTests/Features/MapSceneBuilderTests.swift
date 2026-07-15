@@ -20,7 +20,7 @@ struct MapSceneBuilderTests {
         let visibleStay = makeStay(id: "visible", visible: true, coordinate: coordinate(34, 138))
         let hiddenStay = makeStay(id: "hidden", visible: false, coordinate: coordinate(40, 145))
         let media = MediaPlacement(
-            assetIdentifier: "asset", coordinate: coordinate(37, 142),
+            assetIdentifier: "asset", mediaType: .video, coordinate: coordinate(37, 142),
             relatedMovementStableID: movement.stableID
         )
 
@@ -68,7 +68,9 @@ struct MapSceneBuilderTests {
             )
         ])
         #expect(scene.mediaAnnotations == [
-            MapMediaAnnotation(localIdentifier: "asset", coordinate: coordinate(37, 142))
+            MapMediaAnnotation(
+                localIdentifier: "asset", mediaType: .video, coordinate: coordinate(37, 142)
+            )
         ])
         let region = try #require(scene.initialRegion)
         #expect(region.center == coordinate(35.5, 140))

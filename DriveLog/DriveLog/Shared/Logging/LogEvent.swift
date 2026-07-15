@@ -9,6 +9,12 @@ nonisolated enum LogEvent: Sendable, Equatable {
     case dayProcessingCompleted(localDateKey: String)
     case dayProcessingFailed(localDateKey: String, code: String)
     case mediaCacheRefreshed(localDateKey: String, count: Int)
+    case mediaPlacementDiagnosed(
+        permissionCode: String,
+        fetchedCount: Int,
+        eligibleCount: Int,
+        locatedCount: Int
+    )
     case dayDeletionCompleted(localDateKey: String)
     case dayDeletionFailed(localDateKey: String, code: String)
     case permissionStateChanged

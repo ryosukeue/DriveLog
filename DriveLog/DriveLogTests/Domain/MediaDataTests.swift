@@ -29,6 +29,7 @@ struct MediaDataTests {
     func mediaPlacementPreservesValues() {
         let placement = MediaPlacement(
             assetIdentifier: "asset-id",
+            mediaType: .photo,
             coordinate: coordinate,
             relatedMovementStableID: "movement-id"
         )
@@ -36,6 +37,7 @@ struct MediaDataTests {
         #expect(placement.relatedMovementStableID == "movement-id")
         #expect(placement != MediaPlacement(
             assetIdentifier: "asset-id",
+            mediaType: .photo,
             coordinate: coordinate,
             relatedMovementStableID: nil
         ))

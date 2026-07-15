@@ -134,6 +134,7 @@ private struct Fixture {
             mediaAnnotations: [
                 MapMediaAnnotation(
                     localIdentifier: "later",
+                    mediaType: .photo,
                     coordinate: RouteCoordinate(latitude: 35, longitude: 139)
                 )
             ],
@@ -337,6 +338,7 @@ private struct DayDetailMapBuilderFake: MapSceneBuilding {
             mediaAnnotations: media.map {
                 MapMediaAnnotation(
                     localIdentifier: $0.assetIdentifier,
+                    mediaType: $0.mediaType,
                     coordinate: $0.coordinate
                 )
             },

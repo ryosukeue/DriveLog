@@ -41,6 +41,16 @@ struct LoggingTests {
                 .mediaCacheRefreshed(localDateKey: "2026-01-01", count: 1)
             ),
             (
+                .mediaPlacementDiagnosed(
+                    permissionCode: "limited", fetchedCount: 3,
+                    eligibleCount: 2, locatedCount: 1
+                ),
+                .mediaPlacementDiagnosed(
+                    permissionCode: "limited", fetchedCount: 3,
+                    eligibleCount: 2, locatedCount: 1
+                )
+            ),
+            (
                 .dayDeletionCompleted(localDateKey: "2026-01-01"),
                 .dayDeletionCompleted(localDateKey: "2026-01-01")
             ),
@@ -88,6 +98,15 @@ struct LoggingTests {
         #expect(
             LogEvent.mediaCacheRefreshed(localDateKey: "2026-01-01", count: 1)
                 != .mediaCacheRefreshed(localDateKey: "2026-01-01", count: 2)
+        )
+        #expect(
+            LogEvent.mediaPlacementDiagnosed(
+                permissionCode: "limited", fetchedCount: 3,
+                eligibleCount: 2, locatedCount: 1
+            ) != .mediaPlacementDiagnosed(
+                permissionCode: "limited", fetchedCount: 3,
+                eligibleCount: 2, locatedCount: 0
+            )
         )
         #expect(
             LogEvent.dayDeletionFailed(localDateKey: "2026-01-01", code: "TEST_CODE_A")

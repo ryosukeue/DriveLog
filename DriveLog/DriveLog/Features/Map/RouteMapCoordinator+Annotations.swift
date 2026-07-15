@@ -75,15 +75,12 @@ extension RouteMapCoordinator {
                 stay: stay
             )
         }
-        let media = scene.mediaAnnotations.compactMap { annotation -> RouteMapPointAnnotation? in
-            guard let asset = mediaByIdentifier[annotation.localIdentifier],
-                  asset.location != nil
-            else { return nil }
-            return RouteMapPointAnnotation(
+        let media = scene.mediaAnnotations.map { annotation in
+            RouteMapPointAnnotation(
                 id: annotation.localIdentifier,
                 coordinate: annotation.coordinate.mapCoordinate,
                 kind: .media,
-                mediaType: asset.mediaType
+                mediaType: annotation.mediaType
             )
         }
         mapView.addAnnotations(labels + callouts + stays + stayCallouts + media)

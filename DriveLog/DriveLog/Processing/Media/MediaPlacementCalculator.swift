@@ -34,6 +34,7 @@ nonisolated struct MediaPlacementCalculator: MediaPlacementCalculating {
             guard let coordinate = asset.location else { return nil }
             return MediaPlacement(
                 assetIdentifier: asset.localIdentifier,
+                mediaType: asset.mediaType,
                 coordinate: coordinate,
                 relatedMovementStableID: relatedMovementID(
                     asset: asset,

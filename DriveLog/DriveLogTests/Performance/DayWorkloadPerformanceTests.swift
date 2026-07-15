@@ -91,6 +91,7 @@ struct DayWorkloadPerformanceTests {
     private func media(_ index: Int) -> MediaPlacement {
         MediaPlacement(
             assetIdentifier: "media-\(index)",
+            mediaType: .photo,
             coordinate: coordinate(index),
             relatedMovementStableID: nil
         )

@@ -47,6 +47,7 @@ nonisolated struct MapStayAnnotation: Sendable, Equatable {
 
 nonisolated struct MapMediaAnnotation: Sendable, Equatable {
     let localIdentifier: String
+    let mediaType: MediaType
     let coordinate: RouteCoordinate
 }
 

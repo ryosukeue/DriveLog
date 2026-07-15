@@ -29,6 +29,7 @@ nonisolated struct DefaultRefreshMediaCacheUseCase: RefreshMediaCacheUseCase {
     }
 
     func execute(localDateKey: String) async throws -> [MediaAssetReference] {
+        let authorization = await photoLibrary.authorizationState()
         let interval = try dateInterval(
             for: localDateKey,
             timeZone: timeZoneProvider.current
@@ -37,6 +38,12 @@ nonisolated struct DefaultRefreshMediaCacheUseCase: RefreshMediaCacheUseCase {
         let eligible = fetched
             .filter { eligibilityEvaluator.evaluate($0) == .eligible }
             .sorted(by: assetOrder)
+        logger.info(.mediaPlacementDiagnosed(
+            permissionCode: authorization.diagnosticCode,
+            fetchedCount: fetched.count,
+            eligibleCount: eligible.count,
+            locatedCount: eligible.count { $0.location != nil }
+        ))
         try await mediaCacheRepository.replaceAssets(
             for: localDateKey,
             assets: eligible,
@@ -84,5 +91,17 @@ nonisolated struct DefaultRefreshMediaCacheUseCase: RefreshMediaCacheUseCase {
             return (first.creationDate ?? .distantFuture) < (second.creationDate ?? .distantFuture)
         }
         return first.localIdentifier < second.localIdentifier
+    }
+}
+
+private extension PhotoPermissionState {
+    nonisolated var diagnosticCode: String {
+        switch self {
+        case .notDetermined: "not_determined"
+        case .restricted: "restricted"
+        case .denied: "denied"
+        case .limited: "limited"
+        case .authorized: "authorized"
+        }
     }
 }

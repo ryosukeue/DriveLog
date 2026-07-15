@@ -5,6 +5,31 @@ import Testing
 @MainActor
 @Suite("Route map annotation views")
 struct RouteMapAnnotationViewTests {
+    @Test("scene media renders without a separate media snapshot")
+    func sceneMediaDoesNotRequireSnapshot() throws {
+        let mapView = MKMapView()
+        let coordinator = RouteMapCoordinator()
+        coordinator.addAnnotations(
+            scene: MapScene(
+                polylines: [], movementLabels: [], stayAnnotations: [],
+                mediaAnnotations: [MapMediaAnnotation(
+                    localIdentifier: "private-id",
+                    mediaType: .photo,
+                    coordinate: RouteCoordinate(latitude: 35, longitude: 139)
+                )],
+                initialRegion: nil
+            ),
+            to: mapView
+        )
+
+        let media = try #require(mapView.annotations.first as? RouteMapPointAnnotation)
+        guard case .media = media.kind else {
+            Issue.record("Expected a media annotation")
+            return
+        }
+        #expect(media.mediaType == .photo)
+    }
+
     @Test("media annotations participate in media-only clustering")
     func mediaClustering() throws {
         let mapView = MKMapView()

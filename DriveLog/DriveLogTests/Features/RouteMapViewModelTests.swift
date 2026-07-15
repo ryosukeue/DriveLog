@@ -290,6 +290,7 @@ private func makeScene(mediaIdentifiers: [String] = []) -> MapScene {
         mediaAnnotations: mediaIdentifiers.enumerated().map { index, identifier in
             MapMediaAnnotation(
                 localIdentifier: identifier,
+                mediaType: .photo,
                 coordinate: RouteCoordinate(latitude: 35 + Double(index), longitude: 139)
             )
         },
@@ -389,8 +390,7 @@ private actor SuspendedClassificationUseCase: UpdateClassificationUseCase {
 @MainActor
 private func makeMedia(id: String, type: MediaType, hasLocation: Bool) -> MediaAssetReference {
     MediaAssetReference(
-        localIdentifier: id,
-        mediaType: type,
+        localIdentifier: id, mediaType: type,
         creationDate: Date(timeIntervalSince1970: 0),
         location: hasLocation ? RouteCoordinate(latitude: 35, longitude: 139) : nil,
         durationSeconds: type == .video ? 10 : nil,

@@ -41,10 +41,21 @@ struct RefreshMediaCacheUseCaseTests {
         #expect(replacement.localDateKey == "2024-03-10")
         #expect(replacement.assets == result)
         #expect(replacement.validatedAt == now)
-        #expect(logger.records == [TestLogRecord(
-            level: .info,
-            event: .mediaCacheRefreshed(localDateKey: "2024-03-10", count: 3)
-        )])
+        #expect(logger.records == [
+            TestLogRecord(
+                level: .info,
+                event: .mediaPlacementDiagnosed(
+                    permissionCode: "limited",
+                    fetchedCount: 6,
+                    eligibleCount: 3,
+                    locatedCount: 0
+                )
+            ),
+            TestLogRecord(
+                level: .info,
+                event: .mediaCacheRefreshed(localDateKey: "2024-03-10", count: 3)
+            )
+        ])
     }
 
     @Test("empty limited result replaces stale day cache")
@@ -63,6 +74,12 @@ struct RefreshMediaCacheUseCaseTests {
         #expect(result.isEmpty)
         #expect(await repository.replacements.first?.assets.isEmpty == true)
         #expect(logger.records.map(\.event) == [
+            .mediaPlacementDiagnosed(
+                permissionCode: "limited",
+                fetchedCount: 0,
+                eligibleCount: 0,
+                locatedCount: 0
+            ),
             .mediaCacheRefreshed(localDateKey: "2024-01-02", count: 0)
         ])
     }
@@ -126,7 +143,14 @@ struct RefreshMediaCacheUseCaseTests {
         await #expect(throws: expected) {
             try await useCase.execute(localDateKey: "2024-03-09")
         }
-        #expect(logger.records.isEmpty)
+        #expect(logger.records.map(\.event) == [
+            .mediaPlacementDiagnosed(
+                permissionCode: "authorized",
+                fetchedCount: 1,
+                eligibleCount: 1,
+                locatedCount: 0
+            )
+        ])
     }
 
     private func makeUseCase(
