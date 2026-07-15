@@ -3,20 +3,25 @@ actor StartMonitoringUseCase {
     private let motionProvider: any MotionProviding
     private let visitProvider: any VisitProviding
     private let storageCoordinator: RawEventStorageCoordinator
+    private let powerStateProvider: any PowerStateProviding
     private let logger: any Logging
     private var isExecuting = false
+    private var powerObservationTask: Task<Void, Never>?
+    private var appliedLocationMode: LocationRecordingMode?
 
     init(
         locationProvider: any LocationProviding,
         motionProvider: any MotionProviding,
         visitProvider: any VisitProviding,
         storageCoordinator: RawEventStorageCoordinator,
+        powerStateProvider: any PowerStateProviding,
         logger: any Logging
     ) {
         self.locationProvider = locationProvider
         self.motionProvider = motionProvider
         self.visitProvider = visitProvider
         self.storageCoordinator = storageCoordinator
+        self.powerStateProvider = powerStateProvider
         self.logger = logger
     }
 
@@ -27,22 +32,40 @@ actor StartMonitoringUseCase {
 
         await storageCoordinator.start()
         do {
-            try await startLocationIfNeeded()
+            try await applyLocationMode(for: powerStateProvider.current)
         } catch {
             await storageCoordinator.stop()
             throw error
         }
         await startMotionIfNeeded()
         await startVisitIfNeeded()
+        startPowerObservationIfNeeded()
     }
 
-    private func startLocationIfNeeded() async throws {
-        switch await locationProvider.monitoringState {
-        case .starting, .running:
+    private func applyLocationMode(for powerState: PowerState) async throws {
+        let mode = powerState.locationRecordingMode
+        let monitoringState = await locationProvider.monitoringState
+        if appliedLocationMode == nil, monitoringState == .running, mode == .lowPower {
+            appliedLocationMode = mode
             return
-        case .stopped, .unavailable, .failed:
-            try await locationProvider.startSignificantLocationMonitoring()
-            logger.info(.locationMonitoringStarted)
+        }
+        guard appliedLocationMode != mode || monitoringState != .running else {
+            return
+        }
+        try await locationProvider.setRecordingMode(mode)
+        appliedLocationMode = mode
+        logger.info(.locationMonitoringStarted)
+        logger.info(.locationRecordingModeChanged(modeCode: mode.rawValue))
+    }
+
+    private func startPowerObservationIfNeeded() {
+        guard powerObservationTask == nil else { return }
+        let changes = powerStateProvider.changes
+        powerObservationTask = Task { [weak self] in
+            for await state in changes {
+                guard !Task.isCancelled else { return }
+                try? await self?.applyLocationMode(for: state)
+            }
         }
     }
 

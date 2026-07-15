@@ -130,6 +130,7 @@ final class AppContainer {
         )
     }
 
+    // swiftlint:disable:next function_body_length
     func makeAppLifecycleCoordinator(
         modelContainer: ModelContainer,
         permissionManager: any PermissionManaging
@@ -146,6 +147,7 @@ final class AppContainer {
         let derivedRepository = SwiftDataDerivedDataRepository(modelContainer: modelContainer)
         let mediaCacheRepository = SwiftDataMediaCacheRepository(modelContainer: modelContainer)
         let providers = makeMonitoringProviders()
+        let powerStateProvider = SystemPowerStateProvider()
         let storageCoordinator = RawEventStorageCoordinator(
             locationProvider: providers.location,
             motionProvider: providers.motion,
@@ -158,6 +160,7 @@ final class AppContainer {
             motionProvider: providers.motion,
             visitProvider: providers.visit,
             storageCoordinator: storageCoordinator,
+            powerStateProvider: powerStateProvider,
             logger: logger
         )
         let processDay = makeProcessDayUseCase(

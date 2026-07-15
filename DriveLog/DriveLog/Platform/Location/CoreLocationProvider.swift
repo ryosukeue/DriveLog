@@ -10,6 +10,8 @@ final class CoreLocationProvider: NSObject, LocationProviding {
     private let localTimeContextProvider: any LocalTimeContextProviding
     private let continuation: AsyncStream<LocationProviderEvent>.Continuation
     private var state: LocationMonitoringState = .stopped
+    private var recordingMode: LocationRecordingMode = .lowPower
+    private var highAccuracyEmissionFilter = ChargingLocationEmissionFilter()
 
     init(
         manager: CLLocationManager = CLLocationManager(),
@@ -42,36 +44,54 @@ final class CoreLocationProvider: NSObject, LocationProviding {
     }
 
     func startSignificantLocationMonitoring() async throws {
-        guard CLLocationManager.significantLocationChangeMonitoringAvailable() else {
-            setState(.unavailable)
-            throw DriveLogError.monitoringUnavailable
-        }
-        switch manager.authorizationStatus {
-        case .denied:
-            let error = DriveLogError.permissionDenied(.location)
-            setState(.failed(code: "permission_denied"))
-            continuation.yield(.error(error))
-            throw error
-        case .restricted:
-            let error = DriveLogError.permissionRestricted(.location)
-            setState(.failed(code: "permission_restricted"))
-            continuation.yield(.error(error))
-            throw error
-        case .authorizedAlways, .authorizedWhenInUse, .notDetermined:
-            setState(.starting)
-            manager.startMonitoringSignificantLocationChanges()
-            setState(.running)
-        @unknown default:
-            let error = DriveLogError.unknown(code: "location_authorization")
-            setState(.failed(code: "authorization_unknown"))
-            continuation.yield(.error(error))
-            throw error
-        }
+        try await setRecordingMode(.lowPower)
     }
 
     func stopSignificantLocationMonitoring() async {
         manager.stopMonitoringSignificantLocationChanges()
+        manager.stopUpdatingLocation()
         setState(.stopped)
+    }
+
+    func setRecordingMode(_ mode: LocationRecordingMode) async throws {
+        guard mode != recordingMode || state != .running else { return }
+        do {
+            try validateAuthorizationAndAvailability(for: mode)
+        } catch let error as DriveLogError {
+            let code = switch error {
+            case .permissionDenied: "permission_denied"
+            case .permissionRestricted: "permission_restricted"
+            case .monitoringUnavailable: "monitoring_unavailable"
+            default: "location_start_failure"
+            }
+            if error == .monitoringUnavailable {
+                setState(.unavailable)
+            } else {
+                setState(.failed(code: code))
+            }
+            continuation.yield(.error(error))
+            throw error
+        }
+        manager.stopMonitoringSignificantLocationChanges()
+        manager.stopUpdatingLocation()
+        recordingMode = mode
+        highAccuracyEmissionFilter.reset()
+        setState(.starting)
+        switch mode {
+        case .lowPower:
+            manager.desiredAccuracy = kCLLocationAccuracyThreeKilometers
+            manager.distanceFilter = kCLDistanceFilterNone
+            manager.activityType = .other
+            manager.startMonitoringSignificantLocationChanges()
+        case .chargingHighAccuracy:
+            manager.desiredAccuracy = kCLLocationAccuracyBest
+            manager.distanceFilter = 50
+            manager.activityType = .automotiveNavigation
+            manager.pausesLocationUpdatesAutomatically = true
+            manager.allowsBackgroundLocationUpdates = true
+            manager.startUpdatingLocation()
+        }
+        setState(.running)
     }
 
     func convert(_ location: CLLocation) -> LocationEventData? {
@@ -95,6 +115,23 @@ final class CoreLocationProvider: NSObject, LocationProviding {
         continuation.yield(.stateChanged(newState))
     }
 
+    private func validateAuthorizationAndAvailability(for mode: LocationRecordingMode) throws {
+        if mode == .lowPower, !CLLocationManager.significantLocationChangeMonitoringAvailable() {
+            setState(.unavailable)
+            throw DriveLogError.monitoringUnavailable
+        }
+        switch manager.authorizationStatus {
+        case .denied:
+            throw DriveLogError.permissionDenied(.location)
+        case .restricted:
+            throw DriveLogError.permissionRestricted(.location)
+        case .authorizedAlways, .authorizedWhenInUse, .notDetermined:
+            return
+        @unknown default:
+            throw DriveLogError.unknown(code: "location_authorization")
+        }
+    }
+
     private func mappedError(_ error: Error) -> DriveLogError {
         guard let coreLocationError = error as? CLError else {
             return .unknown(code: "core_location")
@@ -113,10 +150,20 @@ extension CoreLocationProvider: CLLocationManagerDelegate {
         _: CLLocationManager,
         didUpdateLocations locations: [CLLocation]
     ) {
+        var emittedCount = 0
         for location in locations {
             guard let event = convert(location) else { continue }
+            if recordingMode == .chargingHighAccuracy {
+                guard highAccuracyEmissionFilter.shouldEmit(location.timestamp) else { continue }
+            }
             continuation.yield(.location(event))
+            emittedCount += 1
         }
+        continuation.yield(.acquisitionDiagnostic(LocationAcquisitionDiagnostic(
+            mode: recordingMode,
+            receivedCount: locations.count,
+            emittedCount: emittedCount
+        )))
     }
 
     func locationManager(_: CLLocationManager, didFailWithError error: Error) {

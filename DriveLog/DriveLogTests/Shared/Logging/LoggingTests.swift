@@ -3,6 +3,7 @@ import os
 import Testing
 
 struct LoggingTests {
+    // swiftlint:disable:next function_body_length
     @Test func allLogEventCasesSupportEquality() {
         let equalPairs: [(LogEvent, LogEvent)] = [
             (.locationMonitoringStarted, .locationMonitoringStarted),
@@ -47,7 +48,19 @@ struct LoggingTests {
                 .dayDeletionFailed(localDateKey: "2026-01-01", code: "TEST_CODE_A"),
                 .dayDeletionFailed(localDateKey: "2026-01-01", code: "TEST_CODE_A")
             ),
-            (.permissionStateChanged, .permissionStateChanged)
+            (.permissionStateChanged, .permissionStateChanged),
+            (
+                .locationRecordingModeChanged(modeCode: "lowPower"),
+                .locationRecordingModeChanged(modeCode: "lowPower")
+            ),
+            (
+                .locationAcquisitionCompleted(
+                    modeCode: "lowPower", receivedCount: 2, emittedCount: 1
+                ),
+                .locationAcquisitionCompleted(
+                    modeCode: "lowPower", receivedCount: 2, emittedCount: 1
+                )
+            )
         ]
 
         for pair in equalPairs {

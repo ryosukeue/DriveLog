@@ -33,6 +33,12 @@ nonisolated struct OSLogLogger: Logging {
             logger.log(level: level, "Location event saved. localDateKey: \(localDateKey, privacy: .private)")
         case let .locationEventRejected(reasonCode):
             logger.log(level: level, "Location event rejected. reasonCode: \(reasonCode, privacy: .private)")
+        case let .locationRecordingModeChanged(modeCode):
+            logger.log(level: level, "Location recording mode changed. mode: \(modeCode, privacy: .private)")
+        case let .locationAcquisitionCompleted(modeCode, receivedCount, emittedCount):
+            logger.log(level: level, "Location acquisition mode: \(modeCode, privacy: .private)")
+            logger.log(level: level, "Location received: \(receivedCount, privacy: .private)")
+            logger.log(level: level, "Location emitted: \(emittedCount, privacy: .private)")
         case let .motionEventSaved(localDateKey):
             logger.log(level: level, "Motion event saved. localDateKey: \(localDateKey, privacy: .private)")
         case let .visitEventSaved(localDateKey):

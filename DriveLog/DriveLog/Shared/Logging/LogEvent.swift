@@ -12,4 +12,6 @@ nonisolated enum LogEvent: Sendable, Equatable {
     case dayDeletionCompleted(localDateKey: String)
     case dayDeletionFailed(localDateKey: String, code: String)
     case permissionStateChanged
+    case locationRecordingModeChanged(modeCode: String)
+    case locationAcquisitionCompleted(modeCode: String, receivedCount: Int, emittedCount: Int)
 }

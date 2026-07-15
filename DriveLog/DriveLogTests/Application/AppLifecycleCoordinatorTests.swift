@@ -122,6 +122,7 @@ private struct Fixture {
                 motionProvider: motion,
                 visitProvider: visit,
                 storageCoordinator: storageCoordinator,
+                powerStateProvider: FakePowerStateProvider(),
                 logger: logger
             ),
             dayProcessingCoordinator: dayProcessing,

@@ -13,7 +13,13 @@ struct StartMonitoringUseCaseTests {
         #expect(fixture.location.callCounts().start == 1)
         #expect(fixture.motion.callCounts().start == 1)
         #expect(fixture.visit.callCounts().start == 1)
-        #expect(fixture.logger.records == [TestLogRecord(level: .info, event: .locationMonitoringStarted)])
+        #expect(fixture.logger.records == [
+            TestLogRecord(level: .info, event: .locationMonitoringStarted),
+            TestLogRecord(
+                level: .info,
+                event: .locationRecordingModeChanged(modeCode: "lowPower")
+            )
+        ])
 
         try await fixture.useCase.execute()
         #expect(fixture.location.callCounts().start == 1)
@@ -73,6 +79,29 @@ struct StartMonitoringUseCaseTests {
         #expect(fixture.logger.records.isEmpty)
         #expect(await fixture.storageCoordinator.isRunning())
     }
+
+    @Test("switches location mode when charging state changes")
+    func chargingTransitions() async throws {
+        let fixture = Fixture()
+        try await fixture.useCase.execute()
+
+        fixture.power.send(.charging)
+        await waitUntil { fixture.location.appliedModes().count == 2 }
+        fixture.power.send(.full)
+        await Task.yield()
+        fixture.power.send(.unplugged)
+        await waitUntil { fixture.location.appliedModes().count == 3 }
+
+        #expect(fixture.location.appliedModes() == [
+            .lowPower, .chargingHighAccuracy, .lowPower
+        ])
+    }
+
+    private func waitUntil(_ condition: @escaping @MainActor () -> Bool) async {
+        for _ in 0 ..< 100 where !condition() {
+            await Task.yield()
+        }
+    }
 }
 
 @MainActor
@@ -82,6 +111,7 @@ private struct Fixture {
     let visit: FakeVisitProvider
     let repository = InMemoryRawEventRepository()
     let logger = SpyEventLogger()
+    let power = FakePowerStateProvider()
     let storageCoordinator: RawEventStorageCoordinator
     let useCase: StartMonitoringUseCase
 
@@ -99,7 +129,7 @@ private struct Fixture {
         )
         useCase = StartMonitoringUseCase(
             locationProvider: location, motionProvider: motion, visitProvider: visit,
-            storageCoordinator: storageCoordinator, logger: logger
+            storageCoordinator: storageCoordinator, powerStateProvider: power, logger: logger
         )
     }
 }

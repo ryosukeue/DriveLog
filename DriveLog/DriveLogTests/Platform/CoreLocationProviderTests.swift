@@ -59,6 +59,13 @@ struct CoreLocationProviderTests {
             return
         }
         #expect(event.timestamp == now)
+        guard case let .acquisitionDiagnostic(diagnostic) = await iterator.next() else {
+            Issue.record("Expected acquisition diagnostic")
+            return
+        }
+        #expect(diagnostic == LocationAcquisitionDiagnostic(
+            mode: .lowPower, receivedCount: 1, emittedCount: 1
+        ))
 
         provider.locationManager(
             CLLocationManager(),

@@ -5,6 +5,12 @@ protocol LocationProviding: Sendable {
 
     func startSignificantLocationMonitoring() async throws
     func stopSignificantLocationMonitoring() async
+    func setRecordingMode(_ mode: LocationRecordingMode) async throws
+}
+
+nonisolated enum LocationRecordingMode: String, Sendable, Equatable {
+    case lowPower
+    case chargingHighAccuracy
 }
 
 nonisolated enum LocationMonitoringState: Sendable, Equatable {
@@ -17,6 +23,13 @@ nonisolated enum LocationMonitoringState: Sendable, Equatable {
 
 nonisolated enum LocationProviderEvent: Sendable {
     case location(LocationEventData)
+    case acquisitionDiagnostic(LocationAcquisitionDiagnostic)
     case stateChanged(LocationMonitoringState)
     case error(DriveLogError)
+}
+
+nonisolated struct LocationAcquisitionDiagnostic: Sendable, Equatable {
+    let mode: LocationRecordingMode
+    let receivedCount: Int
+    let emittedCount: Int
 }

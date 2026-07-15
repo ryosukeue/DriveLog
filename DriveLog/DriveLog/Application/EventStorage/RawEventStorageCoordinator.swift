@@ -78,6 +78,12 @@ actor RawEventStorageCoordinator {
             logger.error(.locationEventRejected(reasonCode: "provider_error"))
         case .stateChanged:
             break
+        case let .acquisitionDiagnostic(diagnostic):
+            logger.debug(.locationAcquisitionCompleted(
+                modeCode: diagnostic.mode.rawValue,
+                receivedCount: diagnostic.receivedCount,
+                emittedCount: diagnostic.emittedCount
+            ))
         }
     }
 

@@ -9,6 +9,7 @@ final class FakeLocationProvider: LocationProviding {
     private var startCount = 0
     private var stopCount = 0
     private var startError: DriveLogError?
+    private var modes: [LocationRecordingMode] = []
 
     init(state: LocationMonitoringState = .stopped) {
         let stream = AsyncStream.makeStream(of: LocationProviderEvent.self)
@@ -36,6 +37,11 @@ final class FakeLocationProvider: LocationProviding {
         continuation.yield(.stateChanged(.stopped))
     }
 
+    func setRecordingMode(_ mode: LocationRecordingMode) async throws {
+        modes.append(mode)
+        try await startSignificantLocationMonitoring()
+    }
+
     func send(_ event: LocationProviderEvent) {
         continuation.yield(event)
     }
@@ -51,5 +57,9 @@ final class FakeLocationProvider: LocationProviding {
 
     func callCounts() -> (start: Int, stop: Int) {
         (startCount, stopCount)
+    }
+
+    func appliedModes() -> [LocationRecordingMode] {
+        modes
     }
 }
