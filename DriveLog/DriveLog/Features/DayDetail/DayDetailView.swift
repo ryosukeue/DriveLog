@@ -126,7 +126,6 @@ struct DayDetailView: View {
                 inlineError
             }
             DaySummaryCard(aggregate: data.aggregate, formatter: formatter)
-            DayStatisticsCard(aggregate: data.aggregate, formatter: formatter)
             MediaGridSection(
                 media: data.media,
                 loadThumbnail: { localIdentifier, targetSize in

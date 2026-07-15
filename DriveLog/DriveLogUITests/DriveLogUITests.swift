@@ -99,7 +99,6 @@ final class DriveLogUITests: XCTestCase {
 
         XCTAssertTrue(app.buttons["dayDetail.mapPreview"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.otherElements["dayDetail.summary"].exists)
-        XCTAssertTrue(app.otherElements["dayDetail.statistics"].exists)
         app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(app.otherElements["calendar.grid"].waitForExistence(timeout: 5))
     }
