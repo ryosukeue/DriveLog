@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MediaGridColumnPolicy {
     func columnCount(for dynamicTypeSize: DynamicTypeSize) -> Int {
-        dynamicTypeSize.isAccessibilitySize ? 3 : 4
+        dynamicTypeSize.isAccessibilitySize ? 2 : 4
     }
 }
 

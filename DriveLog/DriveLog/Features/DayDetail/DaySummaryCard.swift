@@ -8,7 +8,7 @@ struct DaySummaryCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("基本サマリー")
+            Text("移動")
                 .font(.headline)
             LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
                 summaryItem(
@@ -24,14 +24,8 @@ struct DaySummaryCard: View {
                 summaryItem(title: "開始", value: formatter.time(aggregate.startDate))
                 summaryItem(title: "終了", value: formatter.time(aggregate.endDate))
                 summaryItem(title: "写真・動画", value: "\(aggregate.mediaCountCache)件")
-                summaryItem(
-                    title: "代表仮分類",
-                    value: formatter.classification(aggregate.automaticClassification)
-                )
             }
         }
-        .padding()
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 16))
         .accessibilityIdentifier("dayDetail.summary")
     }
 
