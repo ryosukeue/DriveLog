@@ -44,7 +44,6 @@ struct ContentView: View {
     let today: Date
     let makeDayDetailViewModel: (String) -> DayDetailViewModel
     let loadMediaThumbnail: any LoadMediaThumbnailUseCase
-    let updateClassification: any UpdateClassificationUseCase
     let updateStayOverride: any UpdateStayOverrideUseCase
     let hapticFeedback: any HapticFeedbackProviding
     let makeMediaPreviewViewModel: (MediaAssetReference) -> MediaPreviewViewModel
@@ -89,7 +88,6 @@ struct ContentView: View {
                             scene: scene,
                             media: media,
                             movements: movements,
-                            updateClassification: updateClassification,
                             stays: stays,
                             updateStayOverride: updateStayOverride,
                             hapticFeedback: hapticFeedback

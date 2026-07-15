@@ -190,11 +190,7 @@ extension RouteMapCoordinator {
         if let movement = annotation.movement {
             view.configure(
                 movement: movement,
-                formatter: DayDetailFormatter(timeZone: SystemTimeZoneProvider().current),
-                isSaving: movement.segmentStableID == classificationSavingSegmentID,
-                onSelectClassification: { [weak self] classification in
-                    self?.onUpdateClassification(movement.segmentStableID, classification)
-                }
+                formatter: DayDetailFormatter(timeZone: SystemTimeZoneProvider().current)
             )
         }
         return view
@@ -209,11 +205,7 @@ extension RouteMapCoordinator {
             else { continue }
             view.configure(
                 movement: movement,
-                formatter: DayDetailFormatter(timeZone: SystemTimeZoneProvider().current),
-                isSaving: movement.segmentStableID == classificationSavingSegmentID,
-                onSelectClassification: { [weak self] classification in
-                    self?.onUpdateClassification(movement.segmentStableID, classification)
-                }
+                formatter: DayDetailFormatter(timeZone: SystemTimeZoneProvider().current)
             )
         }
     }

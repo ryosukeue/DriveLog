@@ -7,12 +7,8 @@ final class RouteMapViewModel {
     let visibleMedia: [MediaAssetReference]
     private(set) var selectedSegmentID: String?
     private(set) var selectedStayID: String?
-    private(set) var classificationSavingSegmentID: String?
-    private(set) var classificationUpdateFailed = false
     private(set) var staySavingSegmentID: String?
     private(set) var stayUpdateFailed = false
-    private let movementsByStableID: [String: MovementSegmentData]
-    private let updateClassification: (any UpdateClassificationUseCase)?
     private let staysByStableID: [String: StayDisplayData]
     private let updateStayOverride: (any UpdateStayOverrideUseCase)?
     private let hapticFeedback: (any HapticFeedbackProviding)?
@@ -20,19 +16,13 @@ final class RouteMapViewModel {
     init(
         scene: MapScene,
         media: [MediaAssetReference] = [],
-        movements: [MovementDisplayData] = [],
-        updateClassification: (any UpdateClassificationUseCase)? = nil,
+        movements _: [MovementDisplayData] = [],
         stays: [StayDisplayData] = [],
         updateStayOverride: (any UpdateStayOverrideUseCase)? = nil,
         hapticFeedback: (any HapticFeedbackProviding)? = nil
     ) {
-        self.updateClassification = updateClassification
         self.updateStayOverride = updateStayOverride
         self.hapticFeedback = hapticFeedback
-        movementsByStableID = Dictionary(
-            movements.map { ($0.segment.stableID, $0.segment) },
-            uniquingKeysWith: { first, _ in first }
-        )
         staysByStableID = Dictionary(
             stays.map { ($0.segment.stableID, $0) },
             uniquingKeysWith: { first, _ in first }
@@ -70,36 +60,6 @@ final class RouteMapViewModel {
         visibleMedia.first { $0.localIdentifier == localIdentifier }
     }
 
-    func updateClassification(
-        stableID: String,
-        classification: UserMovementClassification
-    ) async {
-        guard classificationSavingSegmentID == nil,
-              let segment = movementsByStableID[stableID],
-              let updateClassification
-        else { return }
-        classificationSavingSegmentID = stableID
-        classificationUpdateFailed = false
-        do {
-            try await updateClassification.execute(
-                segment: segment,
-                classification: classification
-            )
-            scene = scene.updatingClassification(
-                stableID: stableID,
-                classification: classification
-            )
-            hapticFeedback?.performLightSuccess()
-        } catch {
-            classificationUpdateFailed = true
-        }
-        classificationSavingSegmentID = nil
-    }
-
-    func dismissClassificationError() {
-        classificationUpdateFailed = false
-    }
-
     func updateStay(stableID: String, action: StayOverrideAction) async {
         guard staySavingSegmentID == nil,
               let display = staysByStableID[stableID],
@@ -128,33 +88,6 @@ final class RouteMapViewModel {
 }
 
 private extension MapScene {
-    func updatingClassification(
-        stableID: String,
-        classification: UserMovementClassification
-    ) -> MapScene {
-        MapScene(
-            polylines: polylines,
-            movementLabels: movementLabels.map { movement in
-                guard movement.segmentStableID == stableID else { return movement }
-                return MapMovementLabel(
-                    segmentStableID: movement.segmentStableID,
-                    coordinate: movement.coordinate,
-                    text: movement.text,
-                    startDate: movement.startDate,
-                    endDate: movement.endDate,
-                    durationSeconds: movement.durationSeconds,
-                    distanceMeters: movement.distanceMeters,
-                    averageSpeedMetersPerSecond: movement.averageSpeedMetersPerSecond,
-                    automaticClassification: movement.automaticClassification,
-                    userClassification: classification
-                )
-            },
-            stayAnnotations: stayAnnotations,
-            mediaAnnotations: mediaAnnotations,
-            initialRegion: initialRegion
-        )
-    }
-
     func updatingAutomaticStayRules(
         _ displaysByStableID: [String: StayDisplayData]
     ) -> MapScene {

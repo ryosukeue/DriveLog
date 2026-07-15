@@ -95,9 +95,6 @@ struct DriveLogApp: App {
                         loadMediaThumbnail: appContainer.makeLoadMediaThumbnailUseCase(
                             photoLibrary: photoLibrary
                         ),
-                        updateClassification: appContainer.makeUpdateClassificationUseCase(
-                            modelContainer: modelContainer
-                        ),
                         updateStayOverride: appContainer.makeUpdateStayOverrideUseCase(
                             modelContainer: modelContainer
                         ),

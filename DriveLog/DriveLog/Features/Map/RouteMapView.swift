@@ -12,8 +12,6 @@ struct RouteMapInteraction {
     let selectedStayID: String?
     let onSelectSegment: (String) -> Void
     let onSelectStay: (String) -> Void
-    let classificationSavingSegmentID: String?
-    let onUpdateClassification: (String, UserMovementClassification) -> Void
     let staySavingSegmentID: String?
     let onUpdateStay: (String, StayOverrideAction) -> Void
     let media: [MediaAssetReference]
@@ -29,8 +27,6 @@ struct RouteMapView: UIViewRepresentable {
     let selectedStayID: String?
     let onSelectSegment: (String) -> Void
     let onSelectStay: (String) -> Void
-    let classificationSavingSegmentID: String?
-    let onUpdateClassification: (String, UserMovementClassification) -> Void
     let staySavingSegmentID: String?
     let onUpdateStay: (String, StayOverrideAction) -> Void
     let media: [MediaAssetReference]
@@ -46,8 +42,6 @@ struct RouteMapView: UIViewRepresentable {
         selectedStayID: String? = nil,
         onSelectSegment: @escaping (String) -> Void = { _ in },
         onSelectStay: @escaping (String) -> Void = { _ in },
-        classificationSavingSegmentID: String? = nil,
-        onUpdateClassification: @escaping (String, UserMovementClassification) -> Void = { _, _ in },
         staySavingSegmentID: String? = nil,
         onUpdateStay: @escaping (String, StayOverrideAction) -> Void = { _, _ in },
         media: [MediaAssetReference] = [],
@@ -62,8 +56,6 @@ struct RouteMapView: UIViewRepresentable {
         self.selectedStayID = selectedStayID
         self.onSelectSegment = onSelectSegment
         self.onSelectStay = onSelectStay
-        self.classificationSavingSegmentID = classificationSavingSegmentID
-        self.onUpdateClassification = onUpdateClassification
         self.staySavingSegmentID = staySavingSegmentID
         self.onUpdateStay = onUpdateStay
         self.media = media
@@ -118,8 +110,6 @@ struct RouteMapView: UIViewRepresentable {
             selectedStayID: selectedStayID,
             onSelectSegment: onSelectSegment,
             onSelectStay: onSelectStay,
-            classificationSavingSegmentID: classificationSavingSegmentID,
-            onUpdateClassification: onUpdateClassification,
             staySavingSegmentID: staySavingSegmentID,
             onUpdateStay: onUpdateStay,
             media: media,
@@ -208,8 +198,6 @@ final class RouteMapCoordinator: NSObject, MKMapViewDelegate {
     var selectedStayID: String?
     var onSelectSegment: (String) -> Void = { _ in }
     var onSelectStay: (String) -> Void = { _ in }
-    var classificationSavingSegmentID: String?
-    var onUpdateClassification: (String, UserMovementClassification) -> Void = { _, _ in }
     var staySavingSegmentID: String?
     var onUpdateStay: (String, StayOverrideAction) -> Void = { _, _ in }
     var onSelectMedia: (String) -> Void = { _ in }
@@ -226,8 +214,6 @@ final class RouteMapCoordinator: NSObject, MKMapViewDelegate {
         self.mapView = mapView
         onSelectSegment = interaction.onSelectSegment
         onSelectStay = interaction.onSelectStay
-        classificationSavingSegmentID = interaction.classificationSavingSegmentID
-        onUpdateClassification = interaction.onUpdateClassification
         staySavingSegmentID = interaction.staySavingSegmentID
         onUpdateStay = interaction.onUpdateStay
         onSelectMedia = interaction.onSelectMedia
