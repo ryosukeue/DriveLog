@@ -12,14 +12,21 @@ nonisolated enum CalendarViewState: Sendable, Equatable {
 @MainActor
 @Observable
 final class CalendarViewModel {
-    private(set) var displayedMonth: LocalMonth
-    private(set) var days: [CalendarDayData] = []
+    let displayedMonth: LocalMonth
+    private(set) var months: [CalendarMonthData] = []
     private(set) var state: CalendarViewState = .idle
     private(set) var selectedLocalDateKey: String?
     private(set) var navigationLocalDateKey: String?
 
+    var days: [CalendarDayData] {
+        months.first { $0.month == displayedMonth }?.days ?? []
+    }
+
     private let loadCalendarMonth: any LoadCalendarMonthUseCase
-    private var requestID: UUID?
+    private var loadedByMonth: [LocalMonth: CalendarMonthData] = [:]
+    private var isExtending = false
+    private let initialRadius = 2
+    private let extensionCount = 3
 
     init(
         displayedMonth: LocalMonth,
@@ -30,31 +37,31 @@ final class CalendarViewModel {
     }
 
     func load() async {
-        let requestedMonth = displayedMonth
-        let id = UUID()
-        requestID = id
         state = .loading
         do {
-            let data = try await loadCalendarMonth.execute(month: requestedMonth)
-            guard requestID == id, displayedMonth == requestedMonth else { return }
-            days = data.days
-            state = data.days.contains(where: \.hasValidMovement) ? .loaded : .empty
+            loadedByMonth[displayedMonth] = nil
+            try await load(months: (-initialRadius ... initialRadius).map {
+                displayedMonth.adding(months: $0)
+            })
+            updateState()
         } catch {
-            guard requestID == id, displayedMonth == requestedMonth else { return }
             state = .error
         }
     }
 
-    func showPreviousMonth() async {
-        await show(monthOffset: -1)
+    func loadMorePastIfNeeded(visibleMonth: LocalMonth) async {
+        guard visibleMonth == months.first?.month, !isExtending else { return }
+        let values = (1 ... extensionCount).map { visibleMonth.adding(months: -$0) }.reversed()
+        await extend(with: Array(values))
     }
 
-    func showNextMonth() async {
-        await show(monthOffset: 1)
+    func loadMoreFutureIfNeeded(visibleMonth: LocalMonth) async {
+        guard visibleMonth == months.last?.month, !isExtending else { return }
+        await extend(with: (1 ... extensionCount).map { visibleMonth.adding(months: $0) })
     }
 
     func select(localDateKey: String) {
-        guard days.contains(where: {
+        guard months.flatMap(\.days).contains(where: {
             $0.localDateKey == localDateKey && $0.hasValidMovement
         }) else { return }
         selectedLocalDateKey = localDateKey
@@ -65,15 +72,30 @@ final class CalendarViewModel {
         navigationLocalDateKey = nil
     }
 
-    private func show(monthOffset: Int) async {
-        displayedMonth = displayedMonth.adding(months: monthOffset)
-        selectedLocalDateKey = nil
-        navigationLocalDateKey = nil
-        await load()
+    private func extend(with values: [LocalMonth]) async {
+        isExtending = true
+        defer { isExtending = false }
+        try? await load(months: values)
+        updateState()
+    }
+
+    private func load(months values: [LocalMonth]) async throws {
+        for month in values where loadedByMonth[month] == nil {
+            loadedByMonth[month] = try await loadCalendarMonth.execute(month: month)
+        }
+        months = loadedByMonth.values.sorted { $0.month < $1.month }
+    }
+
+    private func updateState() {
+        state = months.flatMap(\.days).contains(where: \.hasValidMovement) ? .loaded : .empty
     }
 }
 
-private extension LocalMonth {
+extension LocalMonth: Comparable {
+    static func < (lhs: LocalMonth, rhs: LocalMonth) -> Bool {
+        (lhs.year, lhs.month) < (rhs.year, rhs.month)
+    }
+
     nonisolated func adding(months offset: Int) -> LocalMonth {
         let zeroBasedMonth = year * 12 + month - 1 + offset
         let adjustedYear = zeroBasedMonth >= 0
