@@ -106,13 +106,17 @@ nonisolated struct MovementSegmenter: MovementSegmenting {
                         reason: reason
                     )
                 )
-                chunks.append([location])
+                switch reason {
+                case .continuousGap, .localDayBoundary:
+                    chunks.append([location])
+                case .visit, .motionTransition:
+                    chunks[chunks.count - 1].append(location)
+                }
             } else {
                 chunks[chunks.count - 1].append(location)
             }
         }
 
-        mergeShortChunks(&chunks, across: &gaps)
         let candidates = chunks.compactMap(makeCandidate)
         return MovementSegmentationResult(
             segments: candidates.filter(isValid),
@@ -147,14 +151,10 @@ nonisolated struct MovementSegmenter: MovementSegmenting {
 
     private func visitOverlaps(_ visit: VisitEventData, from start: Date, to end: Date) -> Bool {
         switch (visit.arrivalDate, visit.departureDate) {
-        case let (arrival?, departure?):
-            arrival < end && departure > start
-        case let (arrival?, nil):
-            arrival > start && arrival < end
-        case let (nil, departure?):
-            departure > start && departure < end
-        case (nil, nil):
-            false
+        case let (arrival?, departure?): arrival < end && departure > start
+        case let (arrival?, nil): arrival > start && arrival < end
+        case let (nil, departure?): departure > start && departure < end
+        case (nil, nil): false
         }
     }
 
@@ -164,14 +164,10 @@ nonisolated struct MovementSegmenter: MovementSegmenting {
         to end: Date
     ) -> Bool {
         let modes = motions
-            .filter { motionOverlaps($0, from: start, to: end) }
+            .filter { $0.startDate < end && ($0.endDate ?? end) > start }
             .sorted { $0.startDate < $1.startDate }
             .compactMap(travelMode)
-        return zip(modes, modes.dropFirst()).contains { pair in pair.0 != pair.1 }
-    }
-
-    private func motionOverlaps(_ motion: MotionEventData, from start: Date, to end: Date) -> Bool {
-        motion.startDate < end && (motion.endDate ?? end) > start
+        return zip(modes, modes.dropFirst()).contains { $0 != $1 }
     }
 
     private func travelMode(_ motion: MotionEventData) -> TravelMode? {
@@ -182,38 +178,6 @@ nonisolated struct MovementSegmenter: MovementSegmenting {
             return .walking
         }
         return nil
-    }
-
-    private func mergeShortChunks(_ chunks: inout [[LocationEventData]], across gaps: inout [GapCandidate]) {
-        var index = 0
-        while index < chunks.count {
-            guard let candidate = makeCandidate(chunks[index]), !isValid(candidate) else {
-                index += 1
-                continue
-            }
-            let leftGapIndex = index - 1
-            let rightGapIndex = index
-            let canMergeLeft = leftGapIndex >= 0 && gaps[leftGapIndex].reason == .motionTransition
-            let canMergeRight = rightGapIndex < gaps.count && gaps[rightGapIndex].reason == .motionTransition
-            guard canMergeLeft || canMergeRight else {
-                index += 1
-                continue
-            }
-
-            let shouldMergeLeft = canMergeLeft && (
-                !canMergeRight || gaps[leftGapIndex].durationSeconds <= gaps[rightGapIndex].durationSeconds
-            )
-            if shouldMergeLeft {
-                chunks[leftGapIndex].append(contentsOf: chunks[index])
-                chunks.remove(at: index)
-                gaps.remove(at: leftGapIndex)
-                index = max(0, leftGapIndex)
-            } else {
-                chunks[index].append(contentsOf: chunks[index + 1])
-                chunks.remove(at: index + 1)
-                gaps.remove(at: rightGapIndex)
-            }
-        }
     }
 
     private func makeCandidate(_ locations: [LocationEventData]) -> MovementSegmentCandidate? {

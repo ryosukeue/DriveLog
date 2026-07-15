@@ -62,7 +62,7 @@ struct MovementSegmenterTests {
         #expect(result.gaps.map(\.reason) == [.localDayBoundary])
     }
 
-    @Test("splits around a visit without duplicating boundaries")
+    @Test("keeps the route continuous across visits")
     func visitBoundary() {
         let points = boundaryPoints(gap: 120)
         let visits = [
@@ -72,11 +72,11 @@ struct MovementSegmenterTests {
 
         let result = segment(points, visits: visits)
 
-        #expect(result.segments.count == 2)
+        #expect(result.segments.count == 1)
         #expect(result.gaps.map(\.reason) == [.visit])
     }
 
-    @Test("splits automotive and walking transitions only with stop evidence")
+    @Test("keeps the route continuous across motion transitions")
     func motionTransitions() {
         let splitPoints = [
             location(distance: 0, seconds: 0),
@@ -133,8 +133,8 @@ struct MovementSegmenterTests {
         #expect(tooShort.discardedSegments.count == 1)
     }
 
-    @Test("merges a short chunk across the nearest motion boundary")
-    func mergesShortMotionChunk() {
+    @Test("does not create short chunks at motion boundaries")
+    func noShortMotionChunk() {
         let points = [
             location(distance: 0, seconds: 0),
             location(distance: 200, seconds: 60),
@@ -147,11 +147,9 @@ struct MovementSegmenterTests {
 
         let result = segment(points, motions: motions)
 
-        #expect(result.segments.map(\.locations) == [
-            Array(points[0 ... 2]), Array(points[3 ... 4])
-        ])
+        #expect(result.segments.map(\.locations) == [points])
         #expect(result.discardedSegments.isEmpty)
-        #expect(result.gaps.count == 1)
+        #expect(result.gaps.count == 2)
     }
 
     @Test("does not merge a short chunk across hard gaps")

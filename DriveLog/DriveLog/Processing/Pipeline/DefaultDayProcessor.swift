@@ -4,6 +4,19 @@ nonisolated struct DayProcessingResult: Sendable {
     let aggregate: DayAggregateData
     let movements: [MovementSegmentData]
     let stays: [StaySegmentData]
+    let locationDiagnostics: LocationProcessingDiagnostics?
+
+    init(
+        aggregate: DayAggregateData,
+        movements: [MovementSegmentData],
+        stays: [StaySegmentData],
+        locationDiagnostics: LocationProcessingDiagnostics? = nil
+    ) {
+        self.aggregate = aggregate
+        self.movements = movements
+        self.stays = stays
+        self.locationDiagnostics = locationDiagnostics
+    }
 }
 
 nonisolated protocol DayProcessing: Sendable {
@@ -49,6 +62,7 @@ nonisolated struct DefaultDayProcessor: DayProcessing {
         overrideMatcher = OverrideMatcher(rules: configuration.overrideMatching)
     }
 
+    // swiftlint:disable:next function_body_length
     func process(
         localDateKey: String,
         rawEvents: RawDayEvents,
@@ -105,7 +119,18 @@ nonisolated struct DefaultDayProcessor: DayProcessing {
             sourceRawRevision: rawRevision,
             generatedAt: generatedAt
         )
-        return DayProcessingResult(aggregate: aggregate, movements: movements, stays: automaticStays)
+        let diagnostics = LocationProcessingDiagnostics(
+            received: dayEvents.locations,
+            sanitized: sanitizedLocations,
+            segmentation: segmentation,
+            routePersistedPointCount: movements.reduce(0) { $0 + $1.route.count }
+        )
+        return DayProcessingResult(
+            aggregate: aggregate,
+            movements: movements,
+            stays: automaticStays,
+            locationDiagnostics: diagnostics
+        )
     }
 
     private func selectedLocations(
