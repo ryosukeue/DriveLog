@@ -75,6 +75,18 @@ swiftformat --lint .
 
 Do not claim that a command succeeded unless it was actually executed successfully.
 
+## Windows / Mac Operation
+
+Windows is an editing and Git-operation environment for this iOS app. Do not claim Xcode build, simulator, UI test, device install, CoreLocation, PhotoKit, or BackgroundTasks verification from Windows.
+
+Use feature branches for Windows work. Do not push directly to `main` from Windows. Push feature branches to the `nas` remote, then validate on Mac with:
+
+```powershell
+.\tools\windows\Invoke-MacValidation.ps1 -Branch <branch>
+```
+
+Mac remains responsible for Xcode build/test, simulator or device checks, merging to `main`, and pushing `main`. Do not edit the same branch concurrently on Mac and Windows. Do not modify signing, Developer Team, provisioning, bundle identifiers, or Apple credentials unless the current Issue explicitly requires it.
+
 ## Completion report
 
 Report:
