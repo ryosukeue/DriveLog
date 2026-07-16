@@ -3,3 +3,14 @@
 DerivedData/
 xcuserdata/
 *.xcuserstate
+*.xcresult
+*.log
+*.tmp
+Thumbs.db
+Desktop.ini
+.vscode/*.local.json
+.vscode/.ropeproject/
+.codex/tmp/
+.codex/cache/
+*.mobileprovision
+*.p12
