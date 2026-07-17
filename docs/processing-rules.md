@@ -5,6 +5,7 @@
 - Visit/Motion境界はStay検出と分類Evidenceに使用する。5分未満では、座標が連続するMovement routeの強制分割理由にはしない。
 - 5分以上かつ前後位置が150m以内、またはCLVisitが重なる区間はStay境界としてMovement routeを分割する。
 - 到着・出発が確定した5分以上のCLVisitでは、Visitへ入る最初の位置点を直前Movementの終点として保持し、Visit内の2点目以降はMovementから除外する。Visit後の最初の位置点から次Movementを開始する。
+- 到着のみまたは5分未満のVisitはStay候補のsoft gapには使用できるが、それだけを理由にMovement routeをhard splitしない。
 - 現地日付境界と90分以上の観測欠損もhard splitとする。大きな欠損は直線接続しない。
 - 30m route simplificationは維持し、各routeの始点/終点を保持する。簡略化前後の点数を診断する。
 - Mediaの500m閾値は関連Movement選択にだけ使用し、位置情報付きMedia Annotation自体の表示除外には使用しない。

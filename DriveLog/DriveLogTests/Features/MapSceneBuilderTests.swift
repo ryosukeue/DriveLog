@@ -104,20 +104,104 @@ struct MapSceneBuilderTests {
         #expect(scene.movementLabels.isEmpty)
         #expect(scene.initialRegion == nil)
     }
+
+    @Test("connects display route to nearby preceding and following stays")
+    func connectsNearbyStays() throws {
+        let route = [coordinateAtMeters(0), coordinateAtMeters(200)]
+        let movement = makeMovement(
+            route: route,
+            label: route[0],
+            start: 100,
+            duration: 100
+        )
+        let preceding = makeStay(
+            id: "preceding",
+            visible: true,
+            coordinate: coordinateAtMeters(-50),
+            arrival: 0,
+            duration: 98
+        )
+        let following = makeStay(
+            id: "following",
+            visible: true,
+            coordinate: coordinateAtMeters(250),
+            arrival: 202,
+            duration: 60
+        )
+
+        let scene = builder.build(
+            movements: [movement],
+            stays: [preceding, following],
+            media: []
+        )
+
+        let polyline = try #require(scene.polylines.first)
+        #expect(polyline.coordinates == [
+            preceding.representativeCoordinate,
+            route[0],
+            route[1],
+            following.representativeCoordinate
+        ])
+        #expect(scene.movementLabels.first?.distanceMeters == movement.distanceMeters)
+        #expect(scene.movementLabels.first?.durationSeconds == movement.durationSeconds)
+    }
+
+    @Test("does not connect display route to distant stale or hidden stays")
+    func rejectsUnsafeStayConnections() throws {
+        let route = [coordinateAtMeters(0), coordinateAtMeters(200)]
+        let movement = makeMovement(route: route, label: nil, start: 1000, duration: 100)
+        let distant = makeStay(
+            id: "distant",
+            visible: true,
+            coordinate: coordinateAtMeters(-151),
+            arrival: 900,
+            duration: 98
+        )
+        let stale = makeStay(
+            id: "stale",
+            visible: true,
+            coordinate: coordinateAtMeters(250),
+            arrival: 1401,
+            duration: 60
+        )
+        let hidden = makeStay(
+            id: "hidden",
+            visible: false,
+            coordinate: coordinateAtMeters(250),
+            arrival: 1102,
+            duration: 60
+        )
+
+        let scene = builder.build(
+            movements: [movement],
+            stays: [distant, stale, hidden],
+            media: []
+        )
+
+        let polyline = try #require(scene.polylines.first)
+        #expect(polyline.coordinates == route)
+    }
 }
 
 private func coordinate(_ latitude: Double, _ longitude: Double) -> RouteCoordinate {
     RouteCoordinate(latitude: latitude, longitude: longitude)
 }
 
+private func coordinateAtMeters(_ distance: Double) -> RouteCoordinate {
+    coordinate(0, distance / 6_371_000 * 180 / .pi)
+}
+
 private func makeMovement(
     route: [RouteCoordinate],
-    label: RouteCoordinate?
+    label: RouteCoordinate?,
+    start: TimeInterval = 0,
+    duration: TimeInterval = 60
 ) -> MovementSegmentData {
-    let date = Date(timeIntervalSince1970: 0)
+    let date = Date(timeIntervalSince1970: start)
     return MovementSegmentData(
         stableID: "movement", localDateKey: "2024-01-01", startDate: date,
-        endDate: date.addingTimeInterval(60), distanceMeters: 100, durationSeconds: 60,
+        endDate: date.addingTimeInterval(duration), distanceMeters: 100,
+        durationSeconds: duration,
         estimatedAverageSpeedMetersPerSecond: nil, automaticClassification: .other,
         classificationConfidence: .low, route: route, labelCoordinate: label,
         sourceRawRevision: 1, generatedAt: date
@@ -127,13 +211,15 @@ private func makeMovement(
 private func makeStay(
     id: String,
     visible: Bool,
-    coordinate: RouteCoordinate
+    coordinate: RouteCoordinate,
+    arrival: TimeInterval = 0,
+    duration: TimeInterval = 60
 ) -> StaySegmentData {
-    let date = Date(timeIntervalSince1970: 0)
+    let date = Date(timeIntervalSince1970: arrival)
     return StaySegmentData(
         stableID: id, localDateKey: "2024-01-01", representativeCoordinate: coordinate,
-        estimatedArrivalDate: date, estimatedDepartureDate: date.addingTimeInterval(60),
-        durationSeconds: 60, confidence: .medium, source: .combined,
+        estimatedArrivalDate: date, estimatedDepartureDate: date.addingTimeInterval(duration),
+        durationSeconds: duration, confidence: .medium, source: .combined,
         isVisibleByAutomaticRule: visible, sourceRawRevision: 1, generatedAt: date
     )
 }

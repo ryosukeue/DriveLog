@@ -117,10 +117,15 @@ nonisolated struct MovementSegmenter: MovementSegmenting {
         if interval >= segmentationRules.maximumContinuousGap {
             return .continuousGap
         }
-        let hasVisit = visits.contains(where: {
+        let overlappingVisits = visits.filter {
             visitOverlaps($0, from: start.timestamp, to: end.timestamp)
-        })
-        let hasStayEvidence = hasVisit || endpointsAreWithinStayRadius(from: start, to: end)
+        }
+        let hasVisit = !overlappingVisits.isEmpty
+        let hasConfirmedStayVisit = overlappingVisits.contains(where: isConfirmedStayVisit)
+        let hasStayEvidence = hasConfirmedStayVisit || endpointsAreWithinStayRadius(
+            from: start,
+            to: end
+        )
         if interval >= stayRules.automaticStayDuration, hasStayEvidence {
             return .stationaryStay
         }
@@ -154,6 +159,13 @@ nonisolated struct MovementSegmenter: MovementSegmenting {
         case let (nil, departure?): departure > start && departure < end
         case (nil, nil): false
         }
+    }
+
+    private func isConfirmedStayVisit(_ visit: VisitEventData) -> Bool {
+        guard let arrival = visit.arrivalDate,
+              let departure = visit.departureDate
+        else { return false }
+        return departure.timeIntervalSince(arrival) >= stayRules.automaticStayDuration
     }
 
     private func hasTravelModeTransition(

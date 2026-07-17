@@ -347,15 +347,46 @@ extension MovementSegmenterTests {
         let points = [
             location(distance: 0, seconds: 0),
             location(distance: 200, seconds: 60),
-            location(distance: 400, seconds: 360),
-            location(distance: 600, seconds: 420)
+            location(distance: 400, seconds: 420),
+            location(distance: 600, seconds: 480)
         ]
 
-        let result = segment(points, visits: [visit(arrival: 90, departure: 330)])
+        let result = segment(points, visits: [visit(arrival: 90, departure: 390)])
 
         #expect(result.segments.map(\.locations) == [
             Array(points[0 ... 1]), Array(points[2 ... 3])
         ])
         #expect(result.gaps.map(\.reason) == [.stationaryStay])
+    }
+
+    @Test("arrival-only visits do not discard movement around sparse observations")
+    func arrivalOnlyVisitsRemainContinuous() {
+        let points = [
+            location(distance: 0, seconds: 0),
+            location(distance: 200, seconds: 60),
+            location(distance: 12000, seconds: 1600),
+            location(distance: 12400, seconds: 1950),
+            location(distance: 12600, seconds: 2010)
+        ]
+        let visits = [openVisit(arrival: 1500), openVisit(arrival: 1900)]
+
+        let result = segment(points, visits: visits)
+
+        #expect(result.segments.map(\.locations) == [points])
+        #expect(result.discardedSegments.isEmpty)
+        #expect(result.gaps.map(\.reason) == [.visit, .visit])
+    }
+
+    private func openVisit(arrival: TimeInterval) -> VisitEventData {
+        VisitEventData(
+            latitude: 0,
+            longitude: 0,
+            arrivalDate: baseDate.addingTimeInterval(arrival),
+            departureDate: nil,
+            horizontalAccuracy: 10,
+            timeZoneIdentifier: "Asia/Tokyo",
+            utcOffsetSeconds: 32400,
+            localDateKey: "2024-01-01"
+        )
     }
 }

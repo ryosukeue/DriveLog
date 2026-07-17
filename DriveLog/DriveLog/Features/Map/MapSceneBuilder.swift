@@ -3,17 +3,20 @@ import Foundation
 nonisolated struct MapSceneBuilder: MapSceneBuilding {
     private let regionPaddingScale = 1.2
     private let minimumRegionDelta = 0.01
+    private let distanceCalculator = GeodesicDistanceCalculator()
+    private let stayRules = ProcessingConfiguration.mvp.stay
 
     func build(
         movements: [MovementSegmentData],
         stays: [StaySegmentData],
         media: [MediaPlacement]
     ) -> MapScene {
+        let visibleStays = stays.filter(\.isVisibleByAutomaticRule)
         let polylines = movements.compactMap { movement -> MapPolyline? in
             guard !movement.route.isEmpty else { return nil }
             return MapPolyline(
                 segmentStableID: movement.stableID,
-                coordinates: movement.route
+                coordinates: routeCoordinates(for: movement, visibleStays: visibleStays)
             )
         }
         let labels = movements.compactMap { movement -> MapMovementLabel? in
@@ -31,9 +34,8 @@ nonisolated struct MapSceneBuilder: MapSceneBuilding {
                 userClassification: nil
             )
         }
-        let stayAnnotations = stays.compactMap { stay -> MapStayAnnotation? in
-            guard stay.isVisibleByAutomaticRule else { return nil }
-            return MapStayAnnotation(
+        let stayAnnotations = visibleStays.map { stay in
+            MapStayAnnotation(
                 stayStableID: stay.stableID,
                 coordinate: stay.representativeCoordinate,
                 text: stayDurationText(seconds: stay.durationSeconds),
@@ -72,6 +74,92 @@ nonisolated struct MapSceneBuilder: MapSceneBuilding {
         let hours = totalMinutes / 60
         let minutes = totalMinutes % 60
         return hours > 0 ? "\(hours)時間\(minutes)分" : "\(minutes)分"
+    }
+
+    private func routeCoordinates(
+        for movement: MovementSegmentData,
+        visibleStays: [StaySegmentData]
+    ) -> [RouteCoordinate] {
+        guard !movement.route.isEmpty else { return [] }
+        var coordinates = movement.route
+        let sameDayStays = visibleStays.filter { $0.localDateKey == movement.localDateKey }
+        if let precedingStay = nearestStay(
+            in: sameDayStays,
+            referenceDate: movement.startDate,
+            date: \.estimatedDepartureDate,
+            connectingTo: coordinates[0]
+        ) {
+            coordinates = adding(
+                precedingStay.representativeCoordinate,
+                toStartOf: coordinates
+            )
+        }
+        if let followingStay = nearestStay(
+            in: sameDayStays,
+            referenceDate: movement.endDate,
+            date: \.estimatedArrivalDate,
+            connectingTo: movement.route[movement.route.count - 1]
+        ) {
+            coordinates = adding(
+                followingStay.representativeCoordinate,
+                toEndOf: coordinates
+            )
+        }
+        return coordinates
+    }
+
+    private func nearestStay(
+        in stays: [StaySegmentData],
+        referenceDate: Date,
+        date: KeyPath<StaySegmentData, Date>,
+        connectingTo endpoint: RouteCoordinate
+    ) -> StaySegmentData? {
+        stays
+            .filter {
+                abs($0[keyPath: date].timeIntervalSince(referenceDate)) <=
+                    stayRules.automaticStayDuration &&
+                    distance(from: $0.representativeCoordinate, to: endpoint) <=
+                    stayRules.stayRadius
+            }
+            .min {
+                let firstDifference = abs($0[keyPath: date].timeIntervalSince(referenceDate))
+                let secondDifference = abs($1[keyPath: date].timeIntervalSince(referenceDate))
+                if firstDifference == secondDifference {
+                    return $0.stableID < $1.stableID
+                }
+                return firstDifference < secondDifference
+            }
+    }
+
+    private func adding(
+        _ coordinate: RouteCoordinate,
+        toStartOf coordinates: [RouteCoordinate]
+    ) -> [RouteCoordinate] {
+        guard let first = coordinates.first,
+              distance(from: coordinate, to: first) <= stayRules.stayRadius
+        else { return coordinates }
+        guard distance(from: coordinate, to: first) > 1 else { return coordinates }
+        return [coordinate] + coordinates
+    }
+
+    private func adding(
+        _ coordinate: RouteCoordinate,
+        toEndOf coordinates: [RouteCoordinate]
+    ) -> [RouteCoordinate] {
+        guard let last = coordinates.last,
+              distance(from: last, to: coordinate) <= stayRules.stayRadius
+        else { return coordinates }
+        guard distance(from: last, to: coordinate) > 1 else { return coordinates }
+        return coordinates + [coordinate]
+    }
+
+    private func distance(from start: RouteCoordinate, to end: RouteCoordinate) -> Double {
+        distanceCalculator.meters(
+            fromLatitude: start.latitude,
+            longitude: start.longitude,
+            toLatitude: end.latitude,
+            longitude: end.longitude
+        )
     }
 
     private func initialRegion(coordinates: [RouteCoordinate]) -> MapRegion? {
