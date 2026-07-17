@@ -180,6 +180,7 @@ final class DriveLogUITests: XCTestCase {
 
         let back = app.buttons["map.back"]
         XCTAssertTrue(back.waitForExistence(timeout: 5))
+        XCTAssertTrue(back.isHittable)
         XCTAssertTrue(app.descendants(matching: .any)["map.currentLocation"].exists)
         let movement = app.descendants(matching: .any)["map.polyline"].firstMatch
         XCTAssertTrue(movement.waitForExistence(timeout: 5))
@@ -188,6 +189,8 @@ final class DriveLogUITests: XCTestCase {
             app.descendants(matching: .any)["map.movementCallout"].firstMatch
                 .waitForExistence(timeout: 5)
         )
+        XCTAssertTrue(back.exists)
+        XCTAssertTrue(back.isHittable)
 
         let stay = app.descendants(matching: .any)["map.stayAnnotation"].firstMatch
         XCTAssertTrue(stay.waitForExistence(timeout: 5))
@@ -197,6 +200,8 @@ final class DriveLogUITests: XCTestCase {
                 .waitForExistence(timeout: 5)
         )
         app.buttons["地図に戻る"].tap()
+        XCTAssertTrue(back.waitForExistence(timeout: 5))
+        XCTAssertTrue(back.isHittable)
 
         back.tap()
         XCTAssertTrue(preview.waitForExistence(timeout: 5))

@@ -1,21 +1,23 @@
 import SwiftUI
 
 struct FullRouteMapView: View {
-    @Environment(\.dismiss) private var dismiss
     @State private var viewModel: RouteMapViewModel
     @State private var userTrackingRequestID = 0
     @State private var selectedPlace: MapPlaceSelection?
     let thumbnailLoader: any LoadMediaThumbnailUseCase
     let onSelectMedia: (MediaAssetReference, [MediaAssetReference]) -> Void
+    let onBack: () -> Void
 
     init(
         viewModel: RouteMapViewModel,
         thumbnailLoader: any LoadMediaThumbnailUseCase,
-        onSelectMedia: @escaping (MediaAssetReference, [MediaAssetReference]) -> Void = { _, _ in }
+        onSelectMedia: @escaping (MediaAssetReference, [MediaAssetReference]) -> Void = { _, _ in },
+        onBack: @escaping () -> Void = {}
     ) {
         _viewModel = State(initialValue: viewModel)
         self.thumbnailLoader = thumbnailLoader
         self.onSelectMedia = onSelectMedia
+        self.onBack = onBack
     }
 
     var body: some View {
@@ -38,24 +40,11 @@ struct FullRouteMapView: View {
             )
             .ignoresSafeArea()
             accessibilityControls
-            VStack {
-                HStack {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.body.weight(.semibold))
-                            .frame(width: 44, height: 44)
-                            .background(.ultraThinMaterial, in: Circle())
-                    }
-                    .accessibilityLabel("日付ページに戻る")
-                    .accessibilityIdentifier("map.back")
-                    Spacer()
-                }
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
+        }
+        .overlay(alignment: .topLeading) {
+            mapBackButton
+                .padding(.leading, 12)
+                .padding(.top, 8)
         }
         .toolbar(.hidden, for: .navigationBar)
         .alert("滞在表示を更新できませんでした", isPresented: stayErrorBinding) {
@@ -65,6 +54,25 @@ struct FullRouteMapView: View {
             placeSheet(selection)
                 .presentationDetents([.medium, .large])
         }
+    }
+
+    private var mapBackButton: some View {
+        Button(action: onBack) {
+            Image(systemName: "chevron.left")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.primary)
+                .frame(width: 44, height: 44)
+                .background(.ultraThinMaterial, in: Circle())
+                .overlay {
+                    Circle()
+                        .stroke(.primary.opacity(0.08), lineWidth: 0.5)
+                }
+        }
+        .buttonStyle(.plain)
+        .contentShape(Circle())
+        .accessibilityLabel("日付ページに戻る")
+        .accessibilityIdentifier("map.back")
+        .zIndex(1)
     }
 
     private var accessibilityControls: some View {

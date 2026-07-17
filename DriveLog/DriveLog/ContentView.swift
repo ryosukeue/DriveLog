@@ -108,7 +108,8 @@ struct ContentView: View {
                     hapticFeedback: hapticFeedback
                 ),
                 thumbnailLoader: loadMediaThumbnail,
-                onSelectMedia: openMedia
+                onSelectMedia: openMedia,
+                onBack: closeTopDestination
             )
         case let .mediaPreview(_, assets, selectedIdentifier):
             MediaPreviewView(
@@ -154,6 +155,11 @@ struct ContentView: View {
         Task { @MainActor in
             await calendarViewModel.load()
         }
+    }
+
+    private func closeTopDestination() {
+        guard !detailPath.isEmpty else { return }
+        detailPath.removeLast()
     }
 }
 
