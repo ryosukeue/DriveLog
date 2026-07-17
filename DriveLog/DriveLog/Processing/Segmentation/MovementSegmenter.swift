@@ -90,40 +90,16 @@ nonisolated struct MovementSegmenter: MovementSegmenting {
             return MovementSegmentationResult(segments: [], gaps: [], discardedSegments: [])
         }
 
-        var chunks = [[first]]
-        var gaps: [GapCandidate] = []
-        for location in locations.accepted.dropFirst() {
-            guard let preceding = chunks.last?.last else {
-                continue
-            }
-            if let reason = boundaryReason(
-                from: preceding,
-                to: location,
-                motions: motions,
-                visits: visits
-            ) {
-                gaps.append(
-                    GapCandidate(
-                        precedingLocation: preceding,
-                        followingLocation: location,
-                        reason: reason
-                    )
-                )
-                switch reason {
-                case .continuousGap, .localDayBoundary, .stationaryStay:
-                    chunks.append([location])
-                case .visit, .motionTransition:
-                    chunks[chunks.count - 1].append(location)
-                }
-            } else {
-                chunks[chunks.count - 1].append(location)
-            }
-        }
-
-        let candidates = chunks.compactMap(makeCandidate)
+        let partition = partitionLocations(
+            first: first,
+            remaining: locations.accepted.dropFirst(),
+            motions: motions,
+            visits: visits
+        )
+        let candidates = partition.chunks.compactMap(makeCandidate)
         return MovementSegmentationResult(
             segments: candidates.filter(isValid),
-            gaps: gaps,
+            gaps: partition.gaps,
             discardedSegments: candidates.filter { !isValid($0) }
         )
     }
@@ -225,7 +201,170 @@ nonisolated struct MovementSegmenter: MovementSegmenting {
     }
 }
 
+private extension MovementSegmenter {
+    func partitionLocations(
+        first: LocationEventData,
+        remaining: ArraySlice<LocationEventData>,
+        motions: [MotionEventData],
+        visits: [VisitEventData]
+    ) -> MovementSegmentationPartition {
+        var result = MovementSegmentationPartition(first: first)
+        var previousLocation = first
+        var previousVisit = confirmedVisit(containing: first.timestamp, visits: visits)
+        for location in remaining {
+            let currentVisit = confirmedVisit(containing: location.timestamp, visits: visits)
+            let transitionsVisit = previousVisit != currentVisit &&
+                (previousVisit != nil || currentVisit != nil)
+            if let reason = fundamentalBoundaryReason(from: previousLocation, to: location) {
+                result.appendHardBoundary(from: previousLocation, to: location, reason: reason)
+            } else if transitionsVisit {
+                partitionAtConfirmedVisit(
+                    from: previousLocation,
+                    to: location,
+                    previousVisit: previousVisit,
+                    currentVisit: currentVisit,
+                    result: &result
+                )
+            } else if currentVisit == nil {
+                appendUsingStandardRules(
+                    from: previousLocation,
+                    to: location,
+                    motions: motions,
+                    visits: visits,
+                    result: &result
+                )
+            }
+            previousLocation = location
+            previousVisit = currentVisit
+        }
+        return result
+    }
+
+    func fundamentalBoundaryReason(
+        from start: LocationEventData,
+        to end: LocationEventData
+    ) -> SegmentationBoundaryReason? {
+        if start.localDateKey != end.localDateKey {
+            return .localDayBoundary
+        }
+        let interval = end.timestamp.timeIntervalSince(start.timestamp)
+        return interval >= segmentationRules.maximumContinuousGap ? .continuousGap : nil
+    }
+
+    func appendUsingStandardRules(
+        from start: LocationEventData,
+        to end: LocationEventData,
+        motions: [MotionEventData],
+        visits: [VisitEventData],
+        result: inout MovementSegmentationPartition
+    ) {
+        guard let reason = boundaryReason(
+            from: start,
+            to: end,
+            motions: motions,
+            visits: visits
+        ) else {
+            result.append(end)
+            return
+        }
+        result.gaps.append(GapCandidate(
+            precedingLocation: start,
+            followingLocation: end,
+            reason: reason
+        ))
+        switch reason {
+        case .continuousGap, .localDayBoundary, .stationaryStay:
+            result.chunks.append([end])
+        case .visit, .motionTransition:
+            result.append(end)
+        }
+    }
+
+    func partitionAtConfirmedVisit(
+        from start: LocationEventData,
+        to end: LocationEventData,
+        previousVisit: ConfirmedVisitInterval?,
+        currentVisit: ConfirmedVisitInterval?,
+        result: inout MovementSegmentationPartition
+    ) {
+        switch (previousVisit, currentVisit) {
+        case (nil, let visit?):
+            result.append(end)
+            result.appendStayGap(from: start, to: end, visit: visit)
+        case (let visit?, nil):
+            result.chunks.append([end])
+            result.appendStayGap(from: start, to: end, visit: visit)
+        case let (previous?, _?):
+            result.chunks.append([end])
+            result.appendStayGap(from: start, to: end, visit: previous)
+        case (nil, nil):
+            result.append(end)
+        }
+    }
+
+    func confirmedVisit(
+        containing date: Date,
+        visits: [VisitEventData]
+    ) -> ConfirmedVisitInterval? {
+        visits.compactMap { visit -> ConfirmedVisitInterval? in
+            guard let arrival = visit.arrivalDate,
+                  let departure = visit.departureDate,
+                  departure.timeIntervalSince(arrival) >= stayRules.automaticStayDuration,
+                  arrival <= date,
+                  date <= departure
+            else { return nil }
+            return ConfirmedVisitInterval(arrival: arrival, departure: departure)
+        }.min { $0.arrival < $1.arrival }
+    }
+}
+
+private nonisolated struct MovementSegmentationPartition {
+    var chunks: [[LocationEventData]]
+    var gaps: [GapCandidate] = []
+    var recordedVisits: [ConfirmedVisitInterval] = []
+
+    init(first: LocationEventData) {
+        chunks = [[first]]
+    }
+
+    mutating func append(_ location: LocationEventData) {
+        chunks[chunks.count - 1].append(location)
+    }
+
+    mutating func appendHardBoundary(
+        from start: LocationEventData,
+        to end: LocationEventData,
+        reason: SegmentationBoundaryReason
+    ) {
+        gaps.append(GapCandidate(
+            precedingLocation: start,
+            followingLocation: end,
+            reason: reason
+        ))
+        chunks.append([end])
+    }
+
+    mutating func appendStayGap(
+        from start: LocationEventData,
+        to end: LocationEventData,
+        visit: ConfirmedVisitInterval
+    ) {
+        guard !recordedVisits.contains(visit) else { return }
+        gaps.append(GapCandidate(
+            precedingLocation: start,
+            followingLocation: end,
+            reason: .stationaryStay
+        ))
+        recordedVisits.append(visit)
+    }
+}
+
 private nonisolated enum TravelMode {
     case automotive
     case walking
+}
+
+private nonisolated struct ConfirmedVisitInterval: Equatable {
+    let arrival: Date
+    let departure: Date
 }

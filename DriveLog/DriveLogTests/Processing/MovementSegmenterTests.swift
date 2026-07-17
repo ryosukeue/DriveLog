@@ -261,6 +261,40 @@ struct MovementSegmenterTests {
 }
 
 extension MovementSegmenterTests {
+    @Test("keeps the arrival endpoint and excludes locations inside a confirmed stay")
+    func confirmedVisitPartitionsMovement() {
+        let points = [
+            location(distance: 0, seconds: 0),
+            location(distance: 3000, seconds: 600),
+            location(distance: 3010, seconds: 900),
+            location(distance: 3020, seconds: 1800),
+            location(distance: 6000, seconds: 2400)
+        ]
+
+        let result = segment(points, visits: [visit(arrival: 590, departure: 1700)])
+
+        #expect(result.segments.map(\.locations) == [
+            Array(points[0 ... 1]), Array(points[3 ... 4])
+        ])
+        #expect(result.gaps.map(\.reason) == [.stationaryStay])
+        #expect(result.discardedSegments.isEmpty)
+    }
+
+    @Test("does not partition locations for a visit shorter than five minutes")
+    func shortVisitRemainsContinuous() {
+        let points = [
+            location(distance: 0, seconds: 0),
+            location(distance: 200, seconds: 60),
+            location(distance: 210, seconds: 180),
+            location(distance: 400, seconds: 300)
+        ]
+
+        let result = segment(points, visits: [visit(arrival: 50, departure: 290)])
+
+        #expect(result.segments.map(\.locations) == [points])
+        #expect(result.gaps.map(\.reason) == [.visit, .visit, .visit])
+    }
+
     @Test("splits movement around a five minute stationary stay")
     func fiveMinuteStationaryStay() {
         let points = [
