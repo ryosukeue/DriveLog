@@ -331,6 +331,8 @@ rawRevision > processedRevision
 
 処理中に中断された場合も、派生データを途中状態で確定させない。日付単位で全処理が成功した後に、派生データと`processedRevision`をまとめて更新する。
 
+`processing`はプロセスをまたぐLockとして扱わない。アプリ終了やOSによる中断で`processing`のまま残っても、`rawRevision > processedRevision`なら次回のForeground fallbackまたはBackground処理で再試行対象とする。同一プロセス内の重複実行は`DayProcessingGate`でまとめる。
+
 ## 8. 位置情報記録フロー
 
 ```text

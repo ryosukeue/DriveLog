@@ -14,7 +14,11 @@ extension PersistenceActor {
         )
         return try modelContext.fetch(descriptor).filter { state in
             state.rawRevision > state.processedRevision &&
-                (state.statusRawValue == "pending" || state.statusRawValue == "failed")
+                (
+                    state.statusRawValue == "pending" ||
+                        state.statusRawValue == "processing" ||
+                        state.statusRawValue == "failed"
+                )
         }.map(\.localDateKey)
     }
 

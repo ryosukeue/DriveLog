@@ -76,7 +76,7 @@ struct ProcessingStateRepositoryTests {
         #expect(try await repository.pendingDateKeys() == ["2024-01-01"])
     }
 
-    @Test("returns only processable pending and failed dates in order")
+    @Test("returns incomplete pending processing and failed dates in order")
     func pendingDateKeys() async throws {
         let repository = try makeRepository()
         _ = try await repository.state(for: "2024-01-00")
@@ -86,7 +86,21 @@ struct ProcessingStateRepositoryTests {
         _ = try await repository.markProcessing(localDateKey: "2024-01-02", attemptedAt: now)
         try await repository.markFailed(localDateKey: "2024-01-03", code: "retry", failedAt: now)
 
-        #expect(try await repository.pendingDateKeys() == ["2024-01-01", "2024-01-03"])
+        try await repository.markDirty(localDateKey: "2024-01-04")
+        let completedRevision = try await repository.markProcessing(
+            localDateKey: "2024-01-04",
+            attemptedAt: now
+        )
+        try await repository.markCompleted(
+            localDateKey: "2024-01-04",
+            processedRevision: completedRevision.rawRevision,
+            completedAt: now
+        )
+        _ = try await repository.markProcessing(localDateKey: "2024-01-04", attemptedAt: now)
+
+        #expect(try await repository.pendingDateKeys() == [
+            "2024-01-01", "2024-01-02", "2024-01-03"
+        ])
     }
 
     @Test("deletes only the requested state and tolerates a repeated delete")

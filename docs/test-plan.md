@@ -12,6 +12,7 @@
 - Stay縮小時のCluster化と、Stay/Media/両方の共通場所Popup選択をTestする。
 - 詳細統計UIは存在せず、基本Summary/Map/MediaをTestする。
 - Calendarは縦Scroll、月window遅延追加、年境界、一意なAccessibility label、記録なし日無効化をTestする。旧左右Swipe月移動Testは適用しない。
+- アプリ終了などで`processing`のまま残った未完了世代が次回の再処理候補へ戻り、世代一致済みの日は戻らないことをSwiftData Integration Testする。
 
 ## 1. 目的
 
