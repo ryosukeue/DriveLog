@@ -11,20 +11,25 @@ final class AppLifecycleCoordinator: AppLifecycleCoordinating {
     private let startMonitoringUseCase: StartMonitoringUseCase
     private let dayProcessingCoordinator: any DayProcessingCoordinating
     private let backgroundTaskScheduler: any BackgroundTaskScheduling
+    private let processingAlgorithmMigrator: any ProcessingAlgorithmMigrating
 
     init(
         permissionManager: any PermissionManaging,
         startMonitoringUseCase: StartMonitoringUseCase,
         dayProcessingCoordinator: any DayProcessingCoordinating,
-        backgroundTaskScheduler: any BackgroundTaskScheduling
+        backgroundTaskScheduler: any BackgroundTaskScheduling,
+        processingAlgorithmMigrator: any ProcessingAlgorithmMigrating =
+            NoOpProcessingAlgorithmMigrator()
     ) {
         self.permissionManager = permissionManager
         self.startMonitoringUseCase = startMonitoringUseCase
         self.dayProcessingCoordinator = dayProcessingCoordinator
         self.backgroundTaskScheduler = backgroundTaskScheduler
+        self.processingAlgorithmMigrator = processingAlgorithmMigrator
     }
 
     func handleLaunch() async {
+        await processingAlgorithmMigrator.migrateIfNeeded()
         try? backgroundTaskScheduler.registerProcessingTask()
         await refreshPermissionsAndMonitoring()
     }

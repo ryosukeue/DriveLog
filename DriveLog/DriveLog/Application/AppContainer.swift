@@ -171,11 +171,16 @@ final class AppContainer {
         let backgroundScheduler = SystemBackgroundTaskScheduler { task in
             backgroundCoordinator.handle(task: task)
         }
+        let processingAlgorithmMigrator = DefaultProcessingAlgorithmMigrator(
+            stateInvalidator: stateRepository,
+            versionStore: UserDefaultsAlgorithmVersionStore()
+        )
         return AppLifecycleCoordinator(
             permissionManager: permissionManager,
             startMonitoringUseCase: startMonitoring,
             dayProcessingCoordinator: dayProcessing,
-            backgroundTaskScheduler: backgroundScheduler
+            backgroundTaskScheduler: backgroundScheduler,
+            processingAlgorithmMigrator: processingAlgorithmMigrator
         )
     }
 

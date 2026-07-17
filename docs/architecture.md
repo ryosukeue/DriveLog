@@ -333,6 +333,8 @@ rawRevision > processedRevision
 
 `processing`はプロセスをまたぐLockとして扱わない。アプリ終了やOSによる中断で`processing`のまま残っても、`rawRevision > processedRevision`なら次回のForeground fallbackまたはBackground処理で再試行対象とする。同一プロセス内の重複実行は`DayProcessingGate`でまとめる。
 
+Processing Algorithmの互換性Versionは端末内Preferenceへ整数だけを保存する。Version更新時は完了済み日の`processedRevision`を1世代戻して`pending`へし、既存Raw Eventと派生データを残したまま日別再処理へ渡す。Invalidationの保存に成功するまでVersionを進めず、再処理結果は従来どおり日付単位で原子的に置換する。
+
 ## 8. 位置情報記録フロー
 
 ```text

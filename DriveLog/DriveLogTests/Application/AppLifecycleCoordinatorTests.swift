@@ -18,6 +18,7 @@ struct AppLifecycleCoordinatorTests {
         #expect(fixture.dayProcessing.pendingLimits == [1])
         #expect(fixture.backgroundTasks.registrationCount == 1)
         #expect(fixture.backgroundTasks.requirements.isEmpty)
+        #expect(fixture.processingAlgorithmMigrator.migrationCount == 1)
     }
 
     @Test("foreground refreshes permissions and rechecks active monitoring")
@@ -33,6 +34,7 @@ struct AppLifecycleCoordinatorTests {
         #expect(fixture.visit.callCounts().start == 1)
         #expect(fixture.dayProcessing.pendingLimits == [1, 1])
         #expect(fixture.backgroundTasks.registrationCount == 1)
+        #expect(fixture.processingAlgorithmMigrator.migrationCount == 1)
     }
 
     @Test("foreground retries monitoring after a launch failure")
@@ -100,6 +102,7 @@ private struct Fixture {
     let motion = FakeMotionProvider()
     let visit = FakeVisitProvider()
     let dayProcessing = LifecycleProcessingCoordinatorFake()
+    let processingAlgorithmMigrator = LifecycleProcessingAlgorithmMigratorFake()
     let backgroundTasks: LifecycleBackgroundTaskSchedulerFake
     let storageCoordinator: RawEventStorageCoordinator
     let coordinator: AppLifecycleCoordinator
@@ -126,8 +129,21 @@ private struct Fixture {
                 logger: logger
             ),
             dayProcessingCoordinator: dayProcessing,
-            backgroundTaskScheduler: backgroundTasks
+            backgroundTaskScheduler: backgroundTasks,
+            processingAlgorithmMigrator: processingAlgorithmMigrator
         )
+    }
+}
+
+private final class LifecycleProcessingAlgorithmMigratorFake: ProcessingAlgorithmMigrating, @unchecked Sendable {
+    private let storage = OSAllocatedUnfairLock(initialState: 0)
+
+    var migrationCount: Int {
+        storage.withLock { $0 }
+    }
+
+    func migrateIfNeeded() async {
+        storage.withLock { $0 += 1 }
     }
 }
 

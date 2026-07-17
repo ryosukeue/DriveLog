@@ -18,6 +18,10 @@ nonisolated protocol ProcessingStateRepository: Sendable {
     func deleteState(for localDateKey: String) async throws
 }
 
+nonisolated protocol ProcessingStateInvalidating: Sendable {
+    func invalidateProcessedDaysForAlgorithmUpdate() async throws
+}
+
 nonisolated struct SwiftDataProcessingStateRepository: ProcessingStateRepository {
     private let persistenceActor: PersistenceActor
     private let clock: any Clock
@@ -104,6 +108,18 @@ nonisolated struct SwiftDataProcessingStateRepository: ProcessingStateRepository
             try await persistenceActor.deleteProcessingState(for: localDateKey)
         } catch {
             throw DriveLogError.persistenceFailure(code: "delete_processing_state")
+        }
+    }
+}
+
+extension SwiftDataProcessingStateRepository: ProcessingStateInvalidating {
+    func invalidateProcessedDaysForAlgorithmUpdate() async throws {
+        do {
+            try await persistenceActor.invalidateProcessedDaysForAlgorithmUpdate(
+                updatedAt: clock.now
+            )
+        } catch {
+            throw DriveLogError.persistenceFailure(code: "invalidate_processing_algorithm")
         }
     }
 }

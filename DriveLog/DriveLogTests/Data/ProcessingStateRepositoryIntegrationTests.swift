@@ -117,6 +117,34 @@ struct ProcessingStateRepositoryTests {
         #expect(recreated.rawRevision == 0)
     }
 
+    @Test("invalidates completed days without changing an already incomplete day")
+    func algorithmInvalidation() async throws {
+        let repository = try makeRepository()
+        try await repository.markDirty(localDateKey: "2024-01-01")
+        let completedRevision = try await repository.markProcessing(
+            localDateKey: "2024-01-01",
+            attemptedAt: now
+        )
+        try await repository.markCompleted(
+            localDateKey: "2024-01-01",
+            processedRevision: completedRevision.rawRevision,
+            completedAt: now
+        )
+        try await repository.markDirty(localDateKey: "2024-01-02")
+        try await repository.markDirty(localDateKey: "2024-01-02")
+
+        try await repository.invalidateProcessedDaysForAlgorithmUpdate()
+
+        let invalidated = try await repository.state(for: "2024-01-01")
+        let alreadyIncomplete = try await repository.state(for: "2024-01-02")
+        #expect(invalidated.rawRevision == 1)
+        #expect(invalidated.processedRevision == 0)
+        #expect(invalidated.status == .pending)
+        #expect(alreadyIncomplete.rawRevision == 2)
+        #expect(alreadyIncomplete.processedRevision == 0)
+        #expect(try await repository.pendingDateKeys() == ["2024-01-01", "2024-01-02"])
+    }
+
     private func makeRepository() throws -> SwiftDataProcessingStateRepository {
         let container = try DriveLogModelContainerFactory.make(isStoredInMemoryOnly: true)
         return SwiftDataProcessingStateRepository(

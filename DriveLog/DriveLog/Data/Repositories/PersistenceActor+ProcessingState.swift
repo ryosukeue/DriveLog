@@ -31,6 +31,24 @@ extension PersistenceActor {
         try modelContext.save()
     }
 
+    func invalidateProcessedDaysForAlgorithmUpdate(updatedAt: Date) throws {
+        let states = try modelContext.fetch(FetchDescriptor<DayProcessingStateModel>())
+        let completedStates = states.filter {
+            $0.rawRevision > 0 && $0.rawRevision == $0.processedRevision
+        }
+        var changed = false
+        for state in completedStates {
+            state.processedRevision = max(0, state.processedRevision - 1)
+            state.statusRawValue = "pending"
+            state.lastErrorCode = nil
+            state.updatedAt = updatedAt
+            changed = true
+        }
+        if changed {
+            try modelContext.save()
+        }
+    }
+
     func markProcessing(
         localDateKey: String,
         attemptedAt: Date
