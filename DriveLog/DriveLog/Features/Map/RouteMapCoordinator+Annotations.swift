@@ -204,6 +204,7 @@ extension RouteMapCoordinator {
             text: annotation.labelText ?? "",
             isSelected: annotation.id == selectedStayID
         )
+        view.setStayEmphasized(isStayEmphasized(annotation.relatedStays))
         view.clusteringIdentifier = "stay"
         view.collisionMode = .rectangle
         view.displayPriority = .defaultHigh
@@ -261,6 +262,7 @@ extension RouteMapCoordinator {
             staySummary: staySummary(annotation.relatedStays),
             thumbnailLoader: thumbnailLoader
         )
+        view.setStayEmphasized(isStayEmphasized(annotation.relatedStays))
         view.clusteringIdentifier = "media"
         view.collisionMode = .rectangle
         view.displayPriority = .required
@@ -287,6 +289,7 @@ extension RouteMapCoordinator {
             staySummary: staySummary(uniqueStays(in: members)),
             thumbnailLoader: thumbnailLoader
         )
+        view.setStayEmphasized(isStayEmphasized(uniqueStays(in: members)))
         view.accessibilityLabel = "\(members.count)件の写真と動画" +
             (staySummary(uniqueStays(in: members)).map { "、\($0)" } ?? "")
         return view
@@ -310,7 +313,69 @@ extension RouteMapCoordinator {
             text: staySummary(uniqueStays(in: members)) ?? "滞在",
             isSelected: false
         )
+        view.setStayEmphasized(isStayEmphasized(uniqueStays(in: members)))
         view.accessibilityIdentifier = "map.stayCluster"
         return view
+    }
+
+    func isStayEmphasized(_ stays: [MapStayAnnotation]) -> Bool {
+        guard !stays.isEmpty,
+              let selectedSegmentID,
+              let movement = renderedScene?.movementLabels.first(where: {
+                  $0.segmentStableID == selectedSegmentID
+              })
+        else { return true }
+        let tolerance = ProcessingConfiguration.mvp.stay.automaticStayDuration
+        let relatedInterval = DateInterval(
+            start: movement.startDate.addingTimeInterval(-tolerance),
+            end: movement.endDate.addingTimeInterval(tolerance)
+        )
+        return stays.contains { stay in
+            stay.departureDate >= relatedInterval.start &&
+                stay.arrivalDate <= relatedInterval.end
+        }
+    }
+
+    func updateStayEmphasis(in mapView: MKMapView) {
+        for annotation in mapView.annotations {
+            if let point = annotation as? RouteMapPointAnnotation {
+                updateStayEmphasis(for: point, in: mapView)
+            } else if let cluster = annotation as? MKClusterAnnotation {
+                updateStayEmphasis(for: cluster, in: mapView)
+            }
+        }
+    }
+
+    private func updateStayEmphasis(
+        for annotation: RouteMapPointAnnotation,
+        in mapView: MKMapView
+    ) {
+        let isEmphasized = isStayEmphasized(annotation.relatedStays)
+        switch mapView.view(for: annotation) {
+        case let view as RouteMapStayAnnotationView:
+            view.setStayEmphasized(isEmphasized)
+        case let view as RouteMapMediaAnnotationView:
+            view.setStayEmphasized(isEmphasized)
+        default:
+            break
+        }
+    }
+
+    private func updateStayEmphasis(
+        for annotation: MKClusterAnnotation,
+        in mapView: MKMapView
+    ) {
+        let members = annotation.memberAnnotations.compactMap {
+            $0 as? RouteMapPointAnnotation
+        }
+        let isEmphasized = isStayEmphasized(uniqueStays(in: members))
+        switch mapView.view(for: annotation) {
+        case let view as RouteMapStayAnnotationView:
+            view.setStayEmphasized(isEmphasized)
+        case let view as RouteMapMediaAnnotationView:
+            view.setStayEmphasized(isEmphasized)
+        default:
+            break
+        }
     }
 }

@@ -45,6 +45,7 @@ extension RouteMapCoordinator {
         selectedStayID = nil
         updatePolylineSelection(in: mapView)
         updateMovementCallout(in: mapView)
+        updateStayEmphasis(in: mapView)
         updateStaySelection(in: mapView)
         updateStayCallout(in: mapView)
         onTapEmpty()
@@ -62,6 +63,7 @@ extension RouteMapCoordinator {
             selectedSegmentID = stableID
             updatePolylineSelection(in: mapView)
             updateMovementCallout(in: mapView)
+            updateStayEmphasis(in: mapView)
             onSelectSegment(stableID)
             return true
         }

@@ -47,6 +47,7 @@ class RouteMapMediaAnnotationView: MKAnnotationView {
     private var thumbnailTask: Task<Void, Never>?
     private(set) var displayedCountText: String?
     private(set) var displayedStayText: String?
+    private(set) var isStayEmphasized = true
 
     override init(annotation: (any MKAnnotation)?, reuseIdentifier: String?) {
         super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
@@ -98,6 +99,7 @@ class RouteMapMediaAnnotationView: MKAnnotationView {
         imageView.image = nil
         displayedCountText = nil
         displayedStayText = nil
+        setStayEmphasized(true)
     }
 
     func configure(
@@ -118,6 +120,7 @@ class RouteMapMediaAnnotationView: MKAnnotationView {
         countLabel.isHidden = displayedCountText == nil
         stayLabel.text = staySummary
         stayLabel.isHidden = staySummary == nil
+        setStayEmphasized(true)
         layoutPills()
         let kind = mediaType == .video ? "動画" : "写真"
         let countDescription = memberCount > 1 ? "、\(memberCount)件" : ""
@@ -141,6 +144,11 @@ class RouteMapMediaAnnotationView: MKAnnotationView {
                 self?.imageView.image = UIImage(systemName: "photo.badge.exclamationmark")
             }
         }
+    }
+
+    func setStayEmphasized(_ isEmphasized: Bool) {
+        isStayEmphasized = isEmphasized
+        stayLabel.alpha = isEmphasized ? 1 : 0.22
     }
 
     private func configurePill(
@@ -190,6 +198,7 @@ final class RouteMapMediaClusterAnnotationView: RouteMapMediaAnnotationView {
 
 class RouteMapStayAnnotationView: MKAnnotationView {
     private let label = UILabel()
+    private(set) var isStayEmphasized = true
 
     override init(annotation: (any MKAnnotation)?, reuseIdentifier: String?) {
         super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
@@ -219,6 +228,11 @@ class RouteMapStayAnnotationView: MKAnnotationView {
         label.layer.borderWidth = isSelected ? 4 : 1
         accessibilityLabel = "滞在 \(text)"
         accessibilityIdentifier = "map.stayAnnotation"
+    }
+
+    func setStayEmphasized(_ isEmphasized: Bool) {
+        isStayEmphasized = isEmphasized
+        alpha = isEmphasized ? 1 : 0.22
     }
 }
 

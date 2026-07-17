@@ -10,6 +10,7 @@
 - Stay Calloutは「滞在として確定」「非表示」「自動判定へ戻す」を持つ。
 - Day Detailは地図、距離、移動時間、開始/終了、Mediaを中心とし、詳細統計Sectionを持たない。
 - 位置情報付きMediaは角丸Thumbnail Annotationとして表示し、動画Badge、Cluster、fallback、Preview遷移を持つ。位置情報なしMediaはGridだけに表示する。
+- Movement選択中は経路端点付近のStayを維持し、無関係なStay時間表示を減光する。Media Thumbnail自体は減光しない。
 
 ## 1. 目的
 

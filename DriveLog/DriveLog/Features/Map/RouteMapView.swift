@@ -247,6 +247,7 @@ final class RouteMapCoordinator: NSObject, MKMapViewDelegate, UIGestureRecognize
             selectedSegmentID = interaction.selectedSegmentID
             updatePolylineSelection(in: mapView)
             updateMovementCallout(in: mapView)
+            updateStayEmphasis(in: mapView)
         }
         if selectedStayID != interaction.selectedStayID {
             selectedStayID = interaction.selectedStayID
