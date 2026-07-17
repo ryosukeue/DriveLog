@@ -2,8 +2,9 @@
 
 ## 実機Polyline診断の補足（2026-07-15）
 
-- Visit/Motion境界はStay検出と分類Evidenceに使用するが、座標が連続するMovement routeの強制分割理由にはしない。
-- hard splitは現地日付境界と90分以上の観測欠損とする。大きな欠損は直線接続しない。
+- Visit/Motion境界はStay検出と分類Evidenceに使用する。5分未満では、座標が連続するMovement routeの強制分割理由にはしない。
+- 5分以上かつ前後位置が150m以内、またはCLVisitが重なる区間はStay境界としてMovement routeを分割する。
+- 現地日付境界と90分以上の観測欠損もhard splitとする。大きな欠損は直線接続しない。
 - 30m route simplificationは維持し、各routeの始点/終点を保持する。簡略化前後の点数を診断する。
 - Mediaの500m閾値は関連Movement選択にだけ使用し、位置情報付きMedia Annotation自体の表示除外には使用しない。
 - 診断は件数、時間間隔bucket、精度bucket、除外/gap理由だけを扱い、座標やIdentifierを記録しない。

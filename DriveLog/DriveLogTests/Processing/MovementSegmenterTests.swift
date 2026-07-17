@@ -259,3 +259,69 @@ struct MovementSegmenterTests {
         )
     }
 }
+
+extension MovementSegmenterTests {
+    @Test("splits movement around a five minute stationary stay")
+    func fiveMinuteStationaryStay() {
+        let points = [
+            location(distance: 0, seconds: 0),
+            location(distance: 200, seconds: 60),
+            location(distance: 210, seconds: 360),
+            location(distance: 410, seconds: 420)
+        ]
+
+        let result = segment(points)
+
+        #expect(result.segments.map(\.locations) == [
+            Array(points[0 ... 1]), Array(points[2 ... 3])
+        ])
+        #expect(result.gaps.map(\.reason) == [.stationaryStay])
+    }
+
+    @Test("does not infer a stationary stay below five minutes")
+    func belowFiveMinuteStay() {
+        let points = [
+            location(distance: 0, seconds: 0),
+            location(distance: 200, seconds: 60),
+            location(distance: 210, seconds: 359),
+            location(distance: 410, seconds: 419)
+        ]
+
+        let result = segment(points)
+
+        #expect(result.segments.map(\.locations) == [points])
+        #expect(result.gaps.isEmpty)
+    }
+
+    @Test("does not infer a stay from a distant five minute location gap")
+    func distantFiveMinuteGap() {
+        let points = [
+            location(distance: 0, seconds: 0),
+            location(distance: 200, seconds: 60),
+            location(distance: 400, seconds: 360),
+            location(distance: 600, seconds: 420)
+        ]
+
+        let result = segment(points)
+
+        #expect(result.segments.map(\.locations) == [points])
+        #expect(result.gaps.isEmpty)
+    }
+
+    @Test("a five minute visit splits even when endpoints are distant")
+    func fiveMinuteVisit() {
+        let points = [
+            location(distance: 0, seconds: 0),
+            location(distance: 200, seconds: 60),
+            location(distance: 400, seconds: 360),
+            location(distance: 600, seconds: 420)
+        ]
+
+        let result = segment(points, visits: [visit(arrival: 90, departure: 330)])
+
+        #expect(result.segments.map(\.locations) == [
+            Array(points[0 ... 1]), Array(points[2 ... 3])
+        ])
+        #expect(result.gaps.map(\.reason) == [.stationaryStay])
+    }
+}

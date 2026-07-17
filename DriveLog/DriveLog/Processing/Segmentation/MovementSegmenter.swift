@@ -56,6 +56,7 @@ nonisolated struct GapCandidate: Sendable, Equatable {
 nonisolated enum SegmentationBoundaryReason: Sendable, Equatable {
     case continuousGap
     case localDayBoundary
+    case stationaryStay
     case visit
     case motionTransition
 }
@@ -63,6 +64,7 @@ nonisolated enum SegmentationBoundaryReason: Sendable, Equatable {
 nonisolated struct MovementSegmenter: MovementSegmenting {
     private let segmentationRules: SegmentationRules
     private let stayRules: StayRules
+    private let distanceCalculator: GeodesicDistanceCalculator
     private let metricsCalculator: MovementMetricsCalculator
 
     init(
@@ -72,6 +74,7 @@ nonisolated struct MovementSegmenter: MovementSegmenting {
     ) {
         self.segmentationRules = segmentationRules
         self.stayRules = stayRules
+        self.distanceCalculator = distanceCalculator
         metricsCalculator = MovementMetricsCalculator(
             rules: segmentationRules,
             distanceCalculator: distanceCalculator
@@ -107,7 +110,7 @@ nonisolated struct MovementSegmenter: MovementSegmenting {
                     )
                 )
                 switch reason {
-                case .continuousGap, .localDayBoundary:
+                case .continuousGap, .localDayBoundary, .stationaryStay:
                     chunks.append([location])
                 case .visit, .motionTransition:
                     chunks[chunks.count - 1].append(location)
@@ -138,7 +141,14 @@ nonisolated struct MovementSegmenter: MovementSegmenting {
         if interval >= segmentationRules.maximumContinuousGap {
             return .continuousGap
         }
-        if visits.contains(where: { visitOverlaps($0, from: start.timestamp, to: end.timestamp) }) {
+        let hasVisit = visits.contains(where: {
+            visitOverlaps($0, from: start.timestamp, to: end.timestamp)
+        })
+        let hasStayEvidence = hasVisit || endpointsAreWithinStayRadius(from: start, to: end)
+        if interval >= stayRules.automaticStayDuration, hasStayEvidence {
+            return .stationaryStay
+        }
+        if hasVisit {
             return .visit
         }
         let hasSupportedMotionTransition = interval >= stayRules.minimumStayDuration &&
@@ -147,6 +157,18 @@ nonisolated struct MovementSegmenter: MovementSegmenting {
             return .motionTransition
         }
         return nil
+    }
+
+    private func endpointsAreWithinStayRadius(
+        from start: LocationEventData,
+        to end: LocationEventData
+    ) -> Bool {
+        distanceCalculator.meters(
+            fromLatitude: start.latitude,
+            longitude: start.longitude,
+            toLatitude: end.latitude,
+            longitude: end.longitude
+        ) <= stayRules.stayRadius + stayRules.stayRadius * 1e-12
     }
 
     private func visitOverlaps(_ visit: VisitEventData, from start: Date, to end: Date) -> Bool {
