@@ -35,6 +35,9 @@ nonisolated struct OSLogLogger: Logging {
             logger.log(level: level, "Location event rejected. reasonCode: \(reasonCode, privacy: .private)")
         case let .locationRecordingModeChanged(modeCode):
             logger.log(level: level, "Location recording mode changed. mode: \(modeCode, privacy: .private)")
+        case let .locationRecordingModeChangeFailed(modeCode, reasonCode):
+            logger.log(level: level, "Location recording mode change failed. mode: \(modeCode, privacy: .private)")
+            logger.log(level: level, "Location mode change failure reason: \(reasonCode, privacy: .private)")
         case let .locationAcquisitionCompleted(modeCode, receivedCount, emittedCount):
             logger.log(level: level, "Location acquisition mode: \(modeCode, privacy: .private)")
             logger.log(level: level, "Location received: \(receivedCount, privacy: .private)")

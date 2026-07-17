@@ -97,6 +97,23 @@ struct StartMonitoringUseCaseTests {
         ])
     }
 
+    @Test("logs an observed charging mode transition failure")
+    func chargingTransitionFailure() async throws {
+        let fixture = Fixture()
+        try await fixture.useCase.execute()
+        fixture.location.setStartError(.monitoringUnavailable)
+
+        fixture.power.send(.charging)
+        await waitUntil { fixture.logger.records.count == 3 }
+
+        #expect(fixture.logger.records.last == TestLogRecord(
+            level: .error,
+            event: .locationRecordingModeChangeFailed(
+                modeCode: "chargingHighAccuracy", reasonCode: "monitoring_unavailable"
+            )
+        ))
+    }
+
     private func waitUntil(_ condition: @escaping @MainActor () -> Bool) async {
         for _ in 0 ..< 100 where !condition() {
             await Task.yield()

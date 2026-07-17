@@ -64,6 +64,14 @@ struct LoggingTests {
                 .locationRecordingModeChanged(modeCode: "lowPower")
             ),
             (
+                .locationRecordingModeChangeFailed(
+                    modeCode: "chargingHighAccuracy", reasonCode: "permission_denied"
+                ),
+                .locationRecordingModeChangeFailed(
+                    modeCode: "chargingHighAccuracy", reasonCode: "permission_denied"
+                )
+            ),
+            (
                 .locationAcquisitionCompleted(
                     modeCode: "lowPower", receivedCount: 2, emittedCount: 1
                 ),

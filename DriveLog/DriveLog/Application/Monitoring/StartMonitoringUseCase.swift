@@ -64,8 +64,32 @@ actor StartMonitoringUseCase {
         powerObservationTask = Task { [weak self] in
             for await state in changes {
                 guard !Task.isCancelled else { return }
-                try? await self?.applyLocationMode(for: state)
+                await self?.applyObservedLocationMode(for: state)
             }
+        }
+    }
+
+    private func applyObservedLocationMode(for powerState: PowerState) async {
+        do {
+            try await applyLocationMode(for: powerState)
+        } catch {
+            logger.error(.locationRecordingModeChangeFailed(
+                modeCode: powerState.locationRecordingMode.rawValue,
+                reasonCode: modeChangeFailureCode(error)
+            ))
+        }
+    }
+
+    private func modeChangeFailureCode(_ error: Error) -> String {
+        switch error {
+        case DriveLogError.permissionDenied:
+            "permission_denied"
+        case DriveLogError.permissionRestricted:
+            "permission_restricted"
+        case DriveLogError.monitoringUnavailable:
+            "monitoring_unavailable"
+        default:
+            "location_mode_change_failed"
         }
     }
 

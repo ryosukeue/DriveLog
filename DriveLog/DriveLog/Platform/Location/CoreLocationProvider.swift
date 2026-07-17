@@ -82,12 +82,16 @@ final class CoreLocationProvider: NSObject, LocationProviding {
             manager.desiredAccuracy = kCLLocationAccuracyThreeKilometers
             manager.distanceFilter = kCLDistanceFilterNone
             manager.activityType = .other
+            manager.pausesLocationUpdatesAutomatically = true
+            manager.allowsBackgroundLocationUpdates = false
             manager.startMonitoringSignificantLocationChanges()
         case .chargingHighAccuracy:
             manager.desiredAccuracy = kCLLocationAccuracyBest
             manager.distanceFilter = 50
             manager.activityType = .automotiveNavigation
-            manager.pausesLocationUpdatesAutomatically = true
+            // Charging mode prioritizes a continuous vehicle route. Automatic pauses can leave
+            // standard updates stopped after the device begins moving again.
+            manager.pausesLocationUpdatesAutomatically = false
             manager.allowsBackgroundLocationUpdates = true
             manager.startUpdatingLocation()
         }

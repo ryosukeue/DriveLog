@@ -22,7 +22,7 @@ final class SystemPowerStateProvider: PowerStateProviding {
         device.isBatteryMonitoringEnabled = true
         observer = center.addObserver(
             forName: UIDevice.batteryStateDidChangeNotification,
-            object: device,
+            object: nil,
             queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {

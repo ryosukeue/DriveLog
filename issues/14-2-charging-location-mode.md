@@ -82,6 +82,10 @@
 6. Background Location modeを追加する。
 7. Mode変更、充電状態、取得/emit件数を座標なしの固定イベントで診断する。
 8. 緯度、経度、経路、正確な時刻をログへ出さない。
+9. 充電中の車載記録ではCore Locationの自動Pauseを無効化し、停止状態から移動を再開した際の欠測を防ぐ。
+10. 有線・無線を区別せずBattery state変更を監視し、通知元objectに依存しない。
+11. Low Power Modeは充電判定と分離し、充電中/満充電ならhigh accuracyを維持する。
+12. Mode切替失敗を握りつぶさず、Privacy-safeな固定codeで診断する。
 
 ## Acceptance Criteria
 
@@ -118,3 +122,18 @@
 - Build成功。全398 Test（UI Test 13件を含む）が成功。
 - SwiftLint、SwiftFormat、`git diff --check`成功。
 - 実機での充電状態通知、Background継続、約1分間隔、熱・Battery影響は未確認。
+
+## Device Feedback Follow-up（2026-07-16）
+
+- 充電中にも高精度取得が動いていない疑いがあるため、Apple公式仕様と実装を再監査する。
+- `pausesLocationUpdatesAutomatically = true`のままPause後の復帰処理がないことを欠測候補として修正する。
+- Battery通知は有線・無線充電を区別せず受け取り、Low Power Mode中でも充電中ならhigh accuracyを選ぶ。
+- 切替失敗を診断可能にし、実機確認でMode、received、emitted、savedの各段階を追跡可能にする。
+
+### Follow-up Completion
+
+- high accuracy中はCore Locationの自動Pauseを無効化し、low powerへ戻す際は既定のPause設定へ復元する。
+- Battery state通知の送信元を限定せず、有線・無線充電のどちらでも同じ状態遷移として扱う。
+- 観測中のMode切替失敗をPrivacy-safeな固定codeで記録する。
+- Build成功。全396 Test（UI Test 13件を含む）、SwiftLint、SwiftFormat、`git diff --check`が成功した。
+- 実機での有線・無線充電切替、Background復帰後の再取得、熱・Battery影響は未確認。
