@@ -8,12 +8,17 @@ final class SystemPowerStateProvider: PowerStateProviding {
     private let center: NotificationCenter
     private let continuation: AsyncStream<PowerState>.Continuation
     private var observer: NSObjectProtocol?
+    private var reconciliationTask: Task<Void, Never>?
 
     convenience init() {
         self.init(device: UIDevice.current, center: NotificationCenter.default)
     }
 
-    init(device: UIDevice, center: NotificationCenter) {
+    init(
+        device: UIDevice,
+        center: NotificationCenter,
+        reconciliationInterval: Duration = .seconds(30)
+    ) {
         let stream = AsyncStream.makeStream(of: PowerState.self, bufferingPolicy: .bufferingNewest(1))
         changes = stream.stream
         continuation = stream.continuation
@@ -30,9 +35,24 @@ final class SystemPowerStateProvider: PowerStateProviding {
                 self.continuation.yield(self.current)
             }
         }
+        continuation.yield(current)
+        let interval = reconciliationInterval
+        reconciliationTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: interval)
+                } catch {
+                    return
+                }
+                guard !Task.isCancelled else { return }
+                guard let self else { return }
+                continuation.yield(current)
+            }
+        }
     }
 
     deinit {
+        reconciliationTask?.cancel()
         if let observer {
             center.removeObserver(observer)
         }

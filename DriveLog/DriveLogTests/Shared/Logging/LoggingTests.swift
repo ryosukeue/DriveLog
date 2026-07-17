@@ -60,6 +60,10 @@ struct LoggingTests {
             ),
             (.permissionStateChanged, .permissionStateChanged),
             (
+                .powerStateObserved(stateCode: "charging"),
+                .powerStateObserved(stateCode: "charging")
+            ),
+            (
                 .locationRecordingModeChanged(modeCode: "lowPower"),
                 .locationRecordingModeChanged(modeCode: "lowPower")
             ),
@@ -94,6 +98,10 @@ struct LoggingTests {
         #expect(
             LogEvent.locationEventRejected(reasonCode: "TEST_REASON_A")
                 != .locationEventRejected(reasonCode: "TEST_REASON_B")
+        )
+        #expect(
+            LogEvent.powerStateObserved(stateCode: "charging")
+                != .powerStateObserved(stateCode: "unplugged")
         )
         #expect(
             LogEvent.dayProcessingFailed(localDateKey: "2026-01-01", code: "TEST_CODE_A")

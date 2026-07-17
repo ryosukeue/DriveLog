@@ -47,12 +47,14 @@ nonisolated struct OSLogLogger: Logging {
         case let .visitEventSaved(localDateKey):
             logger.log(level: level, "Visit event saved. localDateKey: \(localDateKey, privacy: .private)")
         default:
-            logProcessingEvent(event, level: level)
+            logOtherEvent(event, level: level)
         }
     }
 
-    private func logProcessingEvent(_ event: LogEvent, level: OSLogType) {
+    private func logOtherEvent(_ event: LogEvent, level: OSLogType) {
         switch event {
+        case let .powerStateObserved(stateCode):
+            logger.log(level: level, "Power state observed. state: \(stateCode, privacy: .private)")
         case let .dayProcessingStarted(localDateKey):
             logger.log(level: level, "Day processing started. localDateKey: \(localDateKey, privacy: .private)")
         case let .dayProcessingCompleted(localDateKey):

@@ -8,6 +8,8 @@ actor StartMonitoringUseCase {
     private var isExecuting = false
     private var powerObservationTask: Task<Void, Never>?
     private var appliedLocationMode: LocationRecordingMode?
+    private var lastObservedPowerState: PowerState?
+    private var lastLoggedModeFailure: ModeFailure?
 
     init(
         locationProvider: any LocationProviding,
@@ -43,17 +45,21 @@ actor StartMonitoringUseCase {
     }
 
     private func applyLocationMode(for powerState: PowerState) async throws {
+        logPowerStateIfChanged(powerState)
         let mode = powerState.locationRecordingMode
         let monitoringState = await locationProvider.monitoringState
         if appliedLocationMode == nil, monitoringState == .running, mode == .lowPower {
             appliedLocationMode = mode
+            lastLoggedModeFailure = nil
             return
         }
         guard appliedLocationMode != mode || monitoringState != .running else {
+            lastLoggedModeFailure = nil
             return
         }
         try await locationProvider.setRecordingMode(mode)
         appliedLocationMode = mode
+        lastLoggedModeFailure = nil
         logger.info(.locationMonitoringStarted)
         logger.info(.locationRecordingModeChanged(modeCode: mode.rawValue))
     }
@@ -73,11 +79,21 @@ actor StartMonitoringUseCase {
         do {
             try await applyLocationMode(for: powerState)
         } catch {
+            let modeCode = powerState.locationRecordingMode.rawValue
+            let reasonCode = modeChangeFailureCode(error)
+            let failure = ModeFailure(modeCode: modeCode, reasonCode: reasonCode)
+            guard lastLoggedModeFailure != failure else { return }
+            lastLoggedModeFailure = failure
             logger.error(.locationRecordingModeChangeFailed(
-                modeCode: powerState.locationRecordingMode.rawValue,
-                reasonCode: modeChangeFailureCode(error)
+                modeCode: modeCode, reasonCode: reasonCode
             ))
         }
+    }
+
+    private func logPowerStateIfChanged(_ powerState: PowerState) {
+        guard lastObservedPowerState != powerState else { return }
+        lastObservedPowerState = powerState
+        logger.info(.powerStateObserved(stateCode: powerState.rawValue))
     }
 
     private func modeChangeFailureCode(_ error: Error) -> String {
@@ -109,5 +125,10 @@ actor StartMonitoringUseCase {
         case .stopped, .unavailable, .failed:
             try? await visitProvider.startMonitoring()
         }
+    }
+
+    private struct ModeFailure: Equatable {
+        let modeCode: String
+        let reasonCode: String
     }
 }

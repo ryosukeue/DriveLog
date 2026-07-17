@@ -80,6 +80,8 @@
 ### 実機で確認するもの
 
 - Significant Location Change受信
+- 充電開始通知を取り逃した場合の定期照合と高精度Mode復旧
+- 充電状態、Location Mode、受信、emit、保存のPrivacy-safeな診断連鎖
 - アプリ終了後の再起動挙動
 - バックグラウンド記録
 - Core Motion受信

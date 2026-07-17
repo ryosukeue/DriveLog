@@ -14,6 +14,10 @@ struct StartMonitoringUseCaseTests {
         #expect(fixture.motion.callCounts().start == 1)
         #expect(fixture.visit.callCounts().start == 1)
         #expect(fixture.logger.records == [
+            TestLogRecord(
+                level: .info,
+                event: .powerStateObserved(stateCode: "unplugged")
+            ),
             TestLogRecord(level: .info, event: .locationMonitoringStarted),
             TestLogRecord(
                 level: .info,
@@ -62,7 +66,12 @@ struct StartMonitoringUseCaseTests {
         #expect(await !fixture.storageCoordinator.isRunning())
         #expect(fixture.motion.callCounts().start == 0)
         #expect(fixture.visit.callCounts().start == 0)
-        #expect(fixture.logger.records.isEmpty)
+        #expect(fixture.logger.records == [
+            TestLogRecord(
+                level: .info,
+                event: .powerStateObserved(stateCode: "unplugged")
+            )
+        ])
     }
 
     @Test("already active providers are not started again")
@@ -76,7 +85,12 @@ struct StartMonitoringUseCaseTests {
         #expect(fixture.location.callCounts().start == 0)
         #expect(fixture.motion.callCounts().start == 0)
         #expect(fixture.visit.callCounts().start == 0)
-        #expect(fixture.logger.records.isEmpty)
+        #expect(fixture.logger.records == [
+            TestLogRecord(
+                level: .info,
+                event: .powerStateObserved(stateCode: "unplugged")
+            )
+        ])
         #expect(await fixture.storageCoordinator.isRunning())
     }
 
@@ -104,7 +118,7 @@ struct StartMonitoringUseCaseTests {
         fixture.location.setStartError(.monitoringUnavailable)
 
         fixture.power.send(.charging)
-        await waitUntil { fixture.logger.records.count == 3 }
+        await waitUntil { fixture.logger.records.count == 5 }
 
         #expect(fixture.logger.records.last == TestLogRecord(
             level: .error,
@@ -112,6 +126,41 @@ struct StartMonitoringUseCaseTests {
                 modeCode: "chargingHighAccuracy", reasonCode: "monitoring_unavailable"
             )
         ))
+    }
+
+    @Test("retries a failed charging transition on the next state snapshot")
+    func chargingTransitionRetry() async throws {
+        let fixture = Fixture()
+        try await fixture.useCase.execute()
+        fixture.location.setStartError(.monitoringUnavailable)
+
+        fixture.power.send(.charging)
+        await waitUntil { fixture.location.appliedModes().count == 2 }
+        fixture.power.send(.charging)
+        await waitUntil { fixture.location.appliedModes().count == 3 }
+
+        let failures = fixture.logger.records.filter {
+            $0.event == .locationRecordingModeChangeFailed(
+                modeCode: "chargingHighAccuracy", reasonCode: "monitoring_unavailable"
+            )
+        }
+        #expect(failures.count == 1)
+
+        fixture.location.setStartError(nil)
+        fixture.power.send(.charging)
+        let successfulTransition = TestLogRecord(
+            level: .info,
+            event: .locationRecordingModeChanged(modeCode: "chargingHighAccuracy")
+        )
+        await waitUntil { fixture.logger.records.last == successfulTransition }
+
+        #expect(fixture.location.appliedModes() == [
+            .lowPower,
+            .chargingHighAccuracy,
+            .chargingHighAccuracy,
+            .chargingHighAccuracy
+        ])
+        #expect(fixture.logger.records.last == successfulTransition)
     }
 
     private func waitUntil(_ condition: @escaping @MainActor () -> Bool) async {
