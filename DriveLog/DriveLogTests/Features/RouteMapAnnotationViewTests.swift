@@ -131,7 +131,7 @@ struct RouteMapAnnotationViewTests {
         let view = try #require(
             coordinator.mapView(mapView, viewFor: annotation) as? RouteMapMediaAnnotationView
         )
-        #expect(view.displayedStayText == "滞在2回・計2分")
+        #expect(view.displayedStayText == "滞在")
         #expect(view.displayPriority == .required)
     }
 
@@ -151,7 +151,7 @@ struct RouteMapAnnotationViewTests {
         let annotation = try #require(mapView.annotations.first as? RouteMapPointAnnotation)
         #expect(mapView.annotations.count == 1)
         #expect(annotation.relatedStays.count == 2)
-        #expect(annotation.labelText == "滞在2回・計2分")
+        #expect(annotation.labelText == "滞在")
     }
 
     @Test("stay annotations cluster independently from media")

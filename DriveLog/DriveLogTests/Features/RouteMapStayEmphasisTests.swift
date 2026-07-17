@@ -33,9 +33,12 @@ struct RouteMapStayEmphasisTests {
         #expect(coordinator.isStayEmphasized([origin]))
         #expect(coordinator.isStayEmphasized([destination]))
         #expect(!coordinator.isStayEmphasized([unrelated]))
+        #expect(coordinator.staySummary([origin, unrelated, destination]) == "前 8分・後 30分")
 
         coordinator.selectedSegmentID = nil
         #expect(coordinator.isStayEmphasized([unrelated]))
+        #expect(coordinator.staySummary([origin, unrelated, destination]) == "滞在")
+        #expect(coordinator.staySummary([origin]) == "滞在 8分")
     }
 
     @Test("unrelated stay marker dims while media thumbnail remains visible")
@@ -73,7 +76,39 @@ struct RouteMapStayEmphasisTests {
         #expect(stayView.alpha == 0.22)
         #expect(!mediaView.isStayEmphasized)
         #expect(mediaView.alpha == 1)
-        #expect(mediaView.displayedStayText == "滞在 10分")
+        #expect(mediaView.displayedStayText == "滞在")
+    }
+
+    @Test("selection updates repeated stay text without exposing a count")
+    func selectionUpdatesStayPresentation() throws {
+        let mapView = MKMapView()
+        let coordinator = RouteMapCoordinator()
+        let selectedMovement = movement(start: 1000, duration: 600)
+        let preceding = stay(id: "preceding", arrival: 400, duration: 480)
+        let following = stay(id: "following", arrival: 1602, duration: 1800)
+        let unrelated = stay(id: "unrelated", arrival: 4000, duration: 600)
+        let annotation = point(
+            id: "place",
+            kind: .stay,
+            label: "滞在",
+            relatedStays: [preceding, following, unrelated]
+        )
+        coordinator.renderedScene = MapScene(
+            polylines: [], movementLabels: [selectedMovement], stayAnnotations: [],
+            mediaAnnotations: [], initialRegion: nil
+        )
+        let view = try #require(
+            coordinator.mapView(mapView, viewFor: annotation) as? RouteMapStayAnnotationView
+        )
+
+        coordinator.selectedSegmentID = selectedMovement.segmentStableID
+        coordinator.updateStayPresentation(for: annotation, view: view)
+        #expect(view.displayedText == "前 8分・後 30分")
+
+        coordinator.selectedSegmentID = nil
+        coordinator.updateStayPresentation(for: annotation, view: view)
+        #expect(view.displayedText == "滞在")
+        #expect(view.displayedText?.contains("回") == false)
     }
 
     private func movement(start: TimeInterval = 0, duration: TimeInterval = 60) -> MapMovementLabel {

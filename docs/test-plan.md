@@ -17,6 +17,7 @@
 - Processing Algorithm Version更新は完了日だけを1回pendingへ戻し、既に未完了の日を維持し、Invalidation失敗時にVersionを進めないことをUnit/Integration Testする。
 - Movement選択中は端点付近のStayだけを強調し、無関係な独立StayとMedia付属Stay時間を減光し、選択解除で復元することをUnit Testする。
 - 出発未確定/5分未満VisitはMovementをhard splitせず、確定5分以上Visitは分割し、表示PolylineのStay接続は時間5分・距離150mの両条件をUnit Testする。
+- 同一場所の複数Stayは件数表示を持たず、Movement選択時は最も近い前後各1件だけを表示し、選択解除で汎用表示へ戻ることをUnit Testする。
 
 ## 1. 目的
 

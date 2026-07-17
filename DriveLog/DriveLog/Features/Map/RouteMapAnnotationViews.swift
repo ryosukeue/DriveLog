@@ -44,6 +44,7 @@ class RouteMapMediaAnnotationView: MKAnnotationView {
     private let countLabel = UILabel()
     private let stayLabel = UILabel()
     private var representedIdentifier: String?
+    private var accessibilityBaseLabel = "写真"
     private var thumbnailTask: Task<Void, Never>?
     private(set) var displayedCountText: String?
     private(set) var displayedStayText: String?
@@ -99,6 +100,7 @@ class RouteMapMediaAnnotationView: MKAnnotationView {
         imageView.image = nil
         displayedCountText = nil
         displayedStayText = nil
+        accessibilityBaseLabel = "写真"
         setStayEmphasized(true)
     }
 
@@ -115,17 +117,12 @@ class RouteMapMediaAnnotationView: MKAnnotationView {
         imageView.tintColor = .secondaryLabel
         videoBadge.isHidden = mediaType != .video
         displayedCountText = memberCount > 1 ? "\(memberCount)枚" : nil
-        displayedStayText = staySummary
         countLabel.text = displayedCountText
         countLabel.isHidden = displayedCountText == nil
-        stayLabel.text = staySummary
-        stayLabel.isHidden = staySummary == nil
-        setStayEmphasized(true)
-        layoutPills()
         let kind = mediaType == .video ? "動画" : "写真"
         let countDescription = memberCount > 1 ? "、\(memberCount)件" : ""
-        let stayDescription = staySummary.map { "、\($0)" } ?? ""
-        accessibilityLabel = kind + countDescription + stayDescription
+        accessibilityBaseLabel = kind + countDescription
+        setStaySummary(staySummary)
         guard let thumbnailLoader else { return }
         thumbnailTask = Task { @MainActor [weak self] in
             do {
@@ -149,6 +146,20 @@ class RouteMapMediaAnnotationView: MKAnnotationView {
     func setStayEmphasized(_ isEmphasized: Bool) {
         isStayEmphasized = isEmphasized
         stayLabel.alpha = isEmphasized ? 1 : 0.22
+    }
+
+    func setStaySummary(_ summary: String?) {
+        displayedStayText = summary
+        stayLabel.text = summary
+        stayLabel.isHidden = summary == nil
+        setStayEmphasized(isStayEmphasized)
+        layoutPills()
+        accessibilityLabel = accessibilityBaseLabel + (summary.map { "、\($0)" } ?? "")
+    }
+
+    func setAccessibilityBaseLabel(_ label: String) {
+        accessibilityBaseLabel = label
+        setStaySummary(displayedStayText)
     }
 
     private func configurePill(
@@ -198,6 +209,7 @@ final class RouteMapMediaClusterAnnotationView: RouteMapMediaAnnotationView {
 
 class RouteMapStayAnnotationView: MKAnnotationView {
     private let label = UILabel()
+    private(set) var displayedText: String?
     private(set) var isStayEmphasized = true
 
     override init(annotation: (any MKAnnotation)?, reuseIdentifier: String?) {
@@ -220,13 +232,14 @@ class RouteMapStayAnnotationView: MKAnnotationView {
     }
 
     func configure(text: String, isSelected: Bool) {
+        displayedText = text
         label.text = text
         let width = max(52, label.intrinsicContentSize.width + 16)
         frame.size = CGSize(width: width, height: 44)
         label.frame = bounds
         label.layer.borderColor = UIColor.label.cgColor
         label.layer.borderWidth = isSelected ? 4 : 1
-        accessibilityLabel = "滞在 \(text)"
+        accessibilityLabel = text.hasPrefix("滞在") ? text : "滞在 \(text)"
         accessibilityIdentifier = "map.stayAnnotation"
     }
 

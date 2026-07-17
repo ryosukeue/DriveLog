@@ -103,7 +103,7 @@ extension RouteMapCoordinator {
                   let view = mapView.view(for: value) as? RouteMapStayAnnotationView
             else { continue }
             view.configure(
-                text: value.labelText ?? "",
+                text: staySummary(value.relatedStays) ?? "滞在",
                 isSelected: value.id == selectedStayID
             )
         }
@@ -201,7 +201,7 @@ extension RouteMapCoordinator {
             )
         view.annotation = annotation
         view.configure(
-            text: annotation.labelText ?? "",
+            text: staySummary(annotation.relatedStays) ?? "滞在",
             isSelected: annotation.id == selectedStayID
         )
         view.setStayEmphasized(isStayEmphasized(annotation.relatedStays))
@@ -289,9 +289,8 @@ extension RouteMapCoordinator {
             staySummary: staySummary(uniqueStays(in: members)),
             thumbnailLoader: thumbnailLoader
         )
+        view.setAccessibilityBaseLabel("\(members.count)件の写真と動画")
         view.setStayEmphasized(isStayEmphasized(uniqueStays(in: members)))
-        view.accessibilityLabel = "\(members.count)件の写真と動画" +
-            (staySummary(uniqueStays(in: members)).map { "、\($0)" } ?? "")
         return view
     }
 
@@ -319,21 +318,9 @@ extension RouteMapCoordinator {
     }
 
     func isStayEmphasized(_ stays: [MapStayAnnotation]) -> Bool {
-        guard !stays.isEmpty,
-              let selectedSegmentID,
-              let movement = renderedScene?.movementLabels.first(where: {
-                  $0.segmentStableID == selectedSegmentID
-              })
-        else { return true }
-        let tolerance = ProcessingConfiguration.mvp.stay.automaticStayDuration
-        let relatedInterval = DateInterval(
-            start: movement.startDate.addingTimeInterval(-tolerance),
-            end: movement.endDate.addingTimeInterval(tolerance)
-        )
-        return stays.contains { stay in
-            stay.departureDate >= relatedInterval.start &&
-                stay.arrivalDate <= relatedInterval.end
-        }
+        guard !stays.isEmpty, let selectedMovement else { return true }
+        let endpoints = endpointStays(in: stays, for: selectedMovement)
+        return endpoints.preceding != nil || endpoints.following != nil
     }
 
     func updateStayEmphasis(in mapView: MKMapView) {
@@ -350,11 +337,25 @@ extension RouteMapCoordinator {
         for annotation: RouteMapPointAnnotation,
         in mapView: MKMapView
     ) {
+        guard let view = mapView.view(for: annotation) else { return }
+        updateStayPresentation(for: annotation, view: view)
+    }
+
+    func updateStayPresentation(
+        for annotation: RouteMapPointAnnotation,
+        view: MKAnnotationView
+    ) {
         let isEmphasized = isStayEmphasized(annotation.relatedStays)
-        switch mapView.view(for: annotation) {
+        let summary = staySummary(annotation.relatedStays)
+        switch view {
         case let view as RouteMapStayAnnotationView:
+            view.configure(
+                text: summary ?? "滞在",
+                isSelected: annotation.id == selectedStayID
+            )
             view.setStayEmphasized(isEmphasized)
         case let view as RouteMapMediaAnnotationView:
+            view.setStaySummary(summary)
             view.setStayEmphasized(isEmphasized)
         default:
             break
@@ -368,11 +369,15 @@ extension RouteMapCoordinator {
         let members = annotation.memberAnnotations.compactMap {
             $0 as? RouteMapPointAnnotation
         }
-        let isEmphasized = isStayEmphasized(uniqueStays(in: members))
+        let stays = uniqueStays(in: members)
+        let isEmphasized = isStayEmphasized(stays)
+        let summary = staySummary(stays)
         switch mapView.view(for: annotation) {
         case let view as RouteMapStayAnnotationView:
+            view.configure(text: summary ?? "滞在", isSelected: false)
             view.setStayEmphasized(isEmphasized)
         case let view as RouteMapMediaAnnotationView:
+            view.setStaySummary(summary)
             view.setStayEmphasized(isEmphasized)
         default:
             break

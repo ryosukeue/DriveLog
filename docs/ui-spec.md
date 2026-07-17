@@ -12,6 +12,7 @@
 - 位置情報付きMediaは角丸Thumbnail Annotationとして表示し、動画Badge、Cluster、fallback、Preview遷移を持つ。位置情報なしMediaはGridだけに表示する。
 - Movement選択中は経路端点付近のStayを維持し、無関係なStay時間表示を減光する。Media Thumbnail自体は減光しない。
 - Movementの表示Polyline端点と前後Stayが時間5分以内・距離150m以内なら、表示経路だけをStay代表座標へ接続する。距離・速度の算出値は補正しない。
+- 同一場所の複数Stayは件数・合計時間を地図上へ表示しない。Movement選択中は開始/終了から5分以内で最も近い直前/直後Stay時間だけを`前`/`後`として表示する。
 
 ## 1. 目的
 

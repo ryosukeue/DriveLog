@@ -68,11 +68,86 @@ extension RouteMapCoordinator {
 
     func staySummary(_ stays: [MapStayAnnotation]) -> String? {
         guard !stays.isEmpty else { return nil }
-        let totalMinutes = max(0, Int(stays.reduce(0) { $0 + $1.durationSeconds }) / 60)
-        let duration = totalMinutes >= 60
+        guard let movement = selectedMovement else {
+            return stays.count == 1 ? "滞在 \(durationText(for: stays[0]))" : "滞在"
+        }
+        let endpoints = endpointStays(in: stays, for: movement)
+        let precedingText = endpoints.preceding.map { "前 \(durationText(for: $0))" }
+        let followingText = endpoints.following.map { "後 \(durationText(for: $0))" }
+        let components = [precedingText, followingText].compactMap(\.self)
+        return components.isEmpty ? "滞在" : components.joined(separator: "・")
+    }
+
+    func endpointStays(
+        in stays: [MapStayAnnotation],
+        for movement: MapMovementLabel
+    ) -> (preceding: MapStayAnnotation?, following: MapStayAnnotation?) {
+        let tolerance = ProcessingConfiguration.mvp.stay.automaticStayDuration
+        var preceding = stays
+            .filter {
+                abs($0.departureDate.timeIntervalSince(movement.startDate)) <= tolerance
+            }
+            .min { first, second in
+                isCloser(
+                    first,
+                    than: second,
+                    date: \.departureDate,
+                    referenceDate: movement.startDate
+                )
+            }
+        var following = stays
+            .filter {
+                abs($0.arrivalDate.timeIntervalSince(movement.endDate)) <= tolerance
+            }
+            .min { first, second in
+                isCloser(
+                    first,
+                    than: second,
+                    date: \.arrivalDate,
+                    referenceDate: movement.endDate
+                )
+            }
+        if let sharedStay = preceding, sharedStay.stayStableID == following?.stayStableID {
+            let precedingDifference = abs(
+                sharedStay.departureDate.timeIntervalSince(movement.startDate)
+            )
+            let followingDifference = abs(
+                sharedStay.arrivalDate.timeIntervalSince(movement.endDate)
+            )
+            if precedingDifference <= followingDifference {
+                following = nil
+            } else {
+                preceding = nil
+            }
+        }
+        return (preceding, following)
+    }
+
+    var selectedMovement: MapMovementLabel? {
+        guard let selectedSegmentID else { return nil }
+        return renderedScene?.movementLabels.first {
+            $0.segmentStableID == selectedSegmentID
+        }
+    }
+
+    private func durationText(for stay: MapStayAnnotation) -> String {
+        let totalMinutes = max(0, Int(stay.durationSeconds) / 60)
+        return totalMinutes >= 60
             ? "\(totalMinutes / 60)時間\(totalMinutes % 60)分"
             : "\(totalMinutes)分"
-        return stays.count == 1 ? "滞在 \(duration)" : "滞在\(stays.count)回・計\(duration)"
+    }
+
+    private func isCloser(
+        _ first: MapStayAnnotation,
+        than second: MapStayAnnotation,
+        date: KeyPath<MapStayAnnotation, Date>,
+        referenceDate: Date
+    ) -> Bool {
+        let firstDifference = abs(first[keyPath: date].timeIntervalSince(referenceDate))
+        let secondDifference = abs(second[keyPath: date].timeIntervalSince(referenceDate))
+        return firstDifference == secondDifference
+            ? first.stayStableID < second.stayStableID
+            : firstDifference < secondDifference
     }
 
     private var placeGroupingDistance: CLLocationDistance {
