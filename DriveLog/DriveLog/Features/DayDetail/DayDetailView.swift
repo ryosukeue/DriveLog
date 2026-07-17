@@ -2,7 +2,6 @@ import SwiftUI
 
 struct DayDetailView: View {
     @State private var viewModel: DayDetailViewModel
-    @State private var isShowingDeletionConfirmation = false
     let onOpenMap: (
         MapScene,
         [MediaAssetReference],
@@ -10,7 +9,6 @@ struct DayDetailView: View {
         [StayDisplayData]
     ) -> Void
     let onSelectMedia: (MediaAssetReference, [MediaAssetReference]) -> Void
-    let onDeletionCompleted: () -> Void
     private let formatter: DayDetailFormatter
 
     init(
@@ -24,14 +22,12 @@ struct DayDetailView: View {
             [MovementDisplayData],
             [StayDisplayData]
         ) -> Void = { _, _, _, _ in },
-        onSelectMedia: @escaping (MediaAssetReference, [MediaAssetReference]) -> Void = { _, _ in },
-        onDeletionCompleted: @escaping () -> Void = {}
+        onSelectMedia: @escaping (MediaAssetReference, [MediaAssetReference]) -> Void = { _, _ in }
     ) {
         _viewModel = State(initialValue: viewModel)
         self.formatter = formatter
         self.onOpenMap = onOpenMap
         self.onSelectMedia = onSelectMedia
-        self.onDeletionCompleted = onDeletionCompleted
     }
 
     var body: some View {
@@ -44,51 +40,6 @@ struct DayDetailView: View {
                         .frame(maxWidth: .infinity, minHeight: proxy.size.height * 0.75)
                 }
             }
-        }
-        .navigationTitle(navigationTitle)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Button("この日の記録を削除", role: .destructive) {
-                        isShowingDeletionConfirmation = true
-                    }
-                    .accessibilityIdentifier("dayDetail.delete")
-                } label: {
-                    Label("その他の操作", systemImage: "ellipsis.circle")
-                }
-                .accessibilityIdentifier("dayDetail.menu")
-                .disabled(viewModel.isDeleting)
-            }
-        }
-        .confirmationDialog(
-            "この日の記録を削除しますか？",
-            isPresented: $isShowingDeletionConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("削除", role: .destructive) {
-                Task { @MainActor in
-                    if await viewModel.deleteDay() {
-                        onDeletionCompleted()
-                    }
-                }
-            }
-            .accessibilityIdentifier("dayDetail.delete.confirm")
-            Button("キャンセル", role: .cancel) {}
-                .accessibilityIdentifier("dayDetail.delete.cancel")
-        } message: {
-            Text("""
-            位置情報、移動区間、滞在地点、分類修正が削除されます。
-            写真アプリ内の写真や動画は削除されません。
-            この操作は取り消せません。
-            """)
-        }
-        .alert("削除できませんでした", isPresented: deletionErrorBinding) {
-            Button("OK") {
-                viewModel.dismissDeletionError()
-            }
-        } message: {
-            Text("時間をおいて、もう一度お試しください")
         }
         .task {
             if viewModel.state == .idle {
@@ -187,25 +138,5 @@ struct DayDetailView: View {
         }
         .buttonStyle(.bordered)
         .accessibilityIdentifier("dayDetail.retry")
-    }
-
-    private var navigationTitle: String {
-        let components = viewModel.localDateKey.split(separator: "-")
-        guard components.count == 3,
-              let month = Int(components[1]),
-              let day = Int(components[2])
-        else { return viewModel.localDateKey }
-        return "\(month)月\(day)日"
-    }
-
-    private var deletionErrorBinding: Binding<Bool> {
-        Binding(
-            get: { viewModel.deletionFailed },
-            set: { isPresented in
-                if !isPresented {
-                    viewModel.dismissDeletionError()
-                }
-            }
-        )
     }
 }

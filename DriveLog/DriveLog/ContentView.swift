@@ -170,6 +170,8 @@ private struct DayDetailPagerView: View {
     let onDeletionCompleted: () -> Void
     @State private var selectedLocalDateKey: String
     @State private var viewModels: [String: DayDetailViewModel]
+    @State private var deletionLocalDateKey: String?
+    @State private var isShowingDeletionConfirmation = false
 
     init(
         localDateKeys: [String],
@@ -205,14 +207,55 @@ private struct DayDetailPagerView: View {
                     DayDetailView(
                         viewModel: viewModel,
                         onOpenMap: onOpenMap,
-                        onSelectMedia: onSelectMedia,
-                        onDeletionCompleted: onDeletionCompleted
+                        onSelectMedia: onSelectMedia
                     )
                     .tag(localDateKey)
                 }
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
+        .navigationTitle(navigationTitle)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button("この日の記録を削除", role: .destructive) {
+                        deletionLocalDateKey = selectedLocalDateKey
+                        isShowingDeletionConfirmation = true
+                    }
+                    .accessibilityIdentifier("dayDetail.delete")
+                } label: {
+                    Label("その他の操作", systemImage: "ellipsis.circle")
+                }
+                .accessibilityIdentifier("dayDetail.menu")
+                .disabled(selectedViewModel?.isDeleting ?? true)
+            }
+        }
+        .confirmationDialog(
+            "この日の記録を削除しますか？",
+            isPresented: $isShowingDeletionConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("削除", role: .destructive) {
+                deleteConfirmedDay()
+            }
+            .accessibilityIdentifier("dayDetail.delete.confirm")
+            Button("キャンセル", role: .cancel) {}
+                .accessibilityIdentifier("dayDetail.delete.cancel")
+        } message: {
+            Text("""
+            位置情報、移動区間、滞在地点、分類修正が削除されます。
+            写真アプリ内の写真や動画は削除されません。
+            この操作は取り消せません。
+            """)
+        }
+        .alert("削除できませんでした", isPresented: deletionErrorBinding) {
+            Button("OK") {
+                deletionViewModel?.dismissDeletionError()
+            }
+        } message: {
+            Text("時間をおいて、もう一度お試しください")
+        }
         .accessibilityIdentifier("dayDetail.pager")
         .overlay(alignment: .topLeading) {
             Color.clear
@@ -223,6 +266,44 @@ private struct DayDetailPagerView: View {
         }
         .onChange(of: selectedLocalDateKey) { _, localDateKey in
             onSelectDate(localDateKey)
+        }
+    }
+
+    private var selectedViewModel: DayDetailViewModel? {
+        viewModels[selectedLocalDateKey]
+    }
+
+    private var deletionViewModel: DayDetailViewModel? {
+        guard let deletionLocalDateKey else { return nil }
+        return viewModels[deletionLocalDateKey]
+    }
+
+    private var navigationTitle: String {
+        let components = selectedLocalDateKey.split(separator: "-")
+        guard components.count == 3,
+              let month = Int(components[1]),
+              let day = Int(components[2])
+        else { return selectedLocalDateKey }
+        return "\(month)月\(day)日"
+    }
+
+    private var deletionErrorBinding: Binding<Bool> {
+        Binding(
+            get: { deletionViewModel?.deletionFailed ?? false },
+            set: { isPresented in
+                if !isPresented {
+                    deletionViewModel?.dismissDeletionError()
+                }
+            }
+        )
+    }
+
+    private func deleteConfirmedDay() {
+        guard let deletionViewModel else { return }
+        Task { @MainActor in
+            if await deletionViewModel.deleteDay() {
+                onDeletionCompleted()
+            }
         }
     }
 }

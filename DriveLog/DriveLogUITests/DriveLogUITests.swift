@@ -98,8 +98,10 @@ final class DriveLogUITests: XCTestCase {
         let initialDate = currentDate.label
         let pager = app.descendants(matching: .any)["dayDetail.pager"]
         XCTAssertTrue(pager.exists)
+        XCTAssertEqual(app.buttons.matching(identifier: "dayDetail.menu").count, 1)
         pager.swipeLeft()
         XCTAssertNotEqual(currentDate.label, initialDate)
+        XCTAssertEqual(app.buttons.matching(identifier: "dayDetail.menu").count, 1)
         app.swipeDown()
         XCTAssertTrue(app.scrollViews["calendar.scroll"].waitForExistence(timeout: 5))
     }
