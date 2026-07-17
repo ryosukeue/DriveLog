@@ -46,7 +46,13 @@ MapSceneに配置された位置情報付きMediaを、補助Media snapshotやTh
 - `DriveLog/DriveLog/Domain/Entities/MapScene.swift`
 - `DriveLog/DriveLog/Processing/Media/MediaPlacementCalculator.swift`
 - `DriveLog/DriveLog/Features/Map/MapSceneBuilder.swift`
+- `DriveLog/DriveLog/Features/Map/FullRouteMapView.swift`
+- `DriveLog/DriveLog/Features/Map/RouteMapView.swift`
+- `DriveLog/DriveLog/Features/Map/RouteMapViewModel.swift`
+- `DriveLog/DriveLog/Features/Map/RouteMapAnnotationViews.swift`
 - `DriveLog/DriveLog/Features/Map/RouteMapCoordinator+Annotations.swift`
+- `DriveLog/DriveLog/Features/Map/RouteMapCoordinator+Places.swift`
+- `DriveLog/DriveLog/DriveLogApp.swift`（UI Test fixtureのみ）
 - `DriveLog/DriveLog/Shared/Logging/LogEvent.swift`
 - `DriveLog/DriveLog/Shared/Logging/OSLogLogger.swift`
 - 対応する`DriveLogTests/`ファイル
@@ -69,6 +75,13 @@ MapSceneに配置された位置情報付きMediaを、補助Media snapshotやTh
 6. 位置情報なしMediaはGridへ残し、地図へは配置しない。
 7. 権限、取得、適格、位置付き、配置の状態を固定codeと件数だけで診断する。
 8. 座標とPhotoKit localIdentifierをログへ出さない。
+9. Media clusterは代表Thumbnailを表示し、その下に件数を表示する。
+10. 通常のcluster tapは既存どおり構成Mediaが見える範囲へ拡大する。
+11. 全構成Mediaの座標が完全一致するclusterは拡大で分離不能なため、tapでMedia gridを表示する。
+12. Media annotationの表示優先度を維持し、広域表示でも単体またはclusterのどちらかを表示する。
+13. Cluster範囲はMapKitの画面上の衝突判定に従い、拡大縮小に応じて動的に変化する。
+14. 150m以内のMediaとStayを同一場所として扱い、Media表示の下にStay要約を統合する。
+15. 同一場所への複数Stayは1つへまとめ、回数と合計滞在時間を表示し、個別Stay操作は一覧から維持する。
 
 ## Acceptance Criteria
 
@@ -114,3 +127,20 @@ MapSceneに配置された位置情報付きMediaを、補助Media snapshotやTh
 - Build成功。全399 Testが成功し、SwiftLint、SwiftFormat、`git diff --check`も成功した。
 - Simulator UI TestでCluster、Annotation tap、Media Previewを確認した。実写真、Limited権限、iCloud Thumbnailは実機未確認。
 - XcodeのAppIntents metadata skip、DebuggerVersionStore、Simulator accessibility重複classは環境由来Warningで、新規Source Warningはない。
+
+## Device Feedback Follow-up（2026-07-16）
+
+- 赤い件数markerではなく、代表Thumbnailと件数を常時表示する。
+- 完全同一座標clusterだけはtapでgridを開き、通常clusterのzoom動作は維持する。
+- Mediaの表示優先度を上げ、広域でも単体またはclusterとして確認可能にする。
+- 写真があるStayは写真表示へ要約を統合し、重複Stayは回数と合計時間へ集約する。
+
+### Follow-up Completion
+
+- Clusterと単体Mediaを代表Thumbnailで表示し、Thumbnail下へ件数、その下へStay回数と合計時間を表示する。
+- MapKitの画面上の衝突判定で拡大率に応じてcluster範囲を変え、Media表示優先度を`required`にした。
+- 完全同一座標clusterはMedia gridと個別Stay操作を含む場所Sheetを開き、異なる座標を含むclusterは従来どおりzoomする。
+- 150m以内のStayをMediaへ統合し、Mediaがない同一場所の複数Stayも1 markerへ集約する。
+- Simulator UI Testで代表clusterから場所Sheet、2件のMedia grid、Stay修正、写真Previewへの遷移を確認した。
+- Build成功。全396 Test（UI Test 13件を含む）、SwiftLint、SwiftFormat、`git diff --check`が成功した。
+- 実PhotoKit Thumbnail、実データでの広域表示密度、実機上のタップ感は未確認。

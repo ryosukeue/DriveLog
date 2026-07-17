@@ -28,6 +28,7 @@ struct CalendarViewModelTests {
         viewModel.select(localDateKey: "2024-01-02")
 
         #expect(viewModel.state == .loaded)
+        #expect(viewModel.validLocalDateKeys == ["2024-01-02"])
         #expect(viewModel.selectedLocalDateKey == "2024-01-02")
         #expect(viewModel.navigationLocalDateKey == "2024-01-02")
         viewModel.consumeNavigation()

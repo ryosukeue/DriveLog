@@ -60,6 +60,17 @@ final class RouteMapViewModel {
         visibleMedia.first { $0.localIdentifier == localIdentifier }
     }
 
+    func media(localIdentifiers: [String]) -> [MediaAssetReference] {
+        let identifiers = Set(localIdentifiers)
+        return visibleMedia.filter { identifiers.contains($0.localIdentifier) }
+    }
+
+    func stays(stableIDs: [String]) -> [StayDisplayData] {
+        stableIDs.compactMap { staysByStableID[$0] }.sorted {
+            $0.segment.estimatedArrivalDate < $1.segment.estimatedArrivalDate
+        }
+    }
+
     func updateStay(stableID: String, action: StayOverrideAction) async {
         guard staySavingSegmentID == nil,
               let display = staysByStableID[stableID],

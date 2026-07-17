@@ -3,12 +3,15 @@ import MapKit
 extension RouteMapCoordinator {
     func mapView(_ mapView: MKMapView, viewFor annotation: any MKAnnotation) -> MKAnnotationView? {
         if let cluster = annotation as? MKClusterAnnotation {
-            return mediaClusterView(for: cluster, in: mapView)
+            let members = cluster.memberAnnotations.compactMap {
+                $0 as? RouteMapPointAnnotation
+            }
+            return members.contains(where: { $0.kind == .media })
+                ? mediaClusterView(for: cluster, in: mapView)
+                : stayClusterView(for: cluster, in: mapView)
         }
         guard let annotation = annotation as? RouteMapPointAnnotation else { return nil }
         return switch annotation.kind {
-        case .movementLabel:
-            movementLabelView(for: annotation, in: mapView)
         case .movementCallout:
             movementCalloutView(for: annotation, in: mapView)
         case .stay:
@@ -22,18 +25,26 @@ extension RouteMapCoordinator {
 
     func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
         if let cluster = view.annotation as? MKClusterAnnotation {
-            mapView.showAnnotations(cluster.memberAnnotations, animated: true)
+            let members = cluster.memberAnnotations.compactMap { $0 as? RouteMapPointAnnotation }
+            onSelectPlace(MapPlaceSelection(
+                mediaIdentifiers: members.filter { $0.kind == .media }.map(\.id).sorted(),
+                stayStableIDs: uniqueStayIDs(in: members)
+            ))
             mapView.deselectAnnotation(cluster, animated: false)
             return
         }
         guard let annotation = view.annotation as? RouteMapPointAnnotation else { return }
         switch annotation.kind {
-        case .movementLabel:
-            onSelectSegment(annotation.id)
         case .stay:
-            onSelectStay(annotation.id)
+            onSelectPlace(MapPlaceSelection(
+                mediaIdentifiers: [],
+                stayStableIDs: annotation.relatedStays.map(\.stayStableID)
+            ))
         case .media:
-            onSelectMedia(annotation.id)
+            onSelectPlace(MapPlaceSelection(
+                mediaIdentifiers: [annotation.id],
+                stayStableIDs: annotation.relatedStays.map(\.stayStableID)
+            ))
         case .movementCallout, .stayCallout:
             return
         }
@@ -41,29 +52,27 @@ extension RouteMapCoordinator {
     }
 
     func addAnnotations(scene: MapScene, to mapView: MKMapView) {
-        let labels = scene.movementLabels.map {
-            RouteMapPointAnnotation(
-                id: $0.segmentStableID,
-                coordinate: $0.coordinate.mapCoordinate,
-                kind: .movementLabel,
-                labelText: $0.text
-            )
-        }
         let callouts = scene.movementLabels.compactMap { movement -> RouteMapPointAnnotation? in
             guard movement.segmentStableID == selectedSegmentID else { return nil }
             return RouteMapPointAnnotation(
                 id: movement.segmentStableID,
-                coordinate: movement.coordinate.mapCoordinate,
+                coordinate: movementCalloutCoordinate(for: movement),
                 kind: .movementCallout,
                 movement: movement
             )
         }
-        let stays = scene.stayAnnotations.map {
-            RouteMapPointAnnotation(
-                id: $0.stayStableID,
-                coordinate: $0.coordinate.mapCoordinate,
+        let stayAssignments = assignStaysToMedia(scene: scene)
+        let stays = groupedStays(
+            unassignedStays(in: scene, assignments: stayAssignments)
+        ).compactMap { group -> RouteMapPointAnnotation? in
+            guard let representative = group.first else { return nil }
+            return RouteMapPointAnnotation(
+                id: representative.stayStableID,
+                coordinate: representative.coordinate.mapCoordinate,
                 kind: .stay,
-                labelText: $0.text
+                labelText: staySummary(group),
+                stay: group.count == 1 ? representative : nil,
+                relatedStays: group
             )
         }
         let stayCallouts = scene.stayAnnotations.compactMap { stay -> RouteMapPointAnnotation? in
@@ -80,23 +89,11 @@ extension RouteMapCoordinator {
                 id: annotation.localIdentifier,
                 coordinate: annotation.coordinate.mapCoordinate,
                 kind: .media,
-                mediaType: annotation.mediaType
+                mediaType: annotation.mediaType,
+                relatedStays: stayAssignments[annotation.localIdentifier] ?? []
             )
         }
-        mapView.addAnnotations(labels + callouts + stays + stayCallouts + media)
-    }
-
-    func updateLabelSelection(in mapView: MKMapView) {
-        for annotation in mapView.annotations {
-            guard let value = annotation as? RouteMapPointAnnotation,
-                  value.kind == .movementLabel,
-                  let view = mapView.view(for: value) as? RouteMapLabelAnnotationView
-            else { continue }
-            view.configure(
-                text: value.labelText ?? "",
-                isSelected: value.id == selectedSegmentID
-            )
-        }
+        mapView.addAnnotations(callouts + stays + stayCallouts + media)
     }
 
     func updateStaySelection(in mapView: MKMapView) {
@@ -128,7 +125,7 @@ extension RouteMapCoordinator {
         mapView.addAnnotation(
             RouteMapPointAnnotation(
                 id: movement.segmentStableID,
-                coordinate: movement.coordinate.mapCoordinate,
+                coordinate: movementCalloutCoordinate(for: movement),
                 kind: .movementCallout,
                 movement: movement
             )
@@ -156,24 +153,6 @@ extension RouteMapCoordinator {
                 stay: stay
             )
         )
-    }
-
-    private func movementLabelView(
-        for annotation: RouteMapPointAnnotation,
-        in mapView: MKMapView
-    ) -> MKAnnotationView {
-        let identifier = "RouteMapLabelAnnotation"
-        let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as?
-            RouteMapLabelAnnotationView ?? RouteMapLabelAnnotationView(
-                annotation: annotation,
-                reuseIdentifier: identifier
-            )
-        view.annotation = annotation
-        view.configure(
-            text: annotation.labelText ?? "",
-            isSelected: annotation.id == selectedSegmentID
-        )
-        return view
     }
 
     private func movementCalloutView(
@@ -225,6 +204,9 @@ extension RouteMapCoordinator {
             text: annotation.labelText ?? "",
             isSelected: annotation.id == selectedStayID
         )
+        view.clusteringIdentifier = "stay"
+        view.collisionMode = .rectangle
+        view.displayPriority = .defaultHigh
         return view
     }
 
@@ -242,11 +224,7 @@ extension RouteMapCoordinator {
         if let stay = annotation.stay {
             view.configure(
                 stay: stay,
-                formatter: DayDetailFormatter(timeZone: SystemTimeZoneProvider().current),
-                isSaving: stay.stayStableID == staySavingSegmentID,
-                onSelectAction: { [weak self] action in
-                    self?.onUpdateStay(stay.stayStableID, action)
-                }
+                formatter: DayDetailFormatter(timeZone: SystemTimeZoneProvider().current)
             )
         }
         return view
@@ -261,11 +239,7 @@ extension RouteMapCoordinator {
             else { continue }
             view.configure(
                 stay: stay,
-                formatter: DayDetailFormatter(timeZone: SystemTimeZoneProvider().current),
-                isSaving: stay.stayStableID == staySavingSegmentID,
-                onSelectAction: { [weak self] action in
-                    self?.onUpdateStay(stay.stayStableID, action)
-                }
+                formatter: DayDetailFormatter(timeZone: SystemTimeZoneProvider().current)
             )
         }
     }
@@ -284,11 +258,12 @@ extension RouteMapCoordinator {
         view.configure(
             localIdentifier: annotation.id,
             mediaType: annotation.mediaType ?? .photo,
+            staySummary: staySummary(annotation.relatedStays),
             thumbnailLoader: thumbnailLoader
         )
         view.clusteringIdentifier = "media"
         view.collisionMode = .rectangle
-        view.displayPriority = .defaultHigh
+        view.displayPriority = .required
         return view
     }
 
@@ -302,8 +277,40 @@ extension RouteMapCoordinator {
                 annotation: annotation,
                 reuseIdentifier: identifier
             )
+        let members = annotation.memberAnnotations.compactMap { $0 as? RouteMapPointAnnotation }
+        let representative = representativeMedia(in: members)
         view.annotation = annotation
-        view.configure(memberCount: annotation.memberAnnotations.count)
+        view.configure(
+            localIdentifier: representative?.id ?? "",
+            mediaType: representative?.mediaType ?? .photo,
+            memberCount: members.count,
+            staySummary: staySummary(uniqueStays(in: members)),
+            thumbnailLoader: thumbnailLoader
+        )
+        view.accessibilityLabel = "\(members.count)件の写真と動画" +
+            (staySummary(uniqueStays(in: members)).map { "、\($0)" } ?? "")
+        return view
+    }
+
+    private func stayClusterView(
+        for annotation: MKClusterAnnotation,
+        in mapView: MKMapView
+    ) -> MKAnnotationView {
+        let identifier = "RouteMapStayCluster"
+        let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as?
+            RouteMapStayClusterAnnotationView ?? RouteMapStayClusterAnnotationView(
+                annotation: annotation,
+                reuseIdentifier: identifier
+            )
+        let members = annotation.memberAnnotations.compactMap {
+            $0 as? RouteMapPointAnnotation
+        }
+        view.annotation = annotation
+        view.configure(
+            text: staySummary(uniqueStays(in: members)) ?? "滞在",
+            isSelected: false
+        )
+        view.accessibilityIdentifier = "map.stayCluster"
         return view
     }
 }

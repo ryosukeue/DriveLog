@@ -9,7 +9,7 @@ struct DayDetailView: View {
         [MovementDisplayData],
         [StayDisplayData]
     ) -> Void
-    let onSelectMedia: (MediaAssetReference) -> Void
+    let onSelectMedia: (MediaAssetReference, [MediaAssetReference]) -> Void
     let onDeletionCompleted: () -> Void
     private let formatter: DayDetailFormatter
 
@@ -24,7 +24,7 @@ struct DayDetailView: View {
             [MovementDisplayData],
             [StayDisplayData]
         ) -> Void = { _, _, _, _ in },
-        onSelectMedia: @escaping (MediaAssetReference) -> Void = { _ in },
+        onSelectMedia: @escaping (MediaAssetReference, [MediaAssetReference]) -> Void = { _, _ in },
         onDeletionCompleted: @escaping () -> Void = {}
     ) {
         _viewModel = State(initialValue: viewModel)
@@ -134,7 +134,9 @@ struct DayDetailView: View {
                         targetSize: targetSize
                     )
                 },
-                onSelect: onSelectMedia
+                onSelect: { asset in
+                    onSelectMedia(asset, data.media)
+                }
             )
         }
         .padding(.horizontal)

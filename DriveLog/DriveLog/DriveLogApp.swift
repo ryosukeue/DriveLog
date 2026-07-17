@@ -134,10 +134,12 @@ struct DriveLogApp: App {
             }
         }
     }
+}
 
-    #if DEBUG
+#if DEBUG
+    private extension DriveLogApp {
         @MainActor
-        private static func makeUITestConfiguration(
+        static func makeUITestConfiguration(
             now: Date,
             timeZone: TimeZone
         ) -> UITestConfiguration {
@@ -163,7 +165,7 @@ struct DriveLogApp: App {
         }
 
         @MainActor
-        private static func seedUITestData(
+        static func seedUITestData(
             modelContainer: ModelContainer,
             now: Date,
             calendar: Calendar
@@ -178,11 +180,31 @@ struct DriveLogApp: App {
             let context = ModelContext(modelContainer)
             seedSummary(context: context, localDateKey: localDateKey, startDate: startDate, now: now)
             try seedRoute(context: context, localDateKey: localDateKey, startDate: startDate, now: now)
+            guard let nextDate = calendar.date(byAdding: .day, value: 1, to: now) else {
+                throw DriveLogError.invalidData
+            }
+            let nextComponents = calendar.dateComponents([.year, .month, .day], from: nextDate)
+            guard let nextYear = nextComponents.year,
+                  let nextMonth = nextComponents.month,
+                  let nextDay = nextComponents.day
+            else { throw DriveLogError.invalidData }
+            let nextLocalDateKey = String(
+                format: "%04d-%02d-%02d",
+                nextYear,
+                nextMonth,
+                nextDay
+            )
+            seedSummary(
+                context: context,
+                localDateKey: nextLocalDateKey,
+                startDate: nextDate.addingTimeInterval(-1800),
+                now: nextDate
+            )
             try context.save()
         }
 
         @MainActor
-        private static func seedSummary(
+        static func seedSummary(
             context: ModelContext,
             localDateKey: String,
             startDate: Date,
@@ -205,7 +227,7 @@ struct DriveLogApp: App {
         }
 
         @MainActor
-        private static func seedRoute(
+        static func seedRoute(
             context: ModelContext,
             localDateKey: String,
             startDate: Date,
@@ -251,8 +273,8 @@ struct DriveLogApp: App {
                 )
             )
         }
-    #endif
-}
+    }
+#endif
 
 #if DEBUG
     private struct UITestConfiguration {
@@ -304,7 +326,7 @@ private extension DriveLogApp {
                     localIdentifier: "ui-photo",
                     mediaType: .photo,
                     creationDate: start.addingTimeInterval(3600),
-                    location: RouteCoordinate(latitude: 35.690, longitude: 139.780),
+                    location: RouteCoordinate(latitude: 35.700, longitude: 139.800),
                     durationSeconds: nil,
                     isScreenshot: false,
                     isScreenRecording: false
@@ -313,7 +335,7 @@ private extension DriveLogApp {
                     localIdentifier: "ui-video",
                     mediaType: .video,
                     creationDate: start.addingTimeInterval(7200),
-                    location: RouteCoordinate(latitude: 35.690_05, longitude: 139.780_05),
+                    location: RouteCoordinate(latitude: 35.700, longitude: 139.800),
                     durationSeconds: 10,
                     isScreenshot: false,
                     isScreenRecording: false

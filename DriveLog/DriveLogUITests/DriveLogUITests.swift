@@ -93,7 +93,14 @@ final class DriveLogUITests: XCTestCase {
 
         XCTAssertTrue(app.buttons["dayDetail.mapPreview"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.otherElements["dayDetail.summary"].exists)
-        app.navigationBars.buttons.firstMatch.tap()
+        let currentDate = app.descendants(matching: .any)["dayDetail.currentDate"]
+        XCTAssertTrue(currentDate.waitForExistence(timeout: 5))
+        let initialDate = currentDate.label
+        let pager = app.descendants(matching: .any)["dayDetail.pager"]
+        XCTAssertTrue(pager.exists)
+        pager.swipeLeft()
+        XCTAssertNotEqual(currentDate.label, initialDate)
+        app.swipeDown()
         XCTAssertTrue(app.scrollViews["calendar.scroll"].waitForExistence(timeout: 5))
     }
 
@@ -169,9 +176,10 @@ final class DriveLogUITests: XCTestCase {
         XCTAssertTrue(preview.waitForExistence(timeout: 5))
         preview.tap()
 
-        XCTAssertTrue(app.buttons["BackButton"].waitForExistence(timeout: 5))
+        let back = app.buttons["map.back"]
+        XCTAssertTrue(back.waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["map.currentLocation"].exists)
-        let movement = app.descendants(matching: .any)["map.movementLabel"].firstMatch
+        let movement = app.descendants(matching: .any)["map.polyline"].firstMatch
         XCTAssertTrue(movement.waitForExistence(timeout: 5))
         movement.tap()
         XCTAssertTrue(
@@ -183,12 +191,12 @@ final class DriveLogUITests: XCTestCase {
         XCTAssertTrue(stay.waitForExistence(timeout: 5))
         stay.tap()
         XCTAssertTrue(
-            app.descendants(matching: .any)["map.stayCallout"].firstMatch
+            app.descendants(matching: .any)["map.placeSheet"].firstMatch
                 .waitForExistence(timeout: 5)
         )
-        XCTAssertFalse(app.descendants(matching: .any)["map.movementCallout"].firstMatch.exists)
+        app.buttons["地図に戻る"].tap()
 
-        app.buttons["BackButton"].tap()
+        back.tap()
         XCTAssertTrue(preview.waitForExistence(timeout: 5))
     }
 
@@ -212,21 +220,16 @@ final class DriveLogUITests: XCTestCase {
         )
         XCTAssertTrue(app.descendants(matching: .any)["mediaPreview.metadata"].exists)
         XCTAssertTrue(app.buttons["mediaPreview.share"].isEnabled)
-        app.buttons["BackButton"].tap()
-
-        XCTAssertTrue(grid.waitForExistence(timeout: 5))
-        cells.element(boundBy: 1).tap()
+        app.swipeLeft()
         XCTAssertTrue(
             app.descendants(matching: .any)["mediaPreview.video"].waitForExistence(timeout: 5)
         )
-        app.buttons["BackButton"].tap()
-
-        XCTAssertTrue(grid.waitForExistence(timeout: 5))
-        cells.element(boundBy: 2).tap()
+        app.swipeLeft()
         XCTAssertTrue(
             app.descendants(matching: .any)["mediaPreview.error"].waitForExistence(timeout: 5)
         )
         XCTAssertTrue(app.buttons["再試行"].exists)
+        XCTAssertTrue(app.buttons["mediaPreview.back"].exists)
     }
 
     @MainActor
@@ -239,12 +242,23 @@ final class DriveLogUITests: XCTestCase {
         let cluster = app.descendants(matching: .any)["map.mediaCluster"].firstMatch
         XCTAssertTrue(cluster.waitForExistence(timeout: 5))
         XCTAssertTrue(cluster.label.contains("写真と動画"))
-
-        let media = app.descendants(matching: .any)["map.mediaAnnotation"].firstMatch
-        XCTAssertTrue(media.waitForExistence(timeout: 5))
-        media.tap()
+        XCTAssertTrue(cluster.label.contains("滞在"))
+        cluster.tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["map.placeSheet"].waitForExistence(timeout: 5)
+        )
+        let media = app.descendants(matching: .any).matching(
+            identifier: "dayDetail.media.cell"
+        )
+        XCTAssertEqual(media.count, 2)
+        XCTAssertFalse(app.buttons["修正"].exists)
+        media.element(boundBy: 0).tap()
         XCTAssertTrue(
             app.descendants(matching: .any)["mediaPreview.photo"].waitForExistence(timeout: 5)
+        )
+        app.swipeLeft()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["mediaPreview.video"].waitForExistence(timeout: 5)
         )
     }
 
@@ -255,9 +269,11 @@ final class DriveLogUITests: XCTestCase {
             XCUIApplication().launch()
         }
     }
+}
 
+private extension DriveLogUITests {
     @MainActor
-    private func launchMediaDayDetail() -> XCUIApplication {
+    func launchMediaDayDetail() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments.append("-ui-testing-media")
         app.launch()
@@ -271,7 +287,7 @@ final class DriveLogUITests: XCTestCase {
     }
 
     @MainActor
-    private func scrollToMediaGrid(in app: XCUIApplication) {
+    func scrollToMediaGrid(in app: XCUIApplication) {
         let grid = app.otherElements["dayDetail.media.grid"]
         for _ in 0 ..< 4 where grid.isHittable == false {
             app.swipeUp()
@@ -279,7 +295,7 @@ final class DriveLogUITests: XCTestCase {
     }
 
     @MainActor
-    private func tap(_ button: XCUIElement, expectingLabel label: String) {
+    func tap(_ button: XCUIElement, expectingLabel label: String) {
         expectation(for: NSPredicate(format: "label == %@", label), evaluatedWith: button)
         waitForExpectations(timeout: 5)
         button.tap()

@@ -2,59 +2,117 @@ import AVKit
 import SwiftUI
 
 struct MediaPreviewView: View {
-    @State private var viewModel: MediaPreviewViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var viewModels: [MediaPreviewViewModel]
+    @State private var selectedIdentifier: String
 
     init(viewModel: MediaPreviewViewModel) {
-        _viewModel = State(initialValue: viewModel)
+        self.init(viewModels: [viewModel], selectedIdentifier: viewModel.asset.localIdentifier)
+    }
+
+    init(
+        viewModels: [MediaPreviewViewModel],
+        selectedIdentifier: String
+    ) {
+        let initialIdentifier = viewModels.contains {
+            $0.asset.localIdentifier == selectedIdentifier
+        } ? selectedIdentifier : viewModels.first?.asset.localIdentifier ?? ""
+        _viewModels = State(initialValue: viewModels)
+        _selectedIdentifier = State(initialValue: initialIdentifier)
     }
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            content
+            TabView(selection: $selectedIdentifier) {
+                ForEach(viewModels, id: \.asset.localIdentifier) { viewModel in
+                    MediaPreviewPage(viewModel: viewModel)
+                        .tag(viewModel.asset.localIdentifier)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
         }
-        .safeAreaInset(edge: .bottom) {
-            metadata
-        }
-        .navigationTitle(viewModel.asset.mediaType == .video ? "動画" : "写真")
+        .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                }
+                .accessibilityLabel("戻る")
+                .accessibilityIdentifier("mediaPreview.back")
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button("共有", systemImage: "square.and.arrow.up") {
-                    Task { await viewModel.share() }
+                    guard let selectedViewModel else { return }
+                    Task { await selectedViewModel.share() }
                 }
-                .disabled(viewModel.canShare == false)
+                .disabled(selectedViewModel?.canShare != true)
                 .accessibilityIdentifier("mediaPreview.share")
             }
         }
-        .task {
-            guard case .idle = viewModel.state else { return }
-            await viewModel.load()
-        }
-        .onDisappear {
-            viewModel.stop()
-        }
         .overlay {
-            if viewModel.isSharing {
+            if selectedViewModel?.isSharing == true {
                 ProgressView("共有準備中")
                     .padding()
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
                     .accessibilityIdentifier("mediaPreview.sharing")
             }
         }
-        .alert(
-            "共有できませんでした",
-            isPresented: Binding(
-                get: { viewModel.shareFailed },
-                set: {
-                    if $0 == false {
-                        viewModel.clearShareError()
-                    }
-                }
-            )
-        ) {
-            Button("OK") { viewModel.clearShareError() }
+        .alert("共有できませんでした", isPresented: shareErrorBinding) {
+            Button("OK") { selectedViewModel?.clearShareError() }
         }
+        .onChange(of: selectedIdentifier) { oldValue, _ in
+            viewModels.first { $0.asset.localIdentifier == oldValue }?.stop()
+        }
+    }
+
+    private var selectedViewModel: MediaPreviewViewModel? {
+        viewModels.first { $0.asset.localIdentifier == selectedIdentifier }
+    }
+
+    private var navigationTitle: String {
+        guard viewModels.count > 1,
+              let index = viewModels.firstIndex(where: {
+                  $0.asset.localIdentifier == selectedIdentifier
+              })
+        else {
+            return selectedViewModel?.asset.mediaType == .video ? "動画" : "写真"
+        }
+        return "\(index + 1) / \(viewModels.count)"
+    }
+
+    private var shareErrorBinding: Binding<Bool> {
+        Binding(
+            get: { selectedViewModel?.shareFailed == true },
+            set: { isPresented in
+                if !isPresented {
+                    selectedViewModel?.clearShareError()
+                }
+            }
+        )
+    }
+}
+
+private struct MediaPreviewPage: View {
+    @State var viewModel: MediaPreviewViewModel
+
+    var body: some View {
+        content
+            .safeAreaInset(edge: .bottom) {
+                metadata
+            }
+            .task {
+                guard case .idle = viewModel.state else { return }
+                await viewModel.load()
+            }
+            .onDisappear {
+                viewModel.stop()
+            }
     }
 
     @ViewBuilder

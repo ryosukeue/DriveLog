@@ -2,11 +2,14 @@
 
 ## 実機フィードバック改訂の追加検証（2026-07-15）
 
-- Visit/Motion境界だけではPolylineを分割せず、90分Gapと現地日付境界では分割する。
+- Visit/Motion境界だけではPolylineを分割せず、5分以上のStay境界、90分Gap、現地日付境界では分割する。
 - 充電状態とLocation Mode遷移、約60秒emit境界、重複起動防止をUnit Testする。
 - MapSceneのMedia Annotationは別Media snapshotが空でも描画し、Thumbnail失敗時もfallbackを維持する。
+- 日別Galleryと場所ClusterのPreviewは、選択元Media内を左右Page移動できることをUI Testする。
+- Calendarからの日付Sheet、下Swipe dismiss、記録日の左右Page移動、全画面地図の単一戻る矢印をUI Testする。
 - Movement分類変更Presentation Testは削除し、既存Override表示/Application/Data互換Testを維持する。
 - Stayの3操作、保存中、失敗、即時Scene反映をTestする。
+- Stay縮小時のCluster化と、Stay/Media/両方の共通場所Popup選択をTestする。
 - 詳細統計UIは存在せず、基本Summary/Map/MediaをTestする。
 - Calendarは縦Scroll、月window遅延追加、年境界、一意なAccessibility label、記録なし日無効化をTestする。旧左右Swipe月移動Testは適用しない。
 

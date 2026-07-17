@@ -1,15 +1,17 @@
 import SwiftUI
 
 struct FullRouteMapView: View {
+    @Environment(\.dismiss) private var dismiss
     @State private var viewModel: RouteMapViewModel
     @State private var userTrackingRequestID = 0
+    @State private var selectedPlace: MapPlaceSelection?
     let thumbnailLoader: any LoadMediaThumbnailUseCase
-    let onSelectMedia: (MediaAssetReference) -> Void
+    let onSelectMedia: (MediaAssetReference, [MediaAssetReference]) -> Void
 
     init(
         viewModel: RouteMapViewModel,
         thumbnailLoader: any LoadMediaThumbnailUseCase,
-        onSelectMedia: @escaping (MediaAssetReference) -> Void = { _ in }
+        onSelectMedia: @escaping (MediaAssetReference, [MediaAssetReference]) -> Void = { _, _ in }
     ) {
         _viewModel = State(initialValue: viewModel)
         self.thumbnailLoader = thumbnailLoader
@@ -30,16 +32,38 @@ struct FullRouteMapView: View {
                 media: viewModel.visibleMedia,
                 thumbnailLoader: thumbnailLoader,
                 onSelectMedia: selectMedia,
+                onSelectPlace: { selectedPlace = $0 },
                 onTapEmpty: viewModel.clearSelection,
                 userTrackingRequestID: userTrackingRequestID
             )
+            .ignoresSafeArea()
             accessibilityControls
+            VStack {
+                HStack {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.body.weight(.semibold))
+                            .frame(width: 44, height: 44)
+                            .background(.ultraThinMaterial, in: Circle())
+                    }
+                    .accessibilityLabel("日付ページに戻る")
+                    .accessibilityIdentifier("map.back")
+                    Spacer()
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
         }
-        .ignoresSafeArea(edges: .bottom)
-        .navigationTitle("経路")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .navigationBar)
         .alert("滞在表示を更新できませんでした", isPresented: stayErrorBinding) {
             Button("OK", role: .cancel) {}
+        }
+        .sheet(item: $selectedPlace) { selection in
+            placeSheet(selection)
+                .presentationDetents([.medium, .large])
         }
     }
 
@@ -48,8 +72,8 @@ struct FullRouteMapView: View {
             HStack(spacing: 0) {
                 ForEach(viewModel.scene.movementLabels, id: \.segmentStableID) { movement in
                     accessibilityButton(
-                        identifier: "map.movementLabel",
-                        label: "移動区間 \(movement.text)"
+                        identifier: "map.polyline",
+                        label: "経路、タップして詳細を表示"
                     ) {
                         viewModel.selectSegment(stableID: movement.segmentStableID)
                     }
@@ -59,7 +83,10 @@ struct FullRouteMapView: View {
                         identifier: "map.stayAnnotation",
                         label: "滞在 \(stay.text)"
                     ) {
-                        viewModel.selectStay(stableID: stay.stayStableID)
+                        selectedPlace = MapPlaceSelection(
+                            mediaIdentifiers: [],
+                            stayStableIDs: [stay.stayStableID]
+                        )
                     }
                 }
                 ForEach(viewModel.visibleMedia, id: \.localIdentifier) { asset in
@@ -67,7 +94,10 @@ struct FullRouteMapView: View {
                         identifier: "map.mediaAnnotation",
                         label: asset.mediaType == .video ? "動画" : "写真"
                     ) {
-                        onSelectMedia(asset)
+                        selectedPlace = MapPlaceSelection(
+                            mediaIdentifiers: [asset.localIdentifier],
+                            stayStableIDs: []
+                        )
                     }
                 }
                 Spacer()
@@ -88,7 +118,79 @@ struct FullRouteMapView: View {
 
     private func selectMedia(localIdentifier: String) {
         guard let asset = viewModel.media(localIdentifier: localIdentifier) else { return }
-        onSelectMedia(asset)
+        onSelectMedia(asset, [asset])
+    }
+
+    private func selectMediaFromPlace(
+        _ asset: MediaAssetReference,
+        media: [MediaAssetReference]
+    ) {
+        selectedPlace = nil
+        onSelectMedia(asset, media)
+    }
+
+    private func placeSheet(_ selection: MapPlaceSelection) -> some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    let media = viewModel.media(localIdentifiers: selection.mediaIdentifiers)
+                    if !media.isEmpty {
+                        MediaGridSection(
+                            media: media,
+                            loadThumbnail: { identifier, size in
+                                try await thumbnailLoader.execute(
+                                    localIdentifier: identifier,
+                                    targetSize: size
+                                )
+                            },
+                            onSelect: { asset in
+                                selectMediaFromPlace(asset, media: media)
+                            }
+                        )
+                    }
+                    let stays = viewModel.stays(stableIDs: selection.stayStableIDs)
+                    if !stays.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(stays.count == 1 ? "滞在" : "滞在（\(stays.count)回）")
+                                .font(.headline)
+                            ForEach(stays, id: \.segment.stableID) { stay in
+                                stayRow(stay)
+                            }
+                        }
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle("この場所")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        selectedPlace = nil
+                    } label: {
+                        Image(systemName: "chevron.left")
+                    }
+                    .accessibilityLabel("地図に戻る")
+                }
+            }
+            .accessibilityIdentifier("map.placeSheet")
+        }
+    }
+
+    private func stayRow(_ stay: StayDisplayData) -> some View {
+        HStack {
+            Text(stayDuration(seconds: stay.segment.durationSeconds))
+                .font(.body.weight(.semibold))
+            Spacer()
+        }
+        .padding(12)
+        .background(.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func stayDuration(seconds: TimeInterval) -> String {
+        let minutes = max(0, Int(seconds) / 60)
+        guard minutes >= 60 else { return "\(minutes)分" }
+        return "\(minutes / 60)時間\(minutes % 60)分"
     }
 
     private func updateStay(stableID: String, action: StayOverrideAction) {

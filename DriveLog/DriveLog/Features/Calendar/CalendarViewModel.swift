@@ -22,6 +22,14 @@ final class CalendarViewModel {
         months.first { $0.month == displayedMonth }?.days ?? []
     }
 
+    var validLocalDateKeys: [String] {
+        months
+            .flatMap(\.days)
+            .filter(\.hasValidMovement)
+            .map(\.localDateKey)
+            .sorted()
+    }
+
     private let loadCalendarMonth: any LoadCalendarMonthUseCase
     private var loadedByMonth: [LocalMonth: CalendarMonthData] = [:]
     private var isExtending = false

@@ -2,7 +2,6 @@ import MapKit
 
 final class RouteMapPointAnnotation: NSObject, MKAnnotation {
     enum Kind {
-        case movementLabel
         case movementCallout
         case stay
         case stayCallout
@@ -16,6 +15,7 @@ final class RouteMapPointAnnotation: NSObject, MKAnnotation {
     let movement: MapMovementLabel?
     let stay: MapStayAnnotation?
     let mediaType: MediaType?
+    let relatedStays: [MapStayAnnotation]
 
     init(
         id: String,
@@ -24,7 +24,8 @@ final class RouteMapPointAnnotation: NSObject, MKAnnotation {
         labelText: String? = nil,
         movement: MapMovementLabel? = nil,
         stay: MapStayAnnotation? = nil,
-        mediaType: MediaType? = nil
+        mediaType: MediaType? = nil,
+        relatedStays: [MapStayAnnotation] = []
     ) {
         self.id = id
         self.coordinate = coordinate
@@ -33,41 +34,50 @@ final class RouteMapPointAnnotation: NSObject, MKAnnotation {
         self.movement = movement
         self.stay = stay
         self.mediaType = mediaType
+        self.relatedStays = relatedStays
     }
 }
 
-final class RouteMapMediaAnnotationView: MKAnnotationView {
+class RouteMapMediaAnnotationView: MKAnnotationView {
     private let imageView = UIImageView()
     private let videoBadge = UIImageView(image: UIImage(systemName: "play.fill"))
+    private let countLabel = UILabel()
+    private let stayLabel = UILabel()
     private var representedIdentifier: String?
     private var thumbnailTask: Task<Void, Never>?
+    private(set) var displayedCountText: String?
+    private(set) var displayedStayText: String?
 
     override init(annotation: (any MKAnnotation)?, reuseIdentifier: String?) {
         super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
-        frame.size = CGSize(width: 52, height: 52)
-        centerOffset = CGPoint(x: 0, y: -26)
-        layer.cornerRadius = 9
-        layer.borderColor = UIColor.white.cgColor
-        layer.borderWidth = 2
-        layer.shadowColor = UIColor.black.cgColor
-        layer.shadowOpacity = 0.25
-        layer.shadowRadius = 3
-        layer.shadowOffset = CGSize(width: 0, height: 2)
-        backgroundColor = .secondarySystemBackground
+        frame.size = CGSize(width: 104, height: 92)
+        centerOffset = CGPoint(x: 0, y: -46)
+        backgroundColor = .clear
         clipsToBounds = false
 
-        imageView.frame = bounds
+        imageView.frame = CGRect(x: 26, y: 0, width: 52, height: 52)
         imageView.contentMode = .scaleAspectFill
         imageView.clipsToBounds = true
-        imageView.layer.cornerRadius = 7
+        imageView.layer.cornerRadius = 9
+        imageView.layer.borderColor = UIColor.white.cgColor
+        imageView.layer.borderWidth = 2
+        imageView.layer.shadowColor = UIColor.black.cgColor
+        imageView.layer.shadowOpacity = 0.25
+        imageView.layer.shadowRadius = 3
+        imageView.layer.shadowOffset = CGSize(width: 0, height: 2)
         addSubview(imageView)
 
         videoBadge.tintColor = .white
         videoBadge.backgroundColor = UIColor.black.withAlphaComponent(0.65)
         videoBadge.contentMode = .center
         videoBadge.layer.cornerRadius = 11
-        videoBadge.frame = CGRect(x: 27, y: 27, width: 22, height: 22)
+        videoBadge.frame = CGRect(x: 53, y: 27, width: 22, height: 22)
         addSubview(videoBadge)
+
+        configurePill(countLabel, backgroundColor: .systemRed, textColor: .white)
+        configurePill(
+            stayLabel, backgroundColor: .secondarySystemBackground, textColor: .label
+        )
 
         canShowCallout = false
         isAccessibilityElement = true
@@ -86,11 +96,15 @@ final class RouteMapMediaAnnotationView: MKAnnotationView {
         thumbnailTask = nil
         representedIdentifier = nil
         imageView.image = nil
+        displayedCountText = nil
+        displayedStayText = nil
     }
 
     func configure(
         localIdentifier: String,
         mediaType: MediaType,
+        memberCount: Int = 1,
+        staySummary: String? = nil,
         thumbnailLoader: (any LoadMediaThumbnailUseCase)?
     ) {
         thumbnailTask?.cancel()
@@ -98,7 +112,17 @@ final class RouteMapMediaAnnotationView: MKAnnotationView {
         imageView.image = UIImage(systemName: "photo")
         imageView.tintColor = .secondaryLabel
         videoBadge.isHidden = mediaType != .video
-        accessibilityLabel = mediaType == .video ? "動画" : "写真"
+        displayedCountText = memberCount > 1 ? "\(memberCount)枚" : nil
+        displayedStayText = staySummary
+        countLabel.text = displayedCountText
+        countLabel.isHidden = displayedCountText == nil
+        stayLabel.text = staySummary
+        stayLabel.isHidden = staySummary == nil
+        layoutPills()
+        let kind = mediaType == .video ? "動画" : "写真"
+        let countDescription = memberCount > 1 ? "、\(memberCount)件" : ""
+        let stayDescription = staySummary.map { "、\($0)" } ?? ""
+        accessibilityLabel = kind + countDescription + stayDescription
         guard let thumbnailLoader else { return }
         thumbnailTask = Task { @MainActor [weak self] in
             do {
@@ -118,16 +142,41 @@ final class RouteMapMediaAnnotationView: MKAnnotationView {
             }
         }
     }
+
+    private func configurePill(
+        _ label: UILabel,
+        backgroundColor: UIColor,
+        textColor: UIColor
+    ) {
+        label.font = .preferredFont(forTextStyle: .caption2)
+        label.adjustsFontForContentSizeCategory = true
+        label.textAlignment = .center
+        label.textColor = textColor
+        label.backgroundColor = backgroundColor
+        label.layer.cornerRadius = 8
+        label.layer.masksToBounds = true
+        label.isHidden = true
+        addSubview(label)
+    }
+
+    private func layoutPills() {
+        var nextY: CGFloat = 54
+        if !countLabel.isHidden {
+            countLabel.frame = CGRect(x: 26, y: nextY, width: 52, height: 17)
+            nextY += 19
+        }
+        if !stayLabel.isHidden {
+            stayLabel.frame = CGRect(x: 2, y: nextY, width: 100, height: 18)
+        }
+    }
 }
 
-final class RouteMapMediaClusterAnnotationView: MKMarkerAnnotationView {
+final class RouteMapMediaClusterAnnotationView: RouteMapMediaAnnotationView {
     override init(annotation: (any MKAnnotation)?, reuseIdentifier: String?) {
         super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
-        markerTintColor = .systemRed
-        glyphTintColor = .white
         canShowCallout = false
         displayPriority = .required
-        collisionMode = .circle
+        collisionMode = .rectangle
         isAccessibilityElement = true
         accessibilityTraits = .button
         accessibilityIdentifier = "map.mediaCluster"
@@ -137,162 +186,9 @@ final class RouteMapMediaClusterAnnotationView: MKMarkerAnnotationView {
     required init?(coder _: NSCoder) {
         nil
     }
-
-    func configure(memberCount: Int) {
-        let count = max(0, memberCount)
-        glyphText = String(count)
-        accessibilityLabel = "\(count)件の写真と動画"
-    }
 }
 
-final class RouteMapStayCalloutView: MKAnnotationView {
-    private let label = UILabel()
-    private let overrideButton = UIButton(type: .system)
-
-    override init(annotation: (any MKAnnotation)?, reuseIdentifier: String?) {
-        super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
-        label.font = .preferredFont(forTextStyle: .caption1)
-        label.textColor = .label
-        label.backgroundColor = .secondarySystemBackground
-        label.numberOfLines = 0
-        label.layer.cornerRadius = 12
-        label.layer.masksToBounds = true
-        label.layer.borderColor = UIColor.systemRed.cgColor
-        label.layer.borderWidth = 2
-        addSubview(label)
-        overrideButton.showsMenuAsPrimaryAction = true
-        overrideButton.setTitle("滞在表示を修正", for: .normal)
-        overrideButton.backgroundColor = .secondarySystemBackground
-        overrideButton.accessibilityLabel = "滞在表示を修正"
-        overrideButton.accessibilityIdentifier = "map.stayOverrideMenu"
-        addSubview(overrideButton)
-        canShowCallout = false
-        centerOffset = CGPoint(x: 0, y: -90)
-        isAccessibilityElement = false
-        label.isAccessibilityElement = true
-        accessibilityTraits = .button
-    }
-
-    @available(*, unavailable)
-    required init?(coder _: NSCoder) {
-        nil
-    }
-
-    func configure(
-        stay: MapStayAnnotation,
-        formatter: DayDetailFormatter,
-        isSaving: Bool = false,
-        onSelectAction: @escaping (StayOverrideAction) -> Void = { _ in }
-    ) {
-        let values = [
-            "到着 \(formatter.time(stay.arrivalDate))",
-            "出発 \(formatter.time(stay.departureDate))",
-            "滞在 \(formatter.duration(seconds: stay.durationSeconds))",
-            "信頼度 \(formatter.stayConfidence(stay.confidence))",
-            stay.isVisibleByAutomaticRule ? "自動判定 表示" : "自動判定 非表示"
-        ]
-        label.text = "  \(values.joined(separator: "\n"))  "
-        frame.size = CGSize(width: 185, height: 165)
-        label.frame = CGRect(x: 0, y: 0, width: bounds.width, height: 125)
-        overrideButton.frame = CGRect(x: 8, y: 125, width: 169, height: 40)
-        label.accessibilityLabel = values.joined(separator: "、")
-        label.accessibilityIdentifier = "map.stayCallout"
-        overrideButton.isEnabled = !isSaving
-        overrideButton.setTitle(isSaving ? "保存中…" : "滞在表示を修正", for: .normal)
-        overrideButton.accessibilityValue = isSaving ? "保存中" : "操作可能"
-        overrideButton.menu = UIMenu(children: [
-            UIAction(title: "滞在として確定") { _ in onSelectAction(.confirm) },
-            UIAction(title: "非表示", attributes: .destructive) { _ in onSelectAction(.hide) },
-            UIAction(title: "自動判定へ戻す") { _ in onSelectAction(.automatic) }
-        ])
-    }
-}
-
-final class RouteMapMovementCalloutView: MKAnnotationView {
-    private let label = UILabel()
-
-    override init(annotation: (any MKAnnotation)?, reuseIdentifier: String?) {
-        super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
-        label.font = .preferredFont(forTextStyle: .caption1)
-        label.textColor = .label
-        label.backgroundColor = .secondarySystemBackground
-        label.numberOfLines = 0
-        label.layer.cornerRadius = 12
-        label.layer.masksToBounds = true
-        label.layer.borderColor = UIColor.systemRed.cgColor
-        label.layer.borderWidth = 2
-        addSubview(label)
-        canShowCallout = false
-        centerOffset = CGPoint(x: 0, y: -75)
-        isAccessibilityElement = false
-        label.isAccessibilityElement = true
-        accessibilityTraits = .button
-    }
-
-    @available(*, unavailable)
-    required init?(coder _: NSCoder) {
-        nil
-    }
-
-    func configure(
-        movement: MapMovementLabel,
-        formatter: DayDetailFormatter
-    ) {
-        let timeRange = "\(formatter.time(movement.startDate))–\(formatter.time(movement.endDate))"
-        let values = [
-            timeRange,
-            formatter.duration(seconds: movement.durationSeconds),
-            formatter.distance(meters: movement.distanceMeters),
-            "平均 \(formatter.averageSpeed(metersPerSecond: movement.averageSpeedMetersPerSecond))",
-            formatter.classification(movement.automaticClassification),
-            "ユーザー分類 \(formatter.classification(movement.userClassification))"
-        ]
-        label.text = "  \(values.joined(separator: "\n"))  "
-        frame.size = CGSize(width: 200, height: 150)
-        label.frame = bounds
-        label.accessibilityLabel = values.joined(separator: "、")
-        label.accessibilityIdentifier = "map.movementCallout"
-    }
-}
-
-final class RouteMapLabelAnnotationView: MKAnnotationView {
-    private let label = UILabel()
-
-    override init(annotation: (any MKAnnotation)?, reuseIdentifier: String?) {
-        super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
-        label.font = .preferredFont(forTextStyle: .caption1)
-        label.textColor = .label
-        label.backgroundColor = .secondarySystemBackground
-        label.textAlignment = .center
-        label.layer.cornerRadius = 8
-        label.layer.masksToBounds = true
-        addSubview(label)
-        canShowCallout = false
-        isAccessibilityElement = true
-        accessibilityTraits = .button
-    }
-
-    @available(*, unavailable)
-    required init?(coder _: NSCoder) {
-        nil
-    }
-
-    func configure(text: String, isSelected: Bool) {
-        label.text = "  \(text)  "
-        label.sizeToFit()
-        frame.size = CGSize(
-            width: max(44, label.bounds.width),
-            height: max(32, label.bounds.height + 8)
-        )
-        label.frame = bounds
-        label.layer.borderColor = UIColor.systemRed.cgColor
-        label.layer.borderWidth = isSelected ? 3 : 1
-        accessibilityLabel = "移動区間 \(text)"
-        accessibilityIdentifier = "map.movementLabel"
-    }
-}
-
-final class RouteMapStayAnnotationView: MKAnnotationView {
+class RouteMapStayAnnotationView: MKAnnotationView {
     private let label = UILabel()
 
     override init(annotation: (any MKAnnotation)?, reuseIdentifier: String?) {
@@ -323,5 +219,19 @@ final class RouteMapStayAnnotationView: MKAnnotationView {
         label.layer.borderWidth = isSelected ? 4 : 1
         accessibilityLabel = "滞在 \(text)"
         accessibilityIdentifier = "map.stayAnnotation"
+    }
+}
+
+final class RouteMapStayClusterAnnotationView: RouteMapStayAnnotationView {
+    override init(annotation: (any MKAnnotation)?, reuseIdentifier: String?) {
+        super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
+        displayPriority = .required
+        collisionMode = .rectangle
+        accessibilityIdentifier = "map.stayCluster"
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        nil
     }
 }
