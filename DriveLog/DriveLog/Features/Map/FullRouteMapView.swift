@@ -39,7 +39,16 @@ struct FullRouteMapView: View {
                 userTrackingRequestID: userTrackingRequestID
             )
             .ignoresSafeArea()
-            accessibilityControls
+            GeometryReader { geometry in
+                accessibilityControls
+                    .padding(.top, 56)
+                    .frame(
+                        width: geometry.size.width,
+                        height: geometry.size.height,
+                        alignment: .topLeading
+                    )
+                    .clipped()
+            }
         }
         .overlay(alignment: .topLeading) {
             mapBackButton
@@ -76,7 +85,7 @@ struct FullRouteMapView: View {
     }
 
     private var accessibilityControls: some View {
-        VStack {
+        VStack(alignment: .leading) {
             HStack(spacing: 0) {
                 ForEach(viewModel.scene.movementLabels, id: \.segmentStableID) { movement in
                     accessibilityButton(

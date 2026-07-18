@@ -21,7 +21,7 @@ struct DriveLogApp: App {
     init() {
         let container = AppContainer()
         appContainer = container
-        let now = container.clock.now
+        let now = Self.referenceDate(for: container)
         today = now
         #if DEBUG
             let uiTest = Self.makeUITestConfiguration(
@@ -50,7 +50,8 @@ struct DriveLogApp: App {
                     try Self.seedUITestData(
                         modelContainer: modelContainer,
                         now: now,
-                        calendar: calendar
+                        calendar: calendar,
+                        usesDenseMapFixture: uiTest.usesDenseMapFixture
                     )
                 }
             #endif
@@ -145,8 +146,11 @@ struct DriveLogApp: App {
         ) -> UITestConfiguration {
             let arguments = ProcessInfo.processInfo.arguments
             let runsOnboardingFlow = arguments.contains("-ui-testing-onboarding-flow")
-            let isMedia = arguments.contains("-ui-testing-media")
-            let isSeeded = isMedia || arguments.contains("-ui-testing-day-detail")
+            let usesDenseMapFixture = arguments.contains("-ui-testing-july-17-map")
+            let isMedia = arguments.contains("-ui-testing-media") || usesDenseMapFixture
+            let isSeeded = isMedia
+                || arguments.contains("-ui-testing-day-detail")
+                || usesDenseMapFixture
             let isEnabled = isSeeded
                 || arguments.contains("-ui-testing-calendar")
                 || runsOnboardingFlow
@@ -160,7 +164,8 @@ struct DriveLogApp: App {
                 photoLibrary: photoLibrary,
                 runsOnboardingFlow: runsOnboardingFlow,
                 isSeeded: isSeeded,
-                isEnabled: isEnabled
+                isEnabled: isEnabled,
+                usesDenseMapFixture: usesDenseMapFixture
             )
         }
 
@@ -168,7 +173,8 @@ struct DriveLogApp: App {
         static func seedUITestData(
             modelContainer: ModelContainer,
             now: Date,
-            calendar: Calendar
+            calendar: Calendar,
+            usesDenseMapFixture: Bool
         ) throws {
             let components = calendar.dateComponents([.year, .month, .day], from: now)
             guard let year = components.year,
@@ -180,6 +186,14 @@ struct DriveLogApp: App {
             let context = ModelContext(modelContainer)
             seedSummary(context: context, localDateKey: localDateKey, startDate: startDate, now: now)
             try seedRoute(context: context, localDateKey: localDateKey, startDate: startDate, now: now)
+            if usesDenseMapFixture {
+                try seedDenseMapExtras(
+                    context: context,
+                    localDateKey: localDateKey,
+                    startDate: startDate,
+                    now: now
+                )
+            }
             guard let nextDate = calendar.date(byAdding: .day, value: 1, to: now) else {
                 throw DriveLogError.invalidData
             }
@@ -225,54 +239,6 @@ struct DriveLogApp: App {
                 lastErrorCode: nil, updatedAt: now
             ))
         }
-
-        @MainActor
-        static func seedRoute(
-            context: ModelContext,
-            localDateKey: String,
-            startDate: Date,
-            now: Date
-        ) throws {
-            let route = try PropertyListRouteEncoder().encode([
-                RouteCoordinate(latitude: 35.680, longitude: 139.760),
-                RouteCoordinate(latitude: 35.690, longitude: 139.780),
-                RouteCoordinate(latitude: 35.700, longitude: 139.800)
-            ])
-            context.insert(
-                MovementSegmentModel(
-                    stableID: "ui-movement",
-                    localDateKey: localDateKey,
-                    startDate: startDate,
-                    endDate: now,
-                    distanceMeters: 5200,
-                    durationSeconds: 3600,
-                    estimatedAverageSpeedMetersPerSecond: 5200 / 3600,
-                    automaticClassificationRawValue: "automotiveLike",
-                    classificationConfidenceRawValue: "high",
-                    encodedRouteData: route,
-                    labelLatitude: 35.690,
-                    labelLongitude: 139.780,
-                    sourceRawRevision: 1,
-                    generatedAt: now
-                )
-            )
-            context.insert(
-                StaySegmentModel(
-                    stableID: "ui-stay",
-                    localDateKey: localDateKey,
-                    representativeLatitude: 35.700,
-                    representativeLongitude: 139.800,
-                    estimatedArrivalDate: now.addingTimeInterval(-900),
-                    estimatedDepartureDate: now.addingTimeInterval(-300),
-                    durationSeconds: 600,
-                    confidenceRawValue: "high",
-                    sourceRawValue: "combined",
-                    isVisibleByAutomaticRule: true,
-                    sourceRawRevision: 1,
-                    generatedAt: now
-                )
-            )
-        }
     }
 #endif
 
@@ -283,10 +249,24 @@ struct DriveLogApp: App {
         let runsOnboardingFlow: Bool
         let isSeeded: Bool
         let isEnabled: Bool
+        let usesDenseMapFixture: Bool
     }
 #endif
 
 private extension DriveLogApp {
+    @MainActor
+    static func referenceDate(for container: AppContainer) -> Date {
+        let current = container.clock.now
+        #if DEBUG
+            return uiTestReferenceDate(
+                defaultValue: current,
+                timeZone: container.timeZoneProvider.current
+            )
+        #else
+            return current
+        #endif
+    }
+
     var shouldShowOnboarding: Bool {
         #if DEBUG
             let arguments = ProcessInfo.processInfo.arguments
@@ -299,6 +279,7 @@ private extension DriveLogApp {
             let bypassesOnboarding = arguments.contains("-ui-testing-day-detail")
                 || arguments.contains("-ui-testing-media")
                 || arguments.contains("-ui-testing-calendar")
+                || arguments.contains("-ui-testing-july-17-map")
             if bypassesOnboarding {
                 return false
             }
@@ -326,7 +307,7 @@ private extension DriveLogApp {
                     localIdentifier: "ui-photo",
                     mediaType: .photo,
                     creationDate: start.addingTimeInterval(3600),
-                    location: RouteCoordinate(latitude: 35.700, longitude: 139.800),
+                    location: RouteCoordinate(latitude: 37.350, longitude: -122.000),
                     durationSeconds: nil,
                     isScreenshot: false,
                     isScreenRecording: false
@@ -335,7 +316,7 @@ private extension DriveLogApp {
                     localIdentifier: "ui-video",
                     mediaType: .video,
                     creationDate: start.addingTimeInterval(7200),
-                    location: RouteCoordinate(latitude: 35.700, longitude: 139.800),
+                    location: RouteCoordinate(latitude: 37.350, longitude: -122.000),
                     durationSeconds: 10,
                     isScreenshot: false,
                     isScreenRecording: false

@@ -7,6 +7,7 @@
 - MapSceneのMedia Annotationは別Media snapshotが空でも描画し、Thumbnail失敗時もfallbackを維持する。
 - 日別Galleryと場所ClusterのPreviewは、選択元Media内を左右Page移動できることをUI Testする。
 - Calendarからの日付Sheet、下Swipe dismiss、記録日の左右Page移動、全画面地図の単一戻る矢印をUI Testする。
+- 多数の経路、Stay、Mediaを持つ全画面地図でも、補助Accessibility要素が画面幅を拡張せず、戻る矢印がSafe Area内で操作可能なことをUI Testする。
 - Movement分類変更Presentation Testは削除し、既存Override表示/Application/Data互換Testを維持する。
 - Stayの3操作、保存中、失敗、即時Scene反映をTestする。
 - Stay縮小時のCluster化と、Stay/Media/両方の共通場所Popup選択をTestする。
