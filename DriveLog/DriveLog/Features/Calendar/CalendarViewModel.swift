@@ -13,6 +13,7 @@ nonisolated enum CalendarViewState: Sendable, Equatable {
 @Observable
 final class CalendarViewModel {
     let displayedMonth: LocalMonth
+    private(set) var selectedMonth: LocalMonth
     private(set) var months: [CalendarMonthData] = []
     private(set) var state: CalendarViewState = .idle
     private(set) var selectedLocalDateKey: String?
@@ -41,7 +42,15 @@ final class CalendarViewModel {
         loadCalendarMonth: any LoadCalendarMonthUseCase
     ) {
         self.displayedMonth = displayedMonth
+        selectedMonth = displayedMonth
         self.loadCalendarMonth = loadCalendarMonth
+    }
+
+    func select(month: LocalMonth) {
+        guard months.contains(where: { $0.month == month }) else { return }
+        selectedMonth = month
+        selectedLocalDateKey = nil
+        navigationLocalDateKey = nil
     }
 
     func load() async {

@@ -9,6 +9,7 @@ struct DriveLogApp: App {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var onboardingFlowUITestCompleted = false
     private let calendarViewModel: CalendarViewModel?
+    private let monthlySummaryViewModel: MonthlySummaryViewModel?
     private let appContainer: AppContainer
     private let today: Date
     private let modelContainer: ModelContainer?
@@ -24,10 +25,7 @@ struct DriveLogApp: App {
         let now = Self.referenceDate(for: container)
         today = now
         #if DEBUG
-            let uiTest = Self.makeUITestConfiguration(
-                now: now,
-                timeZone: container.timeZoneProvider.current
-            )
+            let uiTest = Self.makeUITestConfiguration(now: now, timeZone: container.timeZoneProvider.current)
             runsOnboardingFlowUITest = uiTest.runsOnboardingFlow
             permissionManager = uiTest.permissionManager
             photoLibrary = uiTest.photoLibrary
@@ -60,13 +58,12 @@ struct DriveLogApp: App {
                 modelContainer: modelContainer,
                 permissionManager: permissionManager
             )
-            calendarViewModel = container.makeCalendarViewModel(
-                modelContainer: modelContainer,
-                displayedMonth: month
-            )
+            calendarViewModel = container.makeCalendarViewModel(modelContainer: modelContainer, displayedMonth: month)
+            monthlySummaryViewModel = container.makeMonthlySummaryViewModel(modelContainer: modelContainer)
         } catch {
             modelContainer = nil
             calendarViewModel = nil
+            monthlySummaryViewModel = nil
             lifecycleCoordinator = nil
         }
     }
@@ -82,9 +79,10 @@ struct DriveLogApp: App {
                             onboardingFlowUITestCompleted = true
                         }
                     )
-                } else if let calendarViewModel, let modelContainer {
+                } else if let calendarViewModel, let monthlySummaryViewModel, let modelContainer {
                     ContentView(
                         calendarViewModel: calendarViewModel,
+                        monthlySummaryViewModel: monthlySummaryViewModel,
                         today: today,
                         makeDayDetailViewModel: { localDateKey in
                             appContainer.makeDayDetailViewModel(

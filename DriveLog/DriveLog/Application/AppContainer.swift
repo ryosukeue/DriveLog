@@ -45,6 +45,17 @@ final class AppContainer {
         )
     }
 
+    func makeMonthlySummaryViewModel(
+        modelContainer: ModelContainer
+    ) -> MonthlySummaryViewModel {
+        MonthlySummaryViewModel(
+            loadMonthlySummary: DefaultLoadMonthlySummaryUseCase(
+                repository: SwiftDataDerivedDataRepository(modelContainer: modelContainer),
+                cityNameProvider: SystemCityNameProvider()
+            )
+        )
+    }
+
     func makeDayDetailViewModel(
         modelContainer: ModelContainer,
         localDateKey: String,

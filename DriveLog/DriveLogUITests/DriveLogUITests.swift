@@ -13,20 +13,24 @@ final class DriveLogUITests: XCTestCase {
     }
 
     @MainActor
-    func testCalendarUsesContinuousVerticalScroll() {
+    func testCalendarUsesMonthlyPageSwipeAndSummary() {
         let app = XCUIApplication()
         app.launchArguments.append("-ui-testing-calendar")
         app.launch()
 
-        let scroll = app.scrollViews["calendar.scroll"]
-        XCTAssertTrue(scroll.waitForExistence(timeout: 5))
+        let pager = app.descendants(matching: .any)["calendar.pager"]
+        XCTAssertTrue(pager.waitForExistence(timeout: 5))
         XCTAssertTrue(
             app.otherElements.matching(
                 NSPredicate(format: "identifier BEGINSWITH 'calendar.month.'")
             ).firstMatch.waitForExistence(timeout: 5)
         )
-        scroll.swipeUp()
-        XCTAssertTrue(scroll.exists)
+        XCTAssertTrue(
+            app.descendants(matching: .any)["calendar.monthlySummary"]
+                .waitForExistence(timeout: 5)
+        )
+        pager.swipeLeft()
+        XCTAssertTrue(pager.exists)
     }
 
     @MainActor
@@ -75,7 +79,9 @@ final class DriveLogUITests: XCTestCase {
         }
         XCTAssertTrue(app.buttons["onboarding.changePhotoSelection"].exists)
         tap(action, expectingLabel: "DriveLogを始める")
-        XCTAssertTrue(app.scrollViews["calendar.scroll"].waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            app.descendants(matching: .any)["calendar.pager"].waitForExistence(timeout: 5)
+        )
         XCTAssertFalse(app.otherElements["onboarding.root"].exists)
     }
 
@@ -103,7 +109,9 @@ final class DriveLogUITests: XCTestCase {
         XCTAssertNotEqual(currentDate.label, initialDate)
         XCTAssertEqual(app.buttons.matching(identifier: "dayDetail.menu").count, 1)
         app.swipeDown()
-        XCTAssertTrue(app.scrollViews["calendar.scroll"].waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            app.descendants(matching: .any)["calendar.pager"].waitForExistence(timeout: 5)
+        )
     }
 
     @MainActor
@@ -156,7 +164,9 @@ final class DriveLogUITests: XCTestCase {
         XCTAssertTrue(confirm.waitForExistence(timeout: 5))
         confirm.tap()
 
-        XCTAssertTrue(app.scrollViews["calendar.scroll"].waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            app.descendants(matching: .any)["calendar.pager"].waitForExistence(timeout: 5)
+        )
         let deletedDay = app.buttons[dayIdentifier]
         XCTAssertTrue(deletedDay.exists)
         XCTAssertFalse(deletedDay.isEnabled)
