@@ -166,11 +166,15 @@ struct FullRouteMapView: View {
                         )
                     }
                     let stays = viewModel.stays(stableIDs: selection.stayStableIDs)
-                    if !stays.isEmpty {
+                    let displayGroups = StayDisplayGrouping().groups(
+                        stays: stays,
+                        movements: viewModel.scene.movementLabels
+                    )
+                    if !displayGroups.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text(stays.count == 1 ? "滞在" : "滞在（\(stays.count)回）")
+                            Text("滞在")
                                 .font(.headline)
-                            ForEach(stays, id: \.segment.stableID) { stay in
+                            ForEach(displayGroups) { stay in
                                 stayRow(stay)
                             }
                         }
@@ -194,9 +198,9 @@ struct FullRouteMapView: View {
         }
     }
 
-    private func stayRow(_ stay: StayDisplayData) -> some View {
+    private func stayRow(_ stay: StayDisplayGroup) -> some View {
         HStack {
-            Text(stayDuration(seconds: stay.segment.durationSeconds))
+            Text(stayDuration(seconds: stay.durationSeconds))
                 .font(.body.weight(.semibold))
             Spacer()
         }

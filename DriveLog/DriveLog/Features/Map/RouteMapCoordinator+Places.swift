@@ -50,32 +50,53 @@ extension RouteMapCoordinator {
     }
 
     func groupedStays(_ stays: [MapStayAnnotation]) -> [[MapStayAnnotation]] {
-        var groups: [[MapStayAnnotation]] = []
-        for stay in stays {
-            let point = MKMapPoint(stay.coordinate.mapCoordinate)
-            if let index = groups.firstIndex(where: { group in
-                guard let representative = group.first else { return false }
-                return point.distance(to: MKMapPoint(representative.coordinate.mapCoordinate)) <=
-                    placeGroupingDistance
-            }) {
-                groups[index].append(stay)
-            } else {
-                groups.append([stay])
-            }
+        let staysByID = Dictionary(
+            stays.map { ($0.stayStableID, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        return displayStayGroups(for: stays).map { group in
+            group.memberStableIDs.compactMap { staysByID[$0] }
         }
-        return groups
     }
 
     func staySummary(_ stays: [MapStayAnnotation]) -> String? {
         guard !stays.isEmpty else { return nil }
+        let displayGroups = displayStayGroups(for: stays)
         guard let movement = selectedMovement else {
-            return stays.count == 1 ? "滞在 \(durationText(for: stays[0]))" : "滞在"
+            guard displayGroups.count == 1, let group = displayGroups.first else {
+                return "滞在"
+            }
+            return "滞在 \(durationText(seconds: group.durationSeconds))"
         }
         let endpoints = endpointStays(in: stays, for: movement)
-        let precedingText = endpoints.preceding.map { "前 \(durationText(for: $0))" }
-        let followingText = endpoints.following.map { "後 \(durationText(for: $0))" }
+        let precedingText = endpoints.preceding.map { stay in
+            let duration = displayGroup(containing: stay, in: displayGroups)?.durationSeconds
+                ?? stay.durationSeconds
+            return "前 \(durationText(seconds: duration))"
+        }
+        let followingText = endpoints.following.map { stay in
+            let duration = displayGroup(containing: stay, in: displayGroups)?.durationSeconds
+                ?? stay.durationSeconds
+            return "後 \(durationText(seconds: duration))"
+        }
         let components = [precedingText, followingText].compactMap(\.self)
         return components.isEmpty ? "滞在" : components.joined(separator: "・")
+    }
+
+    private func displayStayGroups(
+        for stays: [MapStayAnnotation]
+    ) -> [StayDisplayGroup] {
+        StayDisplayGrouping().groups(
+            stays: stays,
+            movements: renderedScene?.movementLabels ?? []
+        )
+    }
+
+    private func displayGroup(
+        containing stay: MapStayAnnotation,
+        in groups: [StayDisplayGroup]
+    ) -> StayDisplayGroup? {
+        groups.first { $0.memberStableIDs.contains(stay.stayStableID) }
     }
 
     func endpointStays(
@@ -130,8 +151,8 @@ extension RouteMapCoordinator {
         }
     }
 
-    private func durationText(for stay: MapStayAnnotation) -> String {
-        let totalMinutes = max(0, Int(stay.durationSeconds) / 60)
+    private func durationText(seconds: TimeInterval) -> String {
+        let totalMinutes = max(0, Int(seconds) / 60)
         return totalMinutes >= 60
             ? "\(totalMinutes / 60)時間\(totalMinutes % 60)分"
             : "\(totalMinutes)分"
