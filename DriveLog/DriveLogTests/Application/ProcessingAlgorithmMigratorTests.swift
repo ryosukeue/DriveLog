@@ -3,9 +3,9 @@ import Testing
 
 @Suite("Processing algorithm migrator")
 struct ProcessingAlgorithmMigratorTests {
-    @Test("uses processing algorithm version four")
+    @Test("uses processing algorithm version five")
     func currentVersion() {
-        #expect(DefaultProcessingAlgorithmMigrator.currentVersion == 4)
+        #expect(DefaultProcessingAlgorithmMigrator.currentVersion == 5)
     }
 
     @Test("invalidates and advances an older version exactly once")
@@ -40,6 +40,21 @@ struct ProcessingAlgorithmMigratorTests {
 
         #expect(await invalidator.invalidationCount == 2)
         #expect(await store.version == 1)
+    }
+
+    @Test("skips invalidation when the stored version is current")
+    func currentVersionSkipsInvalidation() async {
+        let invalidator = AlgorithmStateInvalidatorFake()
+        let store = AlgorithmVersionStoreFake(version: DefaultProcessingAlgorithmMigrator.currentVersion)
+        let migrator = DefaultProcessingAlgorithmMigrator(
+            stateInvalidator: invalidator,
+            versionStore: store
+        )
+
+        await migrator.migrateIfNeeded()
+
+        #expect(await invalidator.invalidationCount == 0)
+        #expect(await store.version == DefaultProcessingAlgorithmMigrator.currentVersion)
     }
 }
 
