@@ -45,7 +45,7 @@ nonisolated struct ProcessingConfiguration: Sendable, Equatable {
             highConfidenceWeight: 1,
             automotiveMotionRatio: 0.5,
             automotiveFallbackSpeed: 15 / 3.6,
-            automotiveFallbackDistance: 2000,
+            automotiveFallbackDistance: 500,
             walkingMotionRatio: 0.4,
             walkingFallbackMaximumSpeed: 8 / 3.6,
             walkingFallbackMaximumDistance: 3000,

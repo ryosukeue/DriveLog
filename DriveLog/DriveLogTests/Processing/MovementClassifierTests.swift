@@ -27,7 +27,7 @@ struct MovementClassifierTests {
         let medium = classify(motions: [
             motion(endRatio: 0.6, automotive: true, confidence: .medium)
         ])
-        let low = classify(segment: segment(distance: 2000, duration: 480), motions: [])
+        let low = classify(segment: segment(distance: 500, duration: 120), motions: [])
 
         #expect(high.confidence == .high)
         #expect(medium.automaticType == .other)
@@ -67,9 +67,9 @@ struct MovementClassifierTests {
     @Test("uses automotive fallback only at both speed and distance boundaries")
     func automotiveFallback() {
         let speed = 15 / 3.6
-        let boundary = classify(segment: segment(distance: 2000, duration: 2000 / speed))
-        let shortDistance = classify(segment: segment(distance: 1999, duration: 1999 / speed))
-        let slow = classify(segment: segment(distance: 2000, duration: 2000 / (speed - 0.01)))
+        let boundary = classify(segment: segment(distance: 500, duration: 120))
+        let shortDistance = classify(segment: segment(distance: 499, duration: 499 / speed))
+        let slow = classify(segment: segment(distance: 500, duration: 500 / (speed - 0.01)))
 
         #expect(boundary.automaticType == .automotiveLike)
         #expect(boundary.evidence == [.speedDistanceFallback])

@@ -38,7 +38,7 @@ struct ProcessingConfigurationTests {
         #expect(configuration.classification.highConfidenceWeight == 1)
         #expect(configuration.classification.automotiveMotionRatio == 0.5)
         #expect(configuration.classification.automotiveFallbackSpeed == 15 / 3.6)
-        #expect(configuration.classification.automotiveFallbackDistance == 2000)
+        #expect(configuration.classification.automotiveFallbackDistance == 500)
         #expect(configuration.classification.walkingMotionRatio == 0.4)
         #expect(configuration.classification.walkingFallbackMaximumSpeed == 8 / 3.6)
         #expect(configuration.classification.walkingFallbackMaximumDistance == 3000)
