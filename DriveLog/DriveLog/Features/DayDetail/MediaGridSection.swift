@@ -10,16 +10,35 @@ struct MediaGridSection: View {
     let media: [MediaAssetReference]
     let loadThumbnail: @MainActor @Sendable (String, CGSize) async throws -> UIImage
     let onSelect: (MediaAssetReference) -> Void
+    private let title: String
+    private let emptyMessage: String
+    private let gridIdentifier: String
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     private let spacing: CGFloat = 6
 
+    init(
+        media: [MediaAssetReference],
+        loadThumbnail: @escaping @MainActor @Sendable (String, CGSize) async throws -> UIImage,
+        onSelect: @escaping (MediaAssetReference) -> Void,
+        title: String = "写真・動画",
+        emptyMessage: String = "この日の写真・動画はありません",
+        gridIdentifier: String = "dayDetail.media.grid"
+    ) {
+        self.media = media
+        self.loadThumbnail = loadThumbnail
+        self.onSelect = onSelect
+        self.title = title
+        self.emptyMessage = emptyMessage
+        self.gridIdentifier = gridIdentifier
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("写真・動画")
+            Text(title)
                 .font(.headline)
             if media.isEmpty {
-                Label("この日の写真・動画はありません", systemImage: "photo.on.rectangle.angled")
+                Label(emptyMessage, systemImage: "photo.on.rectangle.angled")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 88)
@@ -36,7 +55,7 @@ struct MediaGridSection: View {
                         )
                     }
                 }
-                .accessibilityIdentifier("dayDetail.media.grid")
+                .accessibilityIdentifier(gridIdentifier)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -31,6 +31,7 @@ final class DriveLogUITests: XCTestCase {
         )
         pager.swipeLeft()
         XCTAssertTrue(pager.exists)
+        XCTAssertFalse(app.navigationBars.staticTexts["移動ログ"].exists)
     }
 
     @MainActor
@@ -285,6 +286,30 @@ final class DriveLogUITests: XCTestCase {
         measure(metrics: [XCTApplicationLaunchMetric()]) {
             XCUIApplication().launch()
         }
+    }
+}
+
+extension DriveLogUITests {
+    @MainActor
+    func testCalendarMonthlyOverviewScrollsToMapAndGallery() {
+        let app = XCUIApplication()
+        app.launchArguments.append("-ui-testing-july-17-map")
+        app.launch()
+
+        XCTAssertTrue(
+            app.descendants(matching: .any)["calendar.monthlySummary"]
+                .waitForExistence(timeout: 5)
+        )
+        let map = app.descendants(matching: .any)["calendar.monthlyMap"]
+        for _ in 0 ..< 5 where map.waitForExistence(timeout: 1) == false {
+            app.swipeUp()
+        }
+        XCTAssertTrue(map.waitForExistence(timeout: 5))
+        app.swipeUp()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["calendar.monthlyGallery"]
+                .waitForExistence(timeout: 5)
+        )
     }
 }
 

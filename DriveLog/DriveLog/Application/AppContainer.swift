@@ -56,6 +56,19 @@ final class AppContainer {
         )
     }
 
+    func makeMonthlyOverviewViewModel(
+        modelContainer: ModelContainer
+    ) -> MonthlyOverviewViewModel {
+        MonthlyOverviewViewModel(
+            loadMonthlyOverview: DefaultLoadMonthlyOverviewUseCase(
+                repository: SwiftDataDerivedDataRepository(modelContainer: modelContainer),
+                mediaCacheRepository: SwiftDataMediaCacheRepository(modelContainer: modelContainer),
+                mediaPlacementCalculator: MediaPlacementCalculator(),
+                mapSceneBuilder: MapSceneBuilder()
+            )
+        )
+    }
+
     func makeDayDetailViewModel(
         modelContainer: ModelContainer,
         localDateKey: String,

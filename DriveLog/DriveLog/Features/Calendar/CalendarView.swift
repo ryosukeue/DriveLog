@@ -3,44 +3,68 @@ import SwiftUI
 struct CalendarView: View {
     @State private var viewModel: CalendarViewModel
     @State private var monthlySummaryViewModel: MonthlySummaryViewModel
+    @State private var monthlyOverviewViewModel: MonthlyOverviewViewModel
     @State private var selectedMonth: LocalMonth
     @State private var didSetInitialMonth = false
     private let today: Date
     private let gridBuilder: CalendarGridBuilder
     private let distanceFormatter: DistanceFormatter
     private let onSelectDate: (String) -> Void
+    private let thumbnailLoader: any LoadMediaThumbnailUseCase
+    private let updateStayOverride: any UpdateStayOverrideUseCase
+    private let hapticFeedback: any HapticFeedbackProviding
+    private let makeMediaPreviewViewModel: (MediaAssetReference) -> MediaPreviewViewModel
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 7)
 
     init(
         viewModel: CalendarViewModel,
         monthlySummaryViewModel: MonthlySummaryViewModel,
+        monthlyOverviewViewModel: MonthlyOverviewViewModel,
         today: Date,
         gridBuilder: CalendarGridBuilder = CalendarGridBuilder(),
         distanceFormatter: DistanceFormatter = DistanceFormatter(),
-        onSelectDate: @escaping (String) -> Void = { _ in }
+        onSelectDate: @escaping (String) -> Void = { _ in },
+        thumbnailLoader: any LoadMediaThumbnailUseCase,
+        updateStayOverride: any UpdateStayOverrideUseCase,
+        hapticFeedback: any HapticFeedbackProviding,
+        makeMediaPreviewViewModel: @escaping (MediaAssetReference) -> MediaPreviewViewModel
     ) {
         _viewModel = State(initialValue: viewModel)
         _monthlySummaryViewModel = State(initialValue: monthlySummaryViewModel)
+        _monthlyOverviewViewModel = State(initialValue: monthlyOverviewViewModel)
         _selectedMonth = State(initialValue: viewModel.displayedMonth)
         self.today = today
         self.gridBuilder = gridBuilder
         self.distanceFormatter = distanceFormatter
         self.onSelectDate = onSelectDate
+        self.thumbnailLoader = thumbnailLoader
+        self.updateStayOverride = updateStayOverride
+        self.hapticFeedback = hapticFeedback
+        self.makeMediaPreviewViewModel = makeMediaPreviewViewModel
     }
 
     var body: some View {
         GeometryReader { proxy in
             let calendarHeight = max(260, proxy.size.height * 0.4)
-            VStack(spacing: 0) {
-                calendarPager
-                    .frame(height: calendarHeight)
-                Divider()
-                MonthlySummaryView(
-                    viewModel: monthlySummaryViewModel,
-                    onRetry: reloadSummary
-                )
-                .frame(height: max(0, proxy.size.height - calendarHeight))
+            ScrollView {
+                VStack(spacing: 0) {
+                    calendarPager
+                        .frame(height: calendarHeight)
+                    Divider()
+                    MonthlySummaryView(
+                        viewModel: monthlySummaryViewModel,
+                        onRetry: reloadSummary
+                    )
+                    MonthlyOverviewView(
+                        viewModel: monthlyOverviewViewModel,
+                        thumbnailLoader: thumbnailLoader,
+                        updateStayOverride: updateStayOverride,
+                        hapticFeedback: hapticFeedback,
+                        makeMediaPreviewViewModel: makeMediaPreviewViewModel
+                    )
+                }
             }
+            .scrollIndicators(.hidden)
         }
         .task {
             guard viewModel.state == .idle else { return }
@@ -48,6 +72,7 @@ struct CalendarView: View {
         }
         .task(id: selectedMonth) {
             await monthlySummaryViewModel.load(month: selectedMonth)
+            await monthlyOverviewViewModel.load(month: selectedMonth)
         }
         .onChange(of: selectedMonth) { _, month in
             viewModel.select(month: month)
@@ -63,7 +88,6 @@ struct CalendarView: View {
             didSetInitialMonth = true
             selectedMonth = viewModel.displayedMonth
         }
-        .navigationTitle("移動ログ")
         .overlay {
             if viewModel.state == .loading {
                 ProgressView("読み込み中")

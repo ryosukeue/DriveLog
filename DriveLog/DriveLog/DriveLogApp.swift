@@ -10,6 +10,7 @@ struct DriveLogApp: App {
     @State private var onboardingFlowUITestCompleted = false
     private let calendarViewModel: CalendarViewModel?
     private let monthlySummaryViewModel: MonthlySummaryViewModel?
+    private let monthlyOverviewViewModel: MonthlyOverviewViewModel?
     private let appContainer: AppContainer
     private let today: Date
     private let modelContainer: ModelContainer?
@@ -60,10 +61,12 @@ struct DriveLogApp: App {
             )
             calendarViewModel = container.makeCalendarViewModel(modelContainer: modelContainer, displayedMonth: month)
             monthlySummaryViewModel = container.makeMonthlySummaryViewModel(modelContainer: modelContainer)
+            monthlyOverviewViewModel = container.makeMonthlyOverviewViewModel(modelContainer: modelContainer)
         } catch {
             modelContainer = nil
             calendarViewModel = nil
             monthlySummaryViewModel = nil
+            monthlyOverviewViewModel = nil
             lifecycleCoordinator = nil
         }
     }
@@ -79,39 +82,48 @@ struct DriveLogApp: App {
                             onboardingFlowUITestCompleted = true
                         }
                     )
-                } else if let calendarViewModel, let monthlySummaryViewModel, let modelContainer {
-                    ContentView(
-                        calendarViewModel: calendarViewModel,
-                        monthlySummaryViewModel: monthlySummaryViewModel,
-                        today: today,
-                        makeDayDetailViewModel: { localDateKey in
-                            appContainer.makeDayDetailViewModel(
-                                modelContainer: modelContainer,
-                                localDateKey: localDateKey,
-                                photoLibrary: photoLibrary
-                            )
-                        },
-                        loadMediaThumbnail: appContainer.makeLoadMediaThumbnailUseCase(
-                            photoLibrary: photoLibrary
-                        ),
-                        updateStayOverride: appContainer.makeUpdateStayOverrideUseCase(
-                            modelContainer: modelContainer
-                        ),
-                        hapticFeedback: appContainer.hapticFeedback,
-                        makeMediaPreviewViewModel: { asset in
-                            appContainer.makeMediaPreviewViewModel(
-                                asset: asset,
-                                photoLibrary: photoLibrary
-                            )
-                        }
-                    )
                 } else {
-                    ContentUnavailableView(
-                        "起動できませんでした",
-                        systemImage: "exclamationmark.triangle",
-                        description: Text("アプリを終了して、もう一度お試しください")
-                    )
-                    .accessibilityIdentifier("app.startup.error")
+                    switch (calendarViewModel, monthlySummaryViewModel, monthlyOverviewViewModel, modelContainer) {
+                    case let (
+                        .some(calendarViewModel),
+                        .some(monthlySummaryViewModel),
+                        .some(monthlyOverviewViewModel),
+                        .some(modelContainer)
+                    ):
+                        ContentView(
+                            calendarViewModel: calendarViewModel,
+                            monthlySummaryViewModel: monthlySummaryViewModel,
+                            monthlyOverviewViewModel: monthlyOverviewViewModel,
+                            today: today,
+                            makeDayDetailViewModel: { localDateKey in
+                                appContainer.makeDayDetailViewModel(
+                                    modelContainer: modelContainer,
+                                    localDateKey: localDateKey,
+                                    photoLibrary: photoLibrary
+                                )
+                            },
+                            loadMediaThumbnail: appContainer.makeLoadMediaThumbnailUseCase(
+                                photoLibrary: photoLibrary
+                            ),
+                            updateStayOverride: appContainer.makeUpdateStayOverrideUseCase(
+                                modelContainer: modelContainer
+                            ),
+                            hapticFeedback: appContainer.hapticFeedback,
+                            makeMediaPreviewViewModel: { asset in
+                                appContainer.makeMediaPreviewViewModel(
+                                    asset: asset,
+                                    photoLibrary: photoLibrary
+                                )
+                            }
+                        )
+                    default:
+                        ContentUnavailableView(
+                            "起動できませんでした",
+                            systemImage: "exclamationmark.triangle",
+                            description: Text("アプリを終了して、もう一度お試しください")
+                        )
+                        .accessibilityIdentifier("app.startup.error")
+                    }
                 }
             }
             .task {

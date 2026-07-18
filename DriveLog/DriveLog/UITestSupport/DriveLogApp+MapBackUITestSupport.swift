@@ -2,6 +2,15 @@
     import Foundation
     import SwiftData
 
+    private struct UITestMediaFixture {
+        let identifier: String
+        let type: String
+        let creationDate: Date
+        let latitude: Double?
+        let longitude: Double?
+        let duration: Double?
+    }
+
     extension DriveLogApp {
         static func uiTestReferenceDate(defaultValue: Date, timeZone: TimeZone) -> Date {
             guard ProcessInfo.processInfo.arguments.contains("-ui-testing-july-17-map") else {
@@ -68,6 +77,7 @@
             startDate: Date,
             now: Date
         ) throws {
+            seedMediaCache(context: context, localDateKey: localDateKey, startDate: startDate, now: now)
             for index in 1 ..< 7 {
                 let offset = Double(index) * 0.002
                 let route = try PropertyListRouteEncoder().encode([
@@ -107,6 +117,47 @@
                     isVisibleByAutomaticRule: true,
                     sourceRawRevision: 1,
                     generatedAt: now
+                ))
+            }
+        }
+
+        @MainActor
+        private static func seedMediaCache(
+            context: ModelContext,
+            localDateKey: String,
+            startDate: Date,
+            now: Date
+        ) {
+            let assets = [
+                UITestMediaFixture(
+                    identifier: "ui-photo", type: "photo",
+                    creationDate: startDate.addingTimeInterval(3600),
+                    latitude: 37.350, longitude: -122.000, duration: nil
+                ),
+                UITestMediaFixture(
+                    identifier: "ui-video", type: "video",
+                    creationDate: startDate.addingTimeInterval(7200),
+                    latitude: 37.350, longitude: -122.000, duration: 10
+                ),
+                UITestMediaFixture(
+                    identifier: "ui-unavailable", type: "photo",
+                    creationDate: startDate.addingTimeInterval(10800),
+                    latitude: nil, longitude: nil, duration: nil
+                )
+            ]
+            for asset in assets {
+                context.insert(MediaAssetCacheModel(
+                    localIdentifier: asset.identifier,
+                    localDateKey: localDateKey,
+                    mediaTypeRawValue: asset.type,
+                    creationDate: asset.creationDate,
+                    latitude: asset.latitude,
+                    longitude: asset.longitude,
+                    durationSeconds: asset.duration,
+                    isScreenshot: false,
+                    isScreenRecording: false,
+                    eligibilityRawValue: "eligible",
+                    lastValidatedAt: now
                 ))
             }
         }

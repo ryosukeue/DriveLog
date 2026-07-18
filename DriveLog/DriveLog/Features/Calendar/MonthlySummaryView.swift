@@ -42,56 +42,54 @@ struct MonthlySummaryView: View {
                     .accessibilityIdentifier("calendar.monthlySummary.loading")
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .padding(.horizontal)
         .accessibilityIdentifier("calendar.monthlySummary")
     }
 
     private func loaded(_ summary: MonthlySummaryData) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                Text("月間サマリー")
-                    .font(.title2.bold())
-                    .accessibilityAddTraits(.isHeader)
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 16)], spacing: 16) {
-                    summaryItem(
-                        title: "総移動距離",
-                        value: distanceFormatter.kilometers(
-                            fromMeters: summary.totalDistanceMeters
-                        ) ?? "--"
-                    )
-                    summaryItem(
-                        title: "総移動時間",
-                        value: formatter.duration(seconds: summary.totalMovementDurationSeconds)
-                    )
-                }
-                if summary.cityRankings.isEmpty {
-                    Text("主要な都市の記録はありません")
-                        .foregroundStyle(.secondary)
-                } else {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("訪れた都市")
-                            .font(.headline)
-                        ForEach(Array(summary.cityRankings.enumerated()), id: \.element.id) { index, city in
-                            HStack(spacing: 12) {
-                                Text("\(index + 1)")
-                                    .font(.headline.monospacedDigit())
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 24, alignment: .trailing)
-                                Text(city.cityName)
-                                    .font(.body.weight(.semibold))
-                                Spacer()
-                                Text("\(city.visitCount)回")
-                                    .foregroundStyle(.secondary)
-                            }
-                            .accessibilityElement(children: .combine)
-                            .accessibilityLabel("\(index + 1)位、\(city.cityName)、\(city.visitCount)回")
+        VStack(alignment: .leading, spacing: 20) {
+            Text("月間サマリー")
+                .font(.title2.bold())
+                .accessibilityAddTraits(.isHeader)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 16)], spacing: 16) {
+                summaryItem(
+                    title: "総移動距離",
+                    value: distanceFormatter.kilometers(
+                        fromMeters: summary.totalDistanceMeters
+                    ) ?? "--"
+                )
+                summaryItem(
+                    title: "総移動時間",
+                    value: formatter.duration(seconds: summary.totalMovementDurationSeconds)
+                )
+            }
+            if summary.cityRankings.isEmpty {
+                Text("主要な都市の記録はありません")
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("訪れた都市")
+                        .font(.headline)
+                    ForEach(Array(summary.cityRankings.enumerated()), id: \.element.id) { index, city in
+                        HStack(spacing: 12) {
+                            Text("\(index + 1)")
+                                .font(.headline.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                                .frame(width: 24, alignment: .trailing)
+                            Text(city.cityName)
+                                .font(.body.weight(.semibold))
+                            Spacer()
+                            Text("\(city.visitCount)回")
+                                .foregroundStyle(.secondary)
                         }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("\(index + 1)位、\(city.cityName)、\(city.visitCount)回")
                     }
                 }
             }
-            .padding(.vertical)
         }
+        .padding(.vertical)
     }
 
     private var emptyView: some View {

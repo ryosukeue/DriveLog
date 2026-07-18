@@ -48,6 +48,7 @@ private enum ContentRoute: Hashable {
 struct ContentView: View {
     let calendarViewModel: CalendarViewModel
     let monthlySummaryViewModel: MonthlySummaryViewModel
+    let monthlyOverviewViewModel: MonthlyOverviewViewModel
     let today: Date
     let makeDayDetailViewModel: (String) -> DayDetailViewModel
     let loadMediaThumbnail: any LoadMediaThumbnailUseCase
@@ -62,11 +63,16 @@ struct ContentView: View {
             CalendarView(
                 viewModel: calendarViewModel,
                 monthlySummaryViewModel: monthlySummaryViewModel,
+                monthlyOverviewViewModel: monthlyOverviewViewModel,
                 today: today,
                 onSelectDate: {
                     detailPath.removeAll()
                     selectedDay = SelectedDay(localDateKey: $0)
-                }
+                },
+                thumbnailLoader: loadMediaThumbnail,
+                updateStayOverride: updateStayOverride,
+                hapticFeedback: hapticFeedback,
+                makeMediaPreviewViewModel: makeMediaPreviewViewModel
             )
         }
         .sheet(
