@@ -17,7 +17,9 @@ struct MapSceneBuilderTests {
             route: [coordinate(35, 139), coordinate(36, 141)],
             label: coordinate(35.5, 140)
         )
-        let visibleStay = makeStay(id: "visible", visible: true, coordinate: coordinate(34, 138))
+        let visibleStay = makeStay(
+            id: "visible", visible: true, coordinate: coordinate(34, 138), arrival: 10000
+        )
         let hiddenStay = makeStay(id: "hidden", visible: false, coordinate: coordinate(40, 145))
         let media = MediaPlacement(
             assetIdentifier: "asset", mediaType: .video, coordinate: coordinate(37, 142),
@@ -146,16 +148,65 @@ struct MapSceneBuilderTests {
         #expect(scene.movementLabels.first?.durationSeconds == movement.durationSeconds)
     }
 
-    @Test("does not connect display route to distant stale or hidden stays")
-    func rejectsUnsafeStayConnections() throws {
+    @Test("connects display route to temporally adjacent stays regardless of distance")
+    func connectsTemporallyAdjacentDistantStays() throws {
+        let route = [coordinateAtMeters(0), coordinateAtMeters(200)]
+        let movement = makeMovement(route: route, label: nil, start: 1000, duration: 100)
+        let preceding = makeStay(
+            id: "preceding", visible: true, coordinate: coordinateAtMeters(-1000),
+            arrival: 900, duration: 98
+        )
+        let following = makeStay(
+            id: "following", visible: true, coordinate: coordinateAtMeters(1000),
+            arrival: 1102, duration: 60
+        )
+
+        let scene = builder.build(
+            movements: [movement], stays: [preceding, following], media: []
+        )
+
+        let polyline = try #require(scene.polylines.first)
+        #expect(polyline.coordinates == [
+            preceding.representativeCoordinate,
+            route[0],
+            route[1],
+            following.representativeCoordinate
+        ])
+    }
+
+    @Test("connects when a route endpoint falls inside a stay interval")
+    func connectsEndpointInsideStayInterval() throws {
+        let route = [coordinateAtMeters(0), coordinateAtMeters(200)]
+        let movement = makeMovement(route: route, label: nil, start: 1000, duration: 100)
+        let preceding = makeStay(
+            id: "preceding", visible: true, coordinate: coordinateAtMeters(-1000),
+            arrival: 0, duration: 1400
+        )
+        let following = makeStay(
+            id: "following", visible: true, coordinate: coordinateAtMeters(1000),
+            arrival: 600, duration: 1000
+        )
+
+        let scene = builder.build(
+            movements: [movement], stays: [preceding, following], media: []
+        )
+
+        let polyline = try #require(scene.polylines.first)
+        #expect(polyline.coordinates == [
+            preceding.representativeCoordinate,
+            route[0],
+            route[1],
+            following.representativeCoordinate
+        ])
+    }
+
+    @Test("does not connect display route to stale or hidden stays")
+    func rejectsStaleOrHiddenStayConnections() throws {
         let route = [coordinateAtMeters(0), coordinateAtMeters(200)]
         let movement = makeMovement(route: route, label: nil, start: 1000, duration: 100)
         let distant = makeStay(
-            id: "distant",
-            visible: true,
-            coordinate: coordinateAtMeters(-151),
-            arrival: 900,
-            duration: 98
+            id: "distant", visible: true, coordinate: coordinateAtMeters(-1000),
+            arrival: 2000, duration: 98
         )
         let stale = makeStay(
             id: "stale",

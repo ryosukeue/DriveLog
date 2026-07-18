@@ -86,8 +86,7 @@ nonisolated struct MapSceneBuilder: MapSceneBuilding {
         if let precedingStay = nearestStay(
             in: sameDayStays,
             referenceDate: movement.startDate,
-            date: \.estimatedDepartureDate,
-            connectingTo: coordinates[0]
+            date: \.estimatedDepartureDate
         ) {
             coordinates = adding(
                 precedingStay.representativeCoordinate,
@@ -97,8 +96,7 @@ nonisolated struct MapSceneBuilder: MapSceneBuilding {
         if let followingStay = nearestStay(
             in: sameDayStays,
             referenceDate: movement.endDate,
-            date: \.estimatedArrivalDate,
-            connectingTo: movement.route[movement.route.count - 1]
+            date: \.estimatedArrivalDate
         ) {
             coordinates = adding(
                 followingStay.representativeCoordinate,
@@ -111,15 +109,15 @@ nonisolated struct MapSceneBuilder: MapSceneBuilding {
     private func nearestStay(
         in stays: [StaySegmentData],
         referenceDate: Date,
-        date: KeyPath<StaySegmentData, Date>,
-        connectingTo endpoint: RouteCoordinate
+        date: KeyPath<StaySegmentData, Date>
     ) -> StaySegmentData? {
+        // Raw location and Visit coordinates can disagree by more than the
+        // processing stay radius. Time adjacency is the reliable signal for
+        // this display-only endpoint correction; it does not alter the
+        // persisted route or movement metrics.
         stays
             .filter {
-                abs($0[keyPath: date].timeIntervalSince(referenceDate)) <=
-                    stayRules.automaticStayDuration &&
-                    distance(from: $0.representativeCoordinate, to: endpoint) <=
-                    stayRules.stayRadius
+                isTemporallyAdjacent($0, to: referenceDate, boundary: date)
             }
             .min {
                 let firstDifference = abs($0[keyPath: date].timeIntervalSince(referenceDate))
@@ -131,13 +129,26 @@ nonisolated struct MapSceneBuilder: MapSceneBuilding {
             }
     }
 
+    private func isTemporallyAdjacent(
+        _ stay: StaySegmentData,
+        to referenceDate: Date,
+        boundary: KeyPath<StaySegmentData, Date>
+    ) -> Bool {
+        let boundaryDifference = abs(
+            stay[keyPath: boundary].timeIntervalSince(referenceDate)
+        )
+        if boundaryDifference <= stayRules.automaticStayDuration {
+            return true
+        }
+        return stay.estimatedArrivalDate <= referenceDate &&
+            referenceDate <= stay.estimatedDepartureDate
+    }
+
     private func adding(
         _ coordinate: RouteCoordinate,
         toStartOf coordinates: [RouteCoordinate]
     ) -> [RouteCoordinate] {
-        guard let first = coordinates.first,
-              distance(from: coordinate, to: first) <= stayRules.stayRadius
-        else { return coordinates }
+        guard let first = coordinates.first else { return coordinates }
         guard distance(from: coordinate, to: first) > 1 else { return coordinates }
         return [coordinate] + coordinates
     }
@@ -146,9 +157,7 @@ nonisolated struct MapSceneBuilder: MapSceneBuilding {
         _ coordinate: RouteCoordinate,
         toEndOf coordinates: [RouteCoordinate]
     ) -> [RouteCoordinate] {
-        guard let last = coordinates.last,
-              distance(from: last, to: coordinate) <= stayRules.stayRadius
-        else { return coordinates }
+        guard let last = coordinates.last else { return coordinates }
         guard distance(from: last, to: coordinate) > 1 else { return coordinates }
         return coordinates + [coordinate]
     }
