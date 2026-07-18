@@ -98,9 +98,9 @@ private struct Fixture {
             localDateKey: key, totalDistanceMeters: 1200,
             totalMovementDurationSeconds: 600, startDate: now, endDate: now.addingTimeInterval(600),
             locationRecordCount: 10, rejectedLocationCount: 2, mediaCountCache: 0,
-            automaticClassification: .walkingLike, hasValidMovement: true,
+            automaticClassification: .automotiveLike, hasValidMovement: true,
             movementSegmentCount: 1, staySegmentCount: 1, totalStayDurationSeconds: 300,
-            automotiveDurationSeconds: 0, walkingDurationSeconds: 600,
+            automotiveDurationSeconds: 600, walkingDurationSeconds: 0,
             sourceRawRevision: 1, generatedAt: now
         )
     }
@@ -109,7 +109,7 @@ private struct Fixture {
         MovementSegmentData(
             stableID: "movement", localDateKey: key, startDate: now,
             endDate: now.addingTimeInterval(600), distanceMeters: 1200, durationSeconds: 600,
-            estimatedAverageSpeedMetersPerSecond: 2, automaticClassification: .walkingLike,
+            estimatedAverageSpeedMetersPerSecond: 2, automaticClassification: .automotiveLike,
             classificationConfidence: .high,
             route: [RouteCoordinate(latitude: 35, longitude: 139)], labelCoordinate: nil,
             sourceRawRevision: 1, generatedAt: now

@@ -63,13 +63,43 @@ nonisolated struct DefaultLoadDayDetailUseCase: LoadDayDetailUseCase {
         let stayOverrides = try await stayOverrideValues
         let state = try await stateValue
         let media = try await mediaValue.sorted(by: mediaOrder)
-        let displayMovements = movements.map { movement in
+        let display = makeDisplayValues(
+            aggregate: aggregate,
+            movements: movements,
+            stays: stays,
+            overrides: DisplayOverrides(
+                classification: classificationOverrides,
+                stay: stayOverrides
+            ),
+            media: media
+        )
+        return DayDetailData(
+            aggregate: display.aggregate, movements: display.movements, stays: display.stays,
+            media: media, mapScene: display.mapScene,
+            isReprocessing: state.status == .processing ||
+                state.rawRevision > state.processedRevision
+        )
+    }
+
+    private func makeDisplayValues(
+        aggregate: DayAggregateData,
+        movements: [MovementSegmentData],
+        stays: [StaySegmentData],
+        overrides: DisplayOverrides,
+        media: [MediaAssetReference]
+    ) -> DisplayValues {
+        let automotiveMovements = AutomotiveMovementFilter().retained(movements)
+        let displayAggregate = AutomotiveMovementFilter().aggregate(
+            aggregate,
+            retaining: movements
+        )
+        let displayMovements = automotiveMovements.map { movement in
             MovementDisplayData(
                 segment: movement,
                 userClassification: latestClassification(
                     for: movement,
-                    movements: movements,
-                    overrides: classificationOverrides
+                    movements: automotiveMovements,
+                    overrides: overrides.classification
                 )
             )
         }
@@ -79,21 +109,21 @@ nonisolated struct DefaultLoadDayDetailUseCase: LoadDayDetailUseCase {
                 overrideAction: latestStayAction(
                     for: stay,
                     stays: stays,
-                    overrides: stayOverrides
+                    overrides: overrides.stay
                 )
             )
         }
         let builtScene = makeMapScene(
-            movements: movements, stays: displayStays.map(visibleStay), media: media
+            movements: automotiveMovements, stays: displayStays.map(visibleStay), media: media
         )
         let mapScene = OverrideDisplayDataApplier().apply(
             to: builtScene, movements: displayMovements, stays: displayStays
         )
-        return DayDetailData(
-            aggregate: aggregate, movements: displayMovements, stays: displayStays,
-            media: media, mapScene: mapScene,
-            isReprocessing: state.status == .processing ||
-                state.rawRevision > state.processedRevision
+        return DisplayValues(
+            aggregate: displayAggregate,
+            movements: displayMovements,
+            stays: displayStays,
+            mapScene: mapScene
         )
     }
 
@@ -170,5 +200,17 @@ nonisolated struct DefaultLoadDayDetailUseCase: LoadDayDetailUseCase {
             sourceRawRevision: stay.sourceRawRevision,
             generatedAt: stay.generatedAt
         )
+    }
+
+    private struct DisplayValues {
+        let aggregate: DayAggregateData
+        let movements: [MovementDisplayData]
+        let stays: [StayDisplayData]
+        let mapScene: MapScene
+    }
+
+    private struct DisplayOverrides {
+        let classification: [ClassificationOverrideData]
+        let stay: [StayOverrideData]
     }
 }

@@ -40,6 +40,31 @@ struct LoadCalendarMonthUseCaseTests {
         #expect(result == CalendarMonthData(month: month, days: []))
     }
 
+    @Test("does not use a non-automotive aggregate fallback")
+    func excludesNonAutomotiveFallback() async throws {
+        let useCase = DefaultLoadCalendarMonthUseCase(
+            repository: CalendarDerivedRepositoryFake(aggregates: [
+                aggregate(
+                    day: "2024-01-03",
+                    distance: 2500,
+                    isValid: true,
+                    classification: .walkingLike
+                )
+            ])
+        )
+
+        let result = try await useCase.execute(month: month)
+
+        #expect(result.days == [
+            CalendarDayData(
+                localDateKey: "2024-01-03",
+                day: 3,
+                totalDistanceMeters: nil,
+                hasValidMovement: false
+            )
+        ])
+    }
+
     @Test("rejects an invalid local date key")
     func invalidDateKey() async {
         let useCase = DefaultLoadCalendarMonthUseCase(
@@ -102,12 +127,13 @@ private struct CalendarDerivedRepositoryFake: DerivedDataRepository {
 private nonisolated func aggregate(
     day: String,
     distance: Double,
-    isValid: Bool
+    isValid: Bool,
+    classification: AutomaticMovementType = .automotiveLike
 ) -> DayAggregateData {
     DayAggregateData(
         localDateKey: day, totalDistanceMeters: distance, totalMovementDurationSeconds: 60,
         startDate: nil, endDate: nil, locationRecordCount: 2, rejectedLocationCount: 0,
-        mediaCountCache: 0, automaticClassification: .other, hasValidMovement: isValid,
+        mediaCountCache: 0, automaticClassification: classification, hasValidMovement: isValid,
         movementSegmentCount: 1, staySegmentCount: 0, totalStayDurationSeconds: 0,
         automotiveDurationSeconds: 0, walkingDurationSeconds: 60, sourceRawRevision: 1,
         generatedAt: Date(timeIntervalSince1970: 0)

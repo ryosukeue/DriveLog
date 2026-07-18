@@ -12,7 +12,7 @@ struct OverrideIntegrationTests {
     @Test("reconnects a classification override after the movement stable ID changes")
     func classificationReprocessing() async throws {
         let fixture = try OverrideFixture(now: baseDate.addingTimeInterval(20000))
-        try await fixture.saveLocations(points: [(0, 0), (600, 120), (1200, 240)])
+        try await fixture.saveLocations(points: [(0, 0), (2100, 120), (4200, 240)])
         _ = try await fixture.process.execute(localDateKey: day)
         let original = try #require(try await fixture.derived.movementSegments(for: day).first)
         let storedOverride = ClassificationOverrideData(
@@ -27,7 +27,7 @@ struct OverrideIntegrationTests {
         )
         try await fixture.overrides.upsertClassificationOverride(storedOverride)
 
-        try await fixture.saveLocations(points: [(1800, 360)])
+        try await fixture.saveLocations(points: [(6300, 360)])
         _ = try await fixture.process.execute(localDateKey: day)
         let updated = try #require(try await fixture.derived.movementSegments(for: day).first)
         let detail = try await fixture.loadDetail.execute(localDateKey: day)
