@@ -7,6 +7,8 @@ protocol AppLifecycleCoordinating: AnyObject {
 
 @MainActor
 final class AppLifecycleCoordinator: AppLifecycleCoordinating {
+    static let foregroundPendingDayLimit = 3
+
     private let permissionManager: any PermissionManaging
     private let startMonitoringUseCase: StartMonitoringUseCase
     private let dayProcessingCoordinator: any DayProcessingCoordinating
@@ -46,6 +48,6 @@ final class AppLifecycleCoordinator: AppLifecycleCoordinating {
     private func refreshPermissionsAndMonitoring() async {
         await permissionManager.refresh()
         try? await startMonitoringUseCase.execute()
-        await dayProcessingCoordinator.processPendingDays(limit: 1)
+        await dayProcessingCoordinator.processPendingDays(limit: Self.foregroundPendingDayLimit)
     }
 }

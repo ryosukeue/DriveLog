@@ -15,7 +15,7 @@ struct AppLifecycleCoordinatorTests {
         #expect(fixture.location.callCounts().start == 1)
         #expect(fixture.motion.callCounts().start == 1)
         #expect(fixture.visit.callCounts().start == 1)
-        #expect(fixture.dayProcessing.pendingLimits == [1])
+        #expect(fixture.dayProcessing.pendingLimits == [AppLifecycleCoordinator.foregroundPendingDayLimit])
         #expect(fixture.backgroundTasks.registrationCount == 1)
         #expect(fixture.backgroundTasks.requirements.isEmpty)
         #expect(fixture.processingAlgorithmMigrator.migrationCount == 1)
@@ -32,7 +32,10 @@ struct AppLifecycleCoordinatorTests {
         #expect(fixture.location.callCounts().start == 1)
         #expect(fixture.motion.callCounts().start == 1)
         #expect(fixture.visit.callCounts().start == 1)
-        #expect(fixture.dayProcessing.pendingLimits == [1, 1])
+        #expect(fixture.dayProcessing.pendingLimits == [
+            AppLifecycleCoordinator.foregroundPendingDayLimit,
+            AppLifecycleCoordinator.foregroundPendingDayLimit
+        ])
         #expect(fixture.backgroundTasks.registrationCount == 1)
         #expect(fixture.processingAlgorithmMigrator.migrationCount == 1)
     }
@@ -46,7 +49,7 @@ struct AppLifecycleCoordinatorTests {
         #expect(fixture.location.callCounts().start == 1)
         #expect(fixture.motion.callCounts().start == 0)
         #expect(fixture.visit.callCounts().start == 0)
-        #expect(fixture.dayProcessing.pendingLimits == [1])
+        #expect(fixture.dayProcessing.pendingLimits == [AppLifecycleCoordinator.foregroundPendingDayLimit])
 
         fixture.location.setStartError(nil)
         await fixture.coordinator.handleForeground()
@@ -55,7 +58,10 @@ struct AppLifecycleCoordinatorTests {
         #expect(fixture.location.callCounts().start == 2)
         #expect(fixture.motion.callCounts().start == 1)
         #expect(fixture.visit.callCounts().start == 1)
-        #expect(fixture.dayProcessing.pendingLimits == [1, 1])
+        #expect(fixture.dayProcessing.pendingLimits == [
+            AppLifecycleCoordinator.foregroundPendingDayLimit,
+            AppLifecycleCoordinator.foregroundPendingDayLimit
+        ])
     }
 
     @Test("background keeps all monitoring active")
@@ -69,7 +75,7 @@ struct AppLifecycleCoordinatorTests {
         #expect(fixture.motion.callCounts().stop == 0)
         #expect(fixture.visit.callCounts().stop == 0)
         #expect(await fixture.storageCoordinator.isRunning())
-        #expect(fixture.dayProcessing.pendingLimits == [1])
+        #expect(fixture.dayProcessing.pendingLimits == [AppLifecycleCoordinator.foregroundPendingDayLimit])
         #expect(fixture.dayProcessing.cancelCount == 0)
         #expect(fixture.backgroundTasks.requirements == [true])
     }
@@ -83,7 +89,7 @@ struct AppLifecycleCoordinatorTests {
 
         #expect(fixture.permissionManager.refreshCount == 1)
         #expect(fixture.location.callCounts().start == 1)
-        #expect(fixture.dayProcessing.pendingLimits == [1])
+        #expect(fixture.dayProcessing.pendingLimits == [AppLifecycleCoordinator.foregroundPendingDayLimit])
         #expect(fixture.backgroundTasks.registrationCount == 1)
         #expect(fixture.backgroundTasks.requirements == [true])
     }
