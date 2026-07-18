@@ -1,71 +1,11 @@
 import Foundation
 
-nonisolated protocol MovementSegmenting: Sendable {
-    func segment(
-        locations: SanitizedLocations,
-        motions: [MotionEventData],
-        visits: [VisitEventData]
-    ) -> MovementSegmentationResult
-}
-
-nonisolated struct MovementSegmentationResult: Sendable, Equatable {
-    let segments: [MovementSegmentCandidate]
-    let gaps: [GapCandidate]
-    let discardedSegments: [MovementSegmentCandidate]
-}
-
-nonisolated struct MovementSegmentCandidate: Sendable, Equatable {
-    let localDateKey: String
-    let startDate: Date
-    let endDate: Date
-    let locations: [LocationEventData]
-    let distanceMeters: Double
-    let estimatedAverageSpeedMetersPerSecond: Double?
-
-    init(
-        localDateKey: String,
-        startDate: Date,
-        endDate: Date,
-        locations: [LocationEventData],
-        distanceMeters: Double,
-        estimatedAverageSpeedMetersPerSecond: Double? = nil
-    ) {
-        self.localDateKey = localDateKey
-        self.startDate = startDate
-        self.endDate = endDate
-        self.locations = locations
-        self.distanceMeters = distanceMeters
-        self.estimatedAverageSpeedMetersPerSecond = estimatedAverageSpeedMetersPerSecond
-    }
-
-    var durationSeconds: TimeInterval {
-        endDate.timeIntervalSince(startDate)
-    }
-}
-
-nonisolated struct GapCandidate: Sendable, Equatable {
-    let precedingLocation: LocationEventData
-    let followingLocation: LocationEventData
-    let reason: SegmentationBoundaryReason
-
-    var durationSeconds: TimeInterval {
-        followingLocation.timestamp.timeIntervalSince(precedingLocation.timestamp)
-    }
-}
-
-nonisolated enum SegmentationBoundaryReason: Sendable, Equatable {
-    case continuousGap
-    case localDayBoundary
-    case stationaryStay
-    case visit
-    case motionTransition
-}
-
 nonisolated struct MovementSegmenter: MovementSegmenting {
     private let segmentationRules: SegmentationRules
     private let stayRules: StayRules
     private let distanceCalculator: GeodesicDistanceCalculator
     private let metricsCalculator: MovementMetricsCalculator
+    private let stationaryDriftDetector: StationaryDriftDetector
 
     init(
         segmentationRules: SegmentationRules,
@@ -77,6 +17,10 @@ nonisolated struct MovementSegmenter: MovementSegmenting {
         self.distanceCalculator = distanceCalculator
         metricsCalculator = MovementMetricsCalculator(
             rules: segmentationRules,
+            distanceCalculator: distanceCalculator
+        )
+        stationaryDriftDetector = StationaryDriftDetector(
+            rules: segmentationRules.stationaryDrift,
             distanceCalculator: distanceCalculator
         )
     }
@@ -97,10 +41,21 @@ nonisolated struct MovementSegmenter: MovementSegmenting {
             visits: visits
         )
         let candidates = partition.chunks.compactMap(makeCandidate)
+        let evaluations = candidates.map { candidate in
+            let meetsMinimumRequirements = isValid(candidate)
+            let isStationaryDrift = meetsMinimumRequirements &&
+                stationaryDriftDetector.isStationaryDrift(candidate, motions: motions)
+            return CandidateEvaluation(
+                candidate: candidate,
+                isAccepted: meetsMinimumRequirements && !isStationaryDrift,
+                isStationaryDrift: isStationaryDrift
+            )
+        }
         return MovementSegmentationResult(
-            segments: candidates.filter(isValid),
+            segments: evaluations.filter(\.isAccepted).map(\.candidate),
             gaps: partition.gaps,
-            discardedSegments: candidates.filter { !isValid($0) }
+            discardedSegments: evaluations.filter { !$0.isAccepted }.map(\.candidate),
+            stationaryDriftDiscardedCount: evaluations.count(where: \.isStationaryDrift)
         )
     }
 
@@ -211,6 +166,12 @@ nonisolated struct MovementSegmenter: MovementSegmenting {
         candidate.locations.count >= segmentationRules.minimumSegmentPointCount &&
             candidate.distanceMeters >= segmentationRules.minimumSegmentDistance
     }
+}
+
+private nonisolated struct CandidateEvaluation {
+    let candidate: MovementSegmentCandidate
+    let isAccepted: Bool
+    let isStationaryDrift: Bool
 }
 
 private extension MovementSegmenter {

@@ -1,5 +1,14 @@
 # Processing Rules
 
+## 実機停止中GPSドリフトの補足（2026-07-18）
+
+- Movement候補は2点・100m条件だけで確定せず、停止中に同じ範囲を往復して累積したGPSドリフトを複合条件で除外する。
+- 5分以上、平均進行速度0.5m/s以下、始点からの最大距離÷累積距離0.4以下、分類可能Motion Evidence 3分以上、stationary時間比率60%以上をすべて満たす場合だけ除外する。
+- automotive、walking、running、cyclingとstationaryが同時に報告されたMotion snapshotはtravelを優先し、実移動を保護する。
+- `endDate == nil`のMotion snapshotは次snapshotまで有効とし、過去のopen snapshotを候補終了まで重複占有させない。
+- Motion Evidenceが不足または矛盾する場合はMovementを維持する。水平精度、累積距離、平均速度の単一条件では除外しない。
+- Raw Eventは変更せず、stationary driftの破棄件数だけをPrivacy安全な診断値へ含める。
+
 ## 実機Polyline診断の補足（2026-07-15）
 
 - Visit/Motion境界はStay検出と分類Evidenceに使用する。5分未満では、座標が連続するMovement routeの強制分割理由にはしない。
@@ -266,6 +275,24 @@ AND
 ただし前後の区間と連結可能なら、近い側へ統合してよい。
 
 統合できない場合は無効区間として日別総距離へ含めない。
+
+### 10.5 停止中GPSドリフト
+
+最小区間条件を満たした候補でも、次をすべて満たす場合は停止中GPSドリフトとして確定しない。
+
+```text
+候補時間 >= 5分
+AND
+累積距離 ÷ 候補時間 <= 0.5m/s
+AND
+始点からの最大距離 ÷ 累積距離 <= 0.4
+AND
+分類可能Motion Evidence時間 >= 3分
+AND
+stationary時間 ÷ 分類可能Motion Evidence時間 >= 60%
+```
+
+Motion状態は時系列上の最新snapshotを次snapshotまで有効として評価する。travel flagとstationaryが競合するsnapshotはtravelを優先する。Motion Evidence不足時は候補を維持する。
 
 ## 11. 移動距離
 
@@ -959,6 +986,11 @@ minimumPointCountForSimplification = 10
 | `minimumSpeedDisplayDuration` | 2分 |
 | `minimumSpeedDisplayDistance` | 100m |
 | `minimumSpeedDisplayPointCount` | 2 |
+| `stationaryDrift.minimumDuration` | 5分 |
+| `stationaryDrift.maximumAverageSpeed` | 0.5m/s |
+| `stationaryDrift.maximumProgressRatio` | 40% |
+| `stationaryDrift.minimumMotionEvidenceDuration` | 3分 |
+| `stationaryDrift.minimumStationaryMotionRatio` | 60% |
 | `minimumStayDuration` | 3分 |
 | `automaticStayDuration` | 5分 |
 | `stayRadius` | 150m |
@@ -1003,6 +1035,10 @@ minimumPointCountForSimplification = 10
 - CLVisitによる分割
 - automotiveからwalkingへの変化
 - 100m未満の候補区間
+- 停止中に低速で同一範囲を往復するGPSドリフト
+- 低速でも一方向へ進む経路
+- walkingまたはautomotive Evidenceが優勢な往復経路
+- Motion Evidence不足時の保守的維持
 
 ### StayDetector
 

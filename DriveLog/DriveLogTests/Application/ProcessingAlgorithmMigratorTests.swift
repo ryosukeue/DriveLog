@@ -3,6 +3,11 @@ import Testing
 
 @Suite("Processing algorithm migrator")
 struct ProcessingAlgorithmMigratorTests {
+    @Test("uses processing algorithm version four")
+    func currentVersion() {
+        #expect(DefaultProcessingAlgorithmMigrator.currentVersion == 4)
+    }
+
     @Test("invalidates and advances an older version exactly once")
     func versionUpgrade() async {
         let invalidator = AlgorithmStateInvalidatorFake()

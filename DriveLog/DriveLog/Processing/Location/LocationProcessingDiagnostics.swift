@@ -10,6 +10,7 @@ nonisolated struct LocationProcessingDiagnostics: Sendable, Equatable {
     let localDayBoundaryCount: Int
     let movementCount: Int
     let discardedMovementCount: Int
+    let stationaryDriftDiscardedMovementCount: Int
     let routeInputPointCount: Int
     let routePersistedPointCount: Int
 
@@ -45,6 +46,7 @@ nonisolated struct LocationProcessingDiagnostics: Sendable, Equatable {
         localDayBoundaryCount = segmentation.gaps.count { $0.reason == .localDayBoundary }
         movementCount = segmentation.segments.count
         discardedMovementCount = segmentation.discardedSegments.count
+        stationaryDriftDiscardedMovementCount = segmentation.stationaryDriftDiscardedCount
         routeInputPointCount = segmentation.segments.reduce(0) { $0 + $1.locations.count }
         self.routePersistedPointCount = routePersistedPointCount
     }

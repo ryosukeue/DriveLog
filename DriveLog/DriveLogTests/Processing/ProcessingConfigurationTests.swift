@@ -18,6 +18,11 @@ struct ProcessingConfigurationTests {
         #expect(configuration.segmentation.minimumSpeedDisplayDuration == 120)
         #expect(configuration.segmentation.minimumSpeedDisplayDistance == 100)
         #expect(configuration.segmentation.minimumSpeedDisplayPointCount == 2)
+        #expect(configuration.segmentation.stationaryDrift.minimumDuration == 300)
+        #expect(configuration.segmentation.stationaryDrift.maximumAverageSpeed == 0.5)
+        #expect(configuration.segmentation.stationaryDrift.maximumProgressRatio == 0.4)
+        #expect(configuration.segmentation.stationaryDrift.minimumMotionEvidenceDuration == 180)
+        #expect(configuration.segmentation.stationaryDrift.minimumStationaryMotionRatio == 0.6)
     }
 
     @Test("MVP stay classification and day values match processing rules")

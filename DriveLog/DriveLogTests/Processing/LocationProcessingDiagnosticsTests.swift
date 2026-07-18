@@ -34,7 +34,8 @@ struct LocationProcessingDiagnosticsTests {
                     followingLocation: received[3],
                     reason: .continuousGap
                 )],
-                discardedSegments: []
+                discardedSegments: [],
+                stationaryDriftDiscardedCount: 1
             ),
             routePersistedPointCount: 2
         )
@@ -57,6 +58,7 @@ struct LocationProcessingDiagnosticsTests {
             invalid: 0
         ))
         #expect(value.continuousGapCount == 1)
+        #expect(value.stationaryDriftDiscardedMovementCount == 1)
         #expect(value.routeInputPointCount == 3)
         #expect(value.routePersistedPointCount == 2)
     }

@@ -24,7 +24,14 @@ nonisolated struct ProcessingConfiguration: Sendable, Equatable {
             minimumSegmentPointCount: 2,
             minimumSpeedDisplayDuration: 2 * 60,
             minimumSpeedDisplayDistance: 100,
-            minimumSpeedDisplayPointCount: 2
+            minimumSpeedDisplayPointCount: 2,
+            stationaryDrift: StationaryDriftRules(
+                minimumDuration: 5 * 60,
+                maximumAverageSpeed: 0.5,
+                maximumProgressRatio: 0.4,
+                minimumMotionEvidenceDuration: 3 * 60,
+                minimumStationaryMotionRatio: 0.6
+            )
         ),
         stay: StayRules(
             minimumStayDuration: 3 * 60,
@@ -83,6 +90,15 @@ nonisolated struct SegmentationRules: Sendable, Equatable {
     let minimumSpeedDisplayDuration: TimeInterval
     let minimumSpeedDisplayDistance: Double
     let minimumSpeedDisplayPointCount: Int
+    let stationaryDrift: StationaryDriftRules
+}
+
+nonisolated struct StationaryDriftRules: Sendable, Equatable {
+    let minimumDuration: TimeInterval
+    let maximumAverageSpeed: Double
+    let maximumProgressRatio: Double
+    let minimumMotionEvidenceDuration: TimeInterval
+    let minimumStationaryMotionRatio: Double
 }
 
 nonisolated struct StayRules: Sendable, Equatable {

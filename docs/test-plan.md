@@ -2,6 +2,7 @@
 
 ## 実機フィードバック改訂の追加検証（2026-07-15）
 
+- 停止中GPSドリフトは5分、0.5m/s、進行率40%、Motion Evidence 3分、stationary比率60%の全条件と各境界をUnit Testし、低速前進、travel優勢、Evidence不足のMovementを維持する。
 - Visit/Motion境界だけではPolylineを分割せず、5分以上のStay境界、90分Gap、現地日付境界では分割する。
 - 充電状態とLocation Mode遷移、約60秒emit境界、重複起動防止をUnit Testする。
 - MapSceneのMedia Annotationは別Media snapshotが空でも描画し、Thumbnail失敗時もfallbackを維持する。
@@ -189,6 +190,12 @@
 - 複数滞在を含む
 - 前後区間へ統合できる短区間
 - 統合できない短区間
+- 停止中に同一範囲を往復する低速GPSドリフト
+- 低速でも一方向へ進む経路
+- walkingまたはautomotiveが優勢な往復経路
+- Motion Evidence不足
+- open Motion snapshotの次snapshotによる置換
+- travelとstationaryが競合するsnapshot
 
 # 4.7 StayDetector
 
