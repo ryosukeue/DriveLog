@@ -10,6 +10,7 @@ protocol LocationProviding: Sendable {
 
 nonisolated enum LocationRecordingMode: String, Sendable, Equatable {
     case lowPower
+    case automotiveHighAccuracy
     case chargingHighAccuracy
 }
 

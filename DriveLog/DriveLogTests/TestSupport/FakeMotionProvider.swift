@@ -3,8 +3,10 @@
 @MainActor
 final class FakeMotionProvider: MotionProviding {
     nonisolated let events: AsyncStream<MotionProviderEvent>
+    nonisolated let activityChanges: AsyncStream<MotionEventData>
 
     private let continuation: AsyncStream<MotionProviderEvent>.Continuation
+    private let activityContinuation: AsyncStream<MotionEventData>.Continuation
     private var state: MotionMonitoringState
     private var startCount = 0
     private var stopCount = 0
@@ -12,8 +14,11 @@ final class FakeMotionProvider: MotionProviding {
 
     init(state: MotionMonitoringState = .stopped) {
         let stream = AsyncStream.makeStream(of: MotionProviderEvent.self)
+        let activityStream = AsyncStream.makeStream(of: MotionEventData.self)
         events = stream.stream
+        activityChanges = activityStream.stream
         continuation = stream.continuation
+        activityContinuation = activityStream.continuation
         self.state = state
     }
 
@@ -38,6 +43,13 @@ final class FakeMotionProvider: MotionProviding {
 
     func send(_ event: MotionProviderEvent) {
         continuation.yield(event)
+        if case let .motion(motionEvent) = event {
+            activityContinuation.yield(motionEvent)
+        }
+    }
+
+    func sendActivity(_ event: MotionEventData) {
+        activityContinuation.yield(event)
     }
 
     func setStartError(_ error: DriveLogError?) {
@@ -46,6 +58,7 @@ final class FakeMotionProvider: MotionProviding {
 
     func finish() {
         continuation.finish()
+        activityContinuation.finish()
     }
 
     func callCounts() -> (start: Int, stop: Int) {

@@ -85,7 +85,7 @@ final class CoreLocationProvider: NSObject, LocationProviding {
             manager.pausesLocationUpdatesAutomatically = true
             manager.allowsBackgroundLocationUpdates = false
             manager.startMonitoringSignificantLocationChanges()
-        case .chargingHighAccuracy:
+        case .automotiveHighAccuracy, .chargingHighAccuracy:
             manager.desiredAccuracy = kCLLocationAccuracyBest
             manager.distanceFilter = 50
             manager.activityType = .automotiveNavigation
@@ -157,7 +157,7 @@ extension CoreLocationProvider: CLLocationManagerDelegate {
         var emittedCount = 0
         for location in locations {
             guard let event = convert(location) else { continue }
-            if recordingMode == .chargingHighAccuracy {
+            if recordingMode != .lowPower {
                 guard highAccuracyEmissionFilter.shouldEmit(location.timestamp) else { continue }
             }
             continuation.yield(.location(event))

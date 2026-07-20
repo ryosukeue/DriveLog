@@ -2,7 +2,7 @@
 
 ## 実機フィードバックによるLocation契約補足（2026-07-15）
 
-`LocationProviding`は従来のSLC開始/停止に加え、`lowPower`と`chargingHighAccuracy`を排他的に切り替える`setRecordingMode(_:)`を持つ。`PowerStateProviding`は現在状態と、初期・Battery通知・定期照合時のSnapshot Streamを提供し、AppleのBattery型をApplicationへ露出しない。同じSnapshotを繰り返し受信しても正常動作中のLocation Modeは再起動せず、切替失敗時は再試行する。Location callbackの診断はMode、受信件数、emit件数だけを返す。
+`LocationProviding`は従来のSLC開始/停止に加え、`lowPower`、`automotiveHighAccuracy`、`chargingHighAccuracy`を排他的に切り替える`setRecordingMode(_:)`を持つ。`PowerStateProviding`は現在状態と、初期・Battery通知・定期照合時のSnapshot Streamを提供し、AppleのBattery型をApplicationへ露出しない。`MotionProviding`は保存用`events`に加えて記録Mode判定用の`activityChanges`を提供する。同じSnapshotを繰り返し受信しても正常動作中のLocation Modeは再起動せず、切替失敗時は再試行する。Location callbackの診断はMode、受信件数、emit件数だけを返す。
 
 `MapMediaAnnotation`はMedia種別を保持し、Presentationが別のMedia配列を持たなくてもfallback Annotationを構築できる。Identifierと座標はDomainデータとしてのみ扱い、Loggerへ渡さない。
 
@@ -197,10 +197,10 @@ enum LocationProviderEvent: Sendable {
 ## 責務
 
 - Core LocationのDelegateを内部で扱う
-- SLC監視だけを開始する
+- SLCと標準Location Updateを同一Manager内で排他的に切り替える
 - 受信値をDomain用の`LocationEventData`へ変換する
 - 現地時間情報は`LocalTimeContextProviding`から取得する
-- 高精度GPSを開始しない
+- 高精度GPSは`automotiveHighAccuracy`または`chargingHighAccuracy`の時だけ開始する
 
 ## 行わない処理
 
@@ -229,6 +229,7 @@ Core Motionの取得を抽象化する。
 protocol MotionProviding: Sendable {
     var monitoringState: MotionMonitoringState { get async }
     var events: AsyncStream<MotionProviderEvent> { get }
+    var activityChanges: AsyncStream<MotionEventData> { get }
 
     func startMonitoring() async throws
     func stopMonitoring() async
@@ -246,6 +247,7 @@ enum MotionProviderEvent: Sendable {
 ## 責務
 
 - Core Motionの元フラグを保持したイベントを生成する
+- 保存用Streamと記録Mode判定用Activity Streamへ同じMotion Eventを配信する
 - confidenceを保存可能な形へ変換する
 - 権限拒否時に位置監視へ影響を与えない
 

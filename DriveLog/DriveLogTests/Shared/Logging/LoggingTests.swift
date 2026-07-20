@@ -82,6 +82,14 @@ struct LoggingTests {
                 .locationAcquisitionCompleted(
                     modeCode: "lowPower", receivedCount: 2, emittedCount: 1
                 )
+            ),
+            (
+                .vehicleActivityObserved(activityCode: "automotive"),
+                .vehicleActivityObserved(activityCode: "automotive")
+            ),
+            (
+                .vehicleRecordingStateChanged(stateCode: "driving"),
+                .vehicleRecordingStateChanged(stateCode: "driving")
             )
         ]
 
@@ -102,6 +110,14 @@ struct LoggingTests {
         #expect(
             LogEvent.powerStateObserved(stateCode: "charging")
                 != .powerStateObserved(stateCode: "unplugged")
+        )
+        #expect(
+            LogEvent.vehicleActivityObserved(activityCode: "automotive")
+                != .vehicleActivityObserved(activityCode: "stationary")
+        )
+        #expect(
+            LogEvent.vehicleRecordingStateChanged(stateCode: "driving")
+                != .vehicleRecordingStateChanged(stateCode: "idle")
         )
         #expect(
             LogEvent.dayProcessingFailed(localDateKey: "2026-01-01", code: "TEST_CODE_A")

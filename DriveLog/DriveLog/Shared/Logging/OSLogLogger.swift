@@ -38,16 +38,37 @@ nonisolated struct OSLogLogger: Logging {
         case let .locationRecordingModeChangeFailed(modeCode, reasonCode):
             logger.log(level: level, "Location recording mode change failed. mode: \(modeCode, privacy: .private)")
             logger.log(level: level, "Location mode change failure reason: \(reasonCode, privacy: .private)")
-        case let .locationAcquisitionCompleted(modeCode, receivedCount, emittedCount):
-            logger.log(level: level, "Location acquisition mode: \(modeCode, privacy: .private)")
-            logger.log(level: level, "Location received: \(receivedCount, privacy: .private)")
-            logger.log(level: level, "Location emitted: \(emittedCount, privacy: .private)")
         case let .motionEventSaved(localDateKey):
             logger.log(level: level, "Motion event saved. localDateKey: \(localDateKey, privacy: .private)")
         case let .visitEventSaved(localDateKey):
             logger.log(level: level, "Visit event saved. localDateKey: \(localDateKey, privacy: .private)")
         default:
-            logOtherEvent(event, level: level)
+            if !logLocationDiagnosticEvent(event, level: level), !logVehicleEvent(event, level: level) {
+                logOtherEvent(event, level: level)
+            }
+        }
+    }
+
+    private func logLocationDiagnosticEvent(_ event: LogEvent, level: OSLogType) -> Bool {
+        guard case let .locationAcquisitionCompleted(modeCode, receivedCount, emittedCount) = event else {
+            return false
+        }
+        logger.log(level: level, "Location acquisition mode: \(modeCode, privacy: .private)")
+        logger.log(level: level, "Location received: \(receivedCount, privacy: .private)")
+        logger.log(level: level, "Location emitted: \(emittedCount, privacy: .private)")
+        return true
+    }
+
+    private func logVehicleEvent(_ event: LogEvent, level: OSLogType) -> Bool {
+        switch event {
+        case let .vehicleActivityObserved(activityCode):
+            logger.log(level: level, "Vehicle activity observed: \(activityCode, privacy: .private)")
+            return true
+        case let .vehicleRecordingStateChanged(stateCode):
+            logger.log(level: level, "Vehicle recording state changed: \(stateCode, privacy: .private)")
+            return true
+        default:
+            return false
         }
     }
 

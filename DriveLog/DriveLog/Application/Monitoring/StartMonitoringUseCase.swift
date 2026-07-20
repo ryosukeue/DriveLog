@@ -7,9 +7,14 @@ actor StartMonitoringUseCase {
     private let logger: any Logging
     private var isExecuting = false
     private var powerObservationTask: Task<Void, Never>?
+    private var activityObservationTask: Task<Void, Never>?
+    private var vehicleStopTask: Task<Void, Never>?
     private var appliedLocationMode: LocationRecordingMode?
     private var lastObservedPowerState: PowerState?
     private var lastLoggedModeFailure: ModeFailure?
+    private var lastLoggedVehicleState: VehicleRecordingState?
+    private var vehicleStateMachine = VehicleRecordingStateMachine()
+    private let vehicleStopGracePeriod: Duration
 
     init(
         locationProvider: any LocationProviding,
@@ -17,7 +22,8 @@ actor StartMonitoringUseCase {
         visitProvider: any VisitProviding,
         storageCoordinator: RawEventStorageCoordinator,
         powerStateProvider: any PowerStateProviding,
-        logger: any Logging
+        logger: any Logging,
+        vehicleStopGracePeriod: Duration = .seconds(180)
     ) {
         self.locationProvider = locationProvider
         self.motionProvider = motionProvider
@@ -25,6 +31,13 @@ actor StartMonitoringUseCase {
         self.storageCoordinator = storageCoordinator
         self.powerStateProvider = powerStateProvider
         self.logger = logger
+        self.vehicleStopGracePeriod = vehicleStopGracePeriod
+    }
+
+    deinit {
+        powerObservationTask?.cancel()
+        activityObservationTask?.cancel()
+        vehicleStopTask?.cancel()
     }
 
     func execute() async throws {
@@ -40,13 +53,14 @@ actor StartMonitoringUseCase {
             throw error
         }
         await startMotionIfNeeded()
+        startActivityObservationIfNeeded()
         await startVisitIfNeeded()
         startPowerObservationIfNeeded()
     }
 
     private func applyLocationMode(for powerState: PowerState) async throws {
         logPowerStateIfChanged(powerState)
-        let mode = powerState.locationRecordingMode
+        let mode = desiredLocationMode(for: powerState)
         let monitoringState = await locationProvider.monitoringState
         if appliedLocationMode == nil, monitoringState == .running, mode == .lowPower {
             appliedLocationMode = mode
@@ -73,6 +87,88 @@ actor StartMonitoringUseCase {
                 await self?.applyObservedLocationMode(for: state)
             }
         }
+    }
+
+    private func startActivityObservationIfNeeded() {
+        guard activityObservationTask == nil else { return }
+        let changes = motionProvider.activityChanges
+        activityObservationTask = Task { [weak self] in
+            for await event in changes {
+                guard !Task.isCancelled else { return }
+                await self?.handleActivityChange(event)
+            }
+        }
+    }
+
+    private func handleActivityChange(_ event: MotionEventData) async {
+        logger.debug(.vehicleActivityObserved(activityCode: activityCode(for: event)))
+        if event.isAutomotive {
+            vehicleStopTask?.cancel()
+            vehicleStopTask = nil
+            updateVehicleState(vehicleStateMachine.observeAutomotiveActivity())
+            await applyObservedLocationMode(for: powerStateProvider.current)
+            return
+        }
+
+        let state = vehicleStateMachine.observeNonAutomotiveActivity()
+        guard state == .stopping else { return }
+        updateVehicleState(state)
+        scheduleVehicleStopGracePeriod()
+    }
+
+    private func scheduleVehicleStopGracePeriod() {
+        vehicleStopTask?.cancel()
+        let gracePeriod = vehicleStopGracePeriod
+        vehicleStopTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: gracePeriod)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            await self?.handleVehicleStopGracePeriodExpired()
+        }
+    }
+
+    private func handleVehicleStopGracePeriodExpired() async {
+        guard vehicleStateMachine.state == .stopping else { return }
+        updateVehicleState(vehicleStateMachine.expireStopGracePeriod())
+        await applyObservedLocationMode(for: powerStateProvider.current)
+    }
+
+    private func updateVehicleState(_ state: VehicleRecordingState) {
+        guard lastLoggedVehicleState != state else { return }
+        lastLoggedVehicleState = state
+        logger.info(.vehicleRecordingStateChanged(stateCode: state.rawValue))
+    }
+
+    private func desiredLocationMode(for powerState: PowerState) -> LocationRecordingMode {
+        if powerState.locationRecordingMode == .chargingHighAccuracy {
+            return .chargingHighAccuracy
+        }
+        if vehicleStateMachine.state != .idle {
+            return .automotiveHighAccuracy
+        }
+        return .lowPower
+    }
+
+    private func activityCode(for event: MotionEventData) -> String {
+        if event.isAutomotive {
+            return "automotive"
+        }
+        if event.isStationary {
+            return "stationary"
+        }
+        if event.isWalking {
+            return "walking"
+        }
+        if event.isRunning {
+            return "running"
+        }
+        if event.isCycling {
+            return "cycling"
+        }
+        return "unknown"
     }
 
     private func applyObservedLocationMode(for powerState: PowerState) async {

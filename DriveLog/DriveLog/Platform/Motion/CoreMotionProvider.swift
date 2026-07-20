@@ -15,10 +15,12 @@ struct MotionActivitySnapshot: Sendable {
 @MainActor
 final class CoreMotionProvider: MotionProviding {
     nonisolated let events: AsyncStream<MotionProviderEvent>
+    nonisolated let activityChanges: AsyncStream<MotionEventData>
 
     private let manager: CMMotionActivityManager
     private let localTimeContextProvider: any LocalTimeContextProviding
     private let continuation: AsyncStream<MotionProviderEvent>.Continuation
+    private let activityContinuation: AsyncStream<MotionEventData>.Continuation
     private var state: MotionMonitoringState = .stopped
 
     init(
@@ -26,8 +28,11 @@ final class CoreMotionProvider: MotionProviding {
         localTimeContextProvider: any LocalTimeContextProviding
     ) {
         let stream = AsyncStream.makeStream(of: MotionProviderEvent.self)
+        let activityStream = AsyncStream.makeStream(of: MotionEventData.self)
         events = stream.stream
+        activityChanges = activityStream.stream
         continuation = stream.continuation
+        activityContinuation = activityStream.continuation
         self.manager = manager
         self.localTimeContextProvider = localTimeContextProvider
     }
@@ -88,8 +93,10 @@ final class CoreMotionProvider: MotionProviding {
         continuation.yield(.error(error))
     }
 
-    private func send(_ snapshot: MotionActivitySnapshot) {
-        continuation.yield(.motion(convert(snapshot)))
+    func send(_ snapshot: MotionActivitySnapshot) {
+        let event = convert(snapshot)
+        continuation.yield(.motion(event))
+        activityContinuation.yield(event)
     }
 
     private func setState(_ newState: MotionMonitoringState) {

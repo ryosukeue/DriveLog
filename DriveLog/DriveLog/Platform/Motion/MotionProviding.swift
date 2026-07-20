@@ -2,6 +2,7 @@
 protocol MotionProviding: Sendable {
     var monitoringState: MotionMonitoringState { get async }
     nonisolated var events: AsyncStream<MotionProviderEvent> { get }
+    nonisolated var activityChanges: AsyncStream<MotionEventData> { get }
 
     func startMonitoring() async throws
     func stopMonitoring() async

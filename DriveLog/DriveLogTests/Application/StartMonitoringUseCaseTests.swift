@@ -1,4 +1,5 @@
 @testable import DriveLog
+import Foundation
 import Testing
 
 @Suite("Start monitoring use case")
@@ -111,6 +112,32 @@ struct StartMonitoringUseCaseTests {
         ])
     }
 
+    @Test("automotive activity promotes non charging recording and stop grace returns to low power")
+    func automotiveActivityTransitions() async throws {
+        let fixture = Fixture(vehicleStopGracePeriod: .milliseconds(10))
+        try await fixture.useCase.execute()
+
+        fixture.motion.send(.motion(motion(automotive: true)))
+        await waitUntil { fixture.location.appliedModes().count == 2 }
+        #expect(fixture.location.appliedModes() == [.lowPower, .automotiveHighAccuracy])
+
+        fixture.motion.send(.motion(motion(stationary: true)))
+        try? await Task.sleep(for: .milliseconds(30))
+        await waitUntil { fixture.location.appliedModes().count == 3 }
+        #expect(fixture.location.appliedModes().last == .lowPower)
+    }
+
+    @Test("charging remains high accuracy while activity becomes non automotive")
+    func chargingTakesPriorityOverActivity() async throws {
+        let fixture = Fixture(powerState: .charging, vehicleStopGracePeriod: .milliseconds(10))
+        try await fixture.useCase.execute()
+
+        fixture.motion.send(.motion(motion(stationary: true)))
+        try? await Task.sleep(for: .milliseconds(30))
+
+        #expect(fixture.location.appliedModes() == [.chargingHighAccuracy])
+    }
+
     @Test("logs an observed charging mode transition failure")
     func chargingTransitionFailure() async throws {
         let fixture = Fixture()
@@ -168,6 +195,19 @@ struct StartMonitoringUseCaseTests {
             await Task.yield()
         }
     }
+
+    private func motion(
+        automotive: Bool = false,
+        stationary: Bool = false
+    ) -> MotionEventData {
+        MotionEventData(
+            startDate: Date(timeIntervalSince1970: 1_704_067_200), endDate: nil,
+            isAutomotive: automotive, isWalking: false, isRunning: false,
+            isCycling: false, isStationary: stationary, isUnknown: false,
+            confidence: .high, timeZoneIdentifier: "Asia/Tokyo",
+            utcOffsetSeconds: 32400, localDateKey: "2024-01-01"
+        )
+    }
 }
 
 @MainActor
@@ -177,25 +217,29 @@ private struct Fixture {
     let visit: FakeVisitProvider
     let repository = InMemoryRawEventRepository()
     let logger = SpyEventLogger()
-    let power = FakePowerStateProvider()
+    let power: FakePowerStateProvider
     let storageCoordinator: RawEventStorageCoordinator
     let useCase: StartMonitoringUseCase
 
     init(
         locationState: LocationMonitoringState = .stopped,
         motionState: MotionMonitoringState = .stopped,
-        visitState: VisitMonitoringState = .stopped
+        visitState: VisitMonitoringState = .stopped,
+        powerState: PowerState = .unplugged,
+        vehicleStopGracePeriod: Duration = .seconds(180)
     ) {
         location = FakeLocationProvider(state: locationState)
         motion = FakeMotionProvider(state: motionState)
         visit = FakeVisitProvider(state: visitState)
+        power = FakePowerStateProvider(current: powerState)
         storageCoordinator = RawEventStorageCoordinator(
             locationProvider: location, motionProvider: motion, visitProvider: visit,
             repository: repository, logger: logger
         )
         useCase = StartMonitoringUseCase(
             locationProvider: location, motionProvider: motion, visitProvider: visit,
-            storageCoordinator: storageCoordinator, powerStateProvider: power, logger: logger
+            storageCoordinator: storageCoordinator, powerStateProvider: power, logger: logger,
+            vehicleStopGracePeriod: vehicleStopGracePeriod
         )
     }
 }

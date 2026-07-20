@@ -22,4 +22,6 @@ nonisolated enum LogEvent: Sendable, Equatable {
     case locationRecordingModeChanged(modeCode: String)
     case locationRecordingModeChangeFailed(modeCode: String, reasonCode: String)
     case locationAcquisitionCompleted(modeCode: String, receivedCount: Int, emittedCount: Int)
+    case vehicleActivityObserved(activityCode: String)
+    case vehicleRecordingStateChanged(stateCode: String)
 }

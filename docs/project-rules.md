@@ -4,7 +4,7 @@
 
 この節は後続の旧記述「月送りは左右スワイプのみ」「Significant Location Changeのみ」より優先する。
 
-- Locationは非充電時SLC、充電中/満充電時のみ単一Managerの高精度Modeとする。常時高精度は禁止する。
+- Locationは非充電時SLCを基本とし、車両系Activity検知中または充電中/満充電時だけ単一Managerの高精度Modeとする。車両系Activity終了後は短い猶予を置いてSLCへ戻し、常時高精度は禁止する。
 - Calendarは縦方向の連続月Sectionとし、横Swipe月送りを使用しない。
 - Movement分類変更と詳細統計はProduction UIへ表示しない。既存Schema/Overrideデータは削除しない。
 - Stay修正と位置情報付きMedia Annotationは維持する。
@@ -37,7 +37,7 @@ MVPの前提：
 - 広告なし
 - サブスクリプションなし
 - iCloud同期なし
-- 高精度GPS常時取得なし
+- 高精度GPSの無条件常時取得なし
 - AI画像解析なし
 
 ## 3. 文書の優先順位
@@ -383,8 +383,8 @@ Model変更だけで済むIssueにUI変更を混ぜない。
 
 ### Core Location
 
-- Significant Location Changeのみ
-- 高精度GPSを開始しない
+- Significant Location Changeを基本とする
+- 車両系Activityまたは充電状態に限定して高精度GPSを開始する
 - Background受信を保証しない
 - 強制終了後の記録を保証しない
 - DelegateをPlatform層へ閉じる
@@ -689,7 +689,7 @@ Forbidden Changes、Non-Goalsに含まれる内容は実装しないでくださ
 - 自転車専用分類
 - 地点名
 - Memo
-- 高精度GPS切替
+- 無条件の高精度GPS切替
 - 道路Map Matching
 - 住所逆引き
 - AI画像解析

@@ -12,6 +12,14 @@
 - [x] 14-8 地図/写真中心のUI整理
 - [x] 14-9 Integration監査と実機Checklist
 
+## Phase 17: 車両系Activityと充電補助の記録Mode統合
+
+- [x] 17-1 車両移動検知と記録Modeを統合する
+
+### Phase 17方針
+
+非充電時のSignificant Location Changeを基本にし、Core Motionの車両系Activityを検知した走行中だけ標準Location Updateへ昇格する。充電中／満充電時の高精度Modeは補助条件として維持する。Activity終了後は3分の猶予を置き、短時間停止やActivityの揺れで経路を不要に分断しない。外部BLEビーコン、OBD-II、CarPlay、専用GPSはMVPへ追加しない。
+
 ## 1. 目的
 
 この文書は、DriveLog MVPを安全に実装するためのPhase構成、Issue分割、依存関係、完了条件、Codexへ渡す順序を定義する。

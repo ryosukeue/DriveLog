@@ -503,6 +503,12 @@ AND
 
 自家用車と断定しない。
 
+#### 記録Modeと日次分類の分離
+
+Core Motionの車両系Activityまたは充電状態による高精度Mode昇格は、Raw Locationの取得密度を決める記録制御であり、日次処理の自動分類結果を直接確定しない。高精度／低電力のどちらで取得されたRaw Locationも同じSanitizer、Segmenter、Classifierを通す。
+
+車両系Activityが一時的に`stationary`へ変化した場合でも3分間は記録Modeを維持する。猶予後に車両系Activityが戻らなければ、非充電時は低電力SLCへ戻す。充電中／満充電時は高精度Modeを維持する。
+
 ### 15.3 徒歩っぽい移動
 
 次のいずれかを満たす場合、徒歩っぽい候補とする。

@@ -39,6 +39,22 @@ struct CoreMotionProviderTests {
         #expect(provider.convert(snapshot(confidence: .high)).confidence == .high)
     }
 
+    @Test("publishes motion to storage and activity streams")
+    func activityStreams() async {
+        let provider = makeProvider()
+        var eventIterator = provider.events.makeAsyncIterator()
+        var activityIterator = provider.activityChanges.makeAsyncIterator()
+        let snapshot = snapshot(date: Date(timeIntervalSince1970: 1_704_067_200), automotive: true, confidence: .high)
+
+        provider.send(snapshot)
+
+        guard case let .motion(event) = await eventIterator.next() else {
+            Issue.record("Expected motion event")
+            return
+        }
+        #expect(await activityIterator.next() == event)
+    }
+
     @Test("streams callback error without OS details")
     func errorEvent() async {
         let provider = makeProvider()
