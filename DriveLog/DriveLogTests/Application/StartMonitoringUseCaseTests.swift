@@ -32,6 +32,23 @@ struct StartMonitoringUseCaseTests {
         #expect(fixture.visit.callCounts().start == 1)
     }
 
+    @Test("manual start switches the existing provider to high density")
+    func manualHighDensityStart() async throws {
+        let fixture = Fixture()
+        try await fixture.useCase.execute()
+
+        try await fixture.useCase.startHighDensityRecording()
+
+        #expect(fixture.location.appliedModes() == [.lowPower, .automotiveHighAccuracy])
+        fixture.power.send(.charging)
+        fixture.motion.send(.motion(motion(stationary: true)))
+        await Task.yield()
+        #expect(fixture.location.appliedModes().last == .automotiveHighAccuracy)
+        #expect(fixture.location.callCounts().start == 2)
+        #expect(fixture.motion.callCounts().start == 1)
+        #expect(fixture.visit.callCounts().start == 1)
+    }
+
     @Test("motion denial does not stop location or visit")
     func motionFailureIsolation() async throws {
         let fixture = Fixture()

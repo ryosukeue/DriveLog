@@ -1,4 +1,8 @@
-actor StartMonitoringUseCase {
+nonisolated protocol RecordingStarting: Sendable {
+    func startHighDensityRecording() async throws
+}
+
+actor StartMonitoringUseCase: RecordingStarting {
     private let locationProvider: any LocationProviding
     private let motionProvider: any MotionProviding
     private let visitProvider: any VisitProviding
@@ -16,6 +20,7 @@ actor StartMonitoringUseCase {
     private var lastLoggedModeFailure: ModeFailure?
     private var lastLoggedVehicleState: VehicleRecordingState?
     private var vehicleStateMachine = VehicleRecordingStateMachine()
+    private var isManualHighDensityRecording = false
     private let vehicleMovementEvidenceEvaluator: VehicleMovementEvidenceEvaluator
     private var lastVehicleEvidenceLocation: LocationEventData?
     private var vehicleEvidenceCount = 0
@@ -69,6 +74,17 @@ actor StartMonitoringUseCase {
         startActivityObservationIfNeeded()
         await startVisitIfNeeded()
         startPowerObservationIfNeeded()
+    }
+
+    func startHighDensityRecording() async throws {
+        isManualHighDensityRecording = true
+        vehicleCandidateTask?.cancel()
+        vehicleCandidateTask = nil
+        vehicleStopTask?.cancel()
+        vehicleStopTask = nil
+        resetVehicleEvidence()
+        try await execute()
+        try await applyLocationMode(for: powerStateProvider.current)
     }
 
     private func applyLocationMode(for powerState: PowerState) async throws {
@@ -170,6 +186,7 @@ private extension StartMonitoringUseCase {
 
     func handleActivityChange(_ event: MotionEventData) async {
         logger.debug(.vehicleActivityObserved(activityCode: activityCode(for: event)))
+        guard !isManualHighDensityRecording else { return }
         if event.isAutomotive {
             let previousState = vehicleStateMachine.state
             let state = vehicleStateMachine.observeAutomotiveActivity()
@@ -278,6 +295,9 @@ private extension StartMonitoringUseCase {
     }
 
     func desiredLocationMode(for powerState: PowerState) -> LocationRecordingMode {
+        if isManualHighDensityRecording {
+            return .automotiveHighAccuracy
+        }
         switch vehicleStateMachine.state {
         case .candidate:
             return .automotiveCandidate
