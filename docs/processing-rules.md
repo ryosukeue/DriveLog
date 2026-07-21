@@ -1,5 +1,13 @@
 # Processing Rules
 
+## 車両候補のGPS確認（2026-07-21）
+
+- Core Motionの車両系Activityは走行候補として扱い、単独で走行確定しない。
+- Candidateでは標準Locationを短時間だけ取得し、水平精度150m以下、速度3m/s以上、または前回点から100m以上の位置差を有効な移動証拠とする。
+- 有効な移動証拠を2回確認してから走行Modeへ昇格する。証拠不足では候補をリセットする。
+- Candidateは90秒でタイムアウトし、移動証拠がない場合は低電力SLCへ戻す。
+- 充電状態だけでは記録Modeを昇格させず、走行確定後の補助条件として扱う。
+
 ## 実機停止中GPSドリフトの補足（2026-07-18）
 
 - Movement候補は2点・100m条件だけで確定せず、停止中に同じ範囲を往復して累積したGPSドリフトを複合条件で除外する。
@@ -505,9 +513,9 @@ AND
 
 #### 記録Modeと日次分類の分離
 
-Core Motionの車両系Activityまたは充電状態による高精度Mode昇格は、Raw Locationの取得密度を決める記録制御であり、日次処理の自動分類結果を直接確定しない。高精度／低電力のどちらで取得されたRaw Locationも同じSanitizer、Segmenter、Classifierを通す。
+Core Motionの車両系ActivityとGPS確認による走行Mode昇格は、Raw Locationの取得密度を決める記録制御であり、日次処理の自動分類結果を直接確定しない。高精度／候補／低電力のどのModeで取得されたRaw Locationも同じSanitizer、Segmenter、Classifierを通す。
 
-車両系Activityが一時的に`stationary`へ変化した場合でも3分間は記録Modeを維持する。猶予後に車両系Activityが戻らなければ、非充電時は低電力SLCへ戻す。充電中／満充電時は高精度Modeを維持する。
+車両系Activityが一時的に`stationary`へ変化した場合でも3分間は走行確定Modeを維持する。猶予後に車両系Activityが戻らなければ、低電力SLCへ戻す。充電中／満充電だけでは高精度Modeを維持・開始しない。
 
 ### 15.3 徒歩っぽい移動
 

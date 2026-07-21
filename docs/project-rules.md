@@ -4,7 +4,7 @@
 
 この節は後続の旧記述「月送りは左右スワイプのみ」「Significant Location Changeのみ」より優先する。
 
-- Locationは非充電時SLCを基本とし、車両系Activity検知中または充電中/満充電時だけ単一Managerの高精度Modeとする。車両系Activity終了後は短い猶予を置いてSLCへ戻し、常時高精度は禁止する。
+- Locationは非充電時SLCを基本とし、車両系Activityを候補として短時間の標準Locationで実移動を確認した後だけ単一Managerの走行Modeへ昇格する。充電中/満充電だけでは高精度Modeへ切り替えず、走行確定後の補助情報として扱う。車両系Activity終了後は短い猶予を置いてSLCへ戻し、常時高精度は禁止する。
 - Calendarは縦方向の連続月Sectionとし、横Swipe月送りを使用しない。
 - Movement分類変更と詳細統計はProduction UIへ表示しない。既存Schema/Overrideデータは削除しない。
 - Stay修正と位置情報付きMedia Annotationは維持する。
@@ -384,7 +384,8 @@ Model変更だけで済むIssueにUI変更を混ぜない。
 ### Core Location
 
 - Significant Location Changeを基本とする
-- 車両系Activityまたは充電状態に限定して高精度GPSを開始する
+- 車両系Activityを候補としてGPSの実移動を確認した後だけ走行Modeを開始する
+- 充電状態だけでは高精度GPSを開始しない
 - Background受信を保証しない
 - 強制終了後の記録を保証しない
 - DelegateをPlatform層へ閉じる

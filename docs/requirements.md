@@ -2,7 +2,7 @@
 
 ## 実機フィードバックによるMVP改訂（2026-07-15）
 
-- 非充電時はSignificant Location Changeを基本とし、Core Motionが車両系Activityを示した走行中、または充電中/満充電時だけ単一Location Managerの高精度更新へ排他的に切り替える。車両系Activity終了後は短い猶予を置いてSLCへ戻す。Battery通知と定期的な現在状態照合を併用し、高精度Modeの保存目標はOS制約下で約1分間隔とする。
+- 非充電時はSignificant Location Changeを基本とし、Core Motionが車両系Activityを示した後にGPSの実移動を確認できた走行中だけ単一Location Managerの走行更新へ排他的に切り替える。充電中/満充電だけでは切り替えず、走行確定後の補助情報とする。車両系Activity終了後は短い猶予を置いてSLCへ戻す。Battery通知と定期的な現在状態照合を併用し、走行Modeの保存目標はOS制約下で約1分間隔とする。
 - Calendarは現在月付近から始まる縦方向の連続月Sectionとし、端で月を遅延追加する。横Swipe月送りは使用しない。
 - Production UIからMovement分類変更を削除する。自動分類と既存OverrideのSchema/表示互換は維持する。
 - Day Detailの詳細統計を削除し、日付、地図、基本距離/時間、写真・動画を中心にする。
@@ -19,8 +19,8 @@
 - サーバー、ユーザー登録、ログインを必要としない
 - 広告、課金、AI機能をMVPには含めない
 - iCloud同期や外部サーバー同期を行わない
-- 車両系Activityまたは充電状態に限定し、高精度GPSを常時実行しない
-- Significant Location Changeを中心に位置ログを取得し、車両系Activityまたは充電状態の間だけ標準Location Updateへ昇格する
+- 車両系Activityを候補信号とし、GPSの速度または位置差を確認した走行中だけ標準Location Updateへ昇格する。充電状態だけでは昇格しない
+- Significant Location Changeを中心に位置ログを取得し、走行確定後だけ標準Location Updateを継続する
 - 初期版には設定画面を設けない
 - 縦向き表示のみ対応する
 - iPhone SE相当の小型画面からPro Maxまで対応する
@@ -43,7 +43,7 @@
 
 iPhoneのSignificant Location Change Monitoringを中心に、バックグラウンドでも移動ログを保存する。
 
-通常の高精度GPSによる無条件の連続追跡はMVPでは行わない。Core Motionの車両系Activity検知中と充電中／満充電時だけ、単一Location Managerを標準更新へ切り替える。
+通常の高精度GPSによる無条件の連続追跡はMVPでは行わない。Core Motionの車両系Activityを候補として短時間の標準Locationで実移動を確認し、走行確定後だけ単一Location Managerを標準更新へ切り替える。充電中／満充電だけでは切り替えない。
 
 各位置ログには最低限、次の情報を保存する。
 
@@ -121,7 +121,7 @@ CLVisitが取得できない場合でも、位置ログとモーション情報�
 - 移動状態を仮分類する
 - 移動区間ごとの推定平均速度を計算する
 
-充電中のバックグラウンド処理を優先するが、実行されなかった場合に備えて、アプリ起動時や日別詳細表示時にも必要な範囲を再集計する。充電状態は記録Modeの補助条件であり、非充電中も車両系Activity検知時は高精度記録を行う。
+充電中のバックグラウンド処理を優先するが、実行されなかった場合に備えて、アプリ起動時や日別詳細表示時にも必要な範囲を再集計する。充電状態は走行確定後の記録Modeを補助する条件であり、単独では高精度記録を開始しない。
 
 日全体の平均速度と最高速度は表示しない。
 

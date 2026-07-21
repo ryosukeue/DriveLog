@@ -12,12 +12,16 @@ nonisolated struct ChargingLocationEmissionFilter: Sendable {
         lastEmissionDate = nil
     }
 
-    mutating func shouldEmit(_ timestamp: Date) -> Bool {
+    mutating func shouldEmit(
+        _ timestamp: Date,
+        minimumInterval: TimeInterval? = nil
+    ) -> Bool {
         guard let lastEmissionDate else {
             lastEmissionDate = timestamp
             return true
         }
-        guard timestamp.timeIntervalSince(lastEmissionDate) >= minimumInterval else {
+        let interval = minimumInterval ?? self.minimumInterval
+        guard timestamp.timeIntervalSince(lastEmissionDate) >= interval else {
             return false
         }
         self.lastEmissionDate = timestamp

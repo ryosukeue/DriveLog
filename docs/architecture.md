@@ -2,7 +2,7 @@
 
 ## 実機フィードバックによるLocation補足（2026-07-15）
 
-Power stateとMotion ActivityはPlatform Protocolへ隔離し、ApplicationのMonitoring coordinatorが`lowPower`、`automotiveHighAccuracy`、`chargingHighAccuracy`を選ぶ。Battery通知に加えて現在状態を定期照合し、通知欠落や一時的な切替失敗から自己修復する。Core Motionの車両系Activityを検知した非充電時も高精度へ昇格し、Activity終了後は短い猶予を置いてSLCへ戻す。単一`CLLocationManager`内でSLCとstandard updateを排他的に停止/開始し、Providerを重複起動しない。高精度Modeは走行中または充電中だけで、Best accuracy、50m distance filter、automotive navigation、約60秒のemit filterを使用する。
+Power stateとMotion ActivityはPlatform Protocolへ隔離し、ApplicationのMonitoring coordinatorが`lowPower`、`automotiveCandidate`、`automotiveHighAccuracy`、`chargingHighAccuracy`を選ぶ。Battery通知に加えて現在状態を定期照合し、通知欠落や一時的な切替失敗から自己修復する。Core Motionの車両系Activityを候補として標準Locationで実移動を確認した後だけ走行Modeへ昇格し、Activity終了後は短い猶予を置いてSLCへ戻す。充電状態だけでは高精度Modeを開始せず、走行確定後の補助情報とする。単一`CLLocationManager`内でSLCとstandard updateを排他的に停止/開始し、Providerを重複起動しない。高精度Modeは走行確定後だけで、Best accuracy、50m distance filter、automotive navigation、約60秒のemit filterを使用する。
 
 Mediaの表示可否は`MapScene`を正とし、Map描画時に別のMedia snapshotとの再照合でAnnotationを破棄しない。Thumbnail取得に失敗してもfallback Annotationを維持する。
 
@@ -50,7 +50,7 @@ SwiftData / Core Location / Core Motion / PhotoKit / MapKit
 - ユーザー修正は自動分類結果と分離して保存する
 - バックグラウンド処理が実行されなくてもアプリを利用可能にする
 - 日付は記録時の現地時間で固定する
-- 高精度GPSを無条件に連続追跡しない。車両系Activityまたは充電状態に限定して使用する
+- 高精度GPSを無条件に連続追跡しない。車両系Activity後にGPS実移動を確認した走行中だけ使用する
 - 判定閾値はPolicyまたはProcessing Rulesへ分離する
 
 ## 3. システム構成
@@ -647,7 +647,7 @@ DriveLog/
 
 ### SLCだけを使用する
 
-高精度GPSへの切り替えは無条件には行わず、Core Motionの車両系Activityまたは充電状態の間だけ採用する。Activity終了後は短い猶予を置いてSLCへ戻す。
+高精度GPSへの切り替えは無条件には行わず、Core Motionの車両系Activityを候補としてGPS実移動を確認した走行中だけ採用する。充電状態だけでは切り替えず、Activity終了後は短い猶予を置いてSLCへ戻す。
 
 ### 生ログと派生データを分離する
 

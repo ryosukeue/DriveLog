@@ -15,10 +15,11 @@
 ## Phase 17: 車両系Activityと充電補助の記録Mode統合
 
 - [x] 17-1 車両移動検知と記録Modeを統合する
+- [x] 17-2 車両ActivityをGPS移動で確認してから記録を確定する
 
 ### Phase 17方針
 
-非充電時のSignificant Location Changeを基本にし、Core Motionの車両系Activityを検知した走行中だけ標準Location Updateへ昇格する。充電中／満充電時の高精度Modeは補助条件として維持する。Activity終了後は3分の猶予を置き、短時間停止やActivityの揺れで経路を不要に分断しない。外部BLEビーコン、OBD-II、CarPlay、専用GPSはMVPへ追加しない。
+非充電時のSignificant Location Changeを基本にし、Core Motionの車両系Activityを候補として標準Locationで実移動を確認した後だけ走行Modeへ昇格する。充電中／満充電だけでは高精度Modeへ切り替えず、走行確定後の補助情報として扱う。Activity終了後は3分の猶予を置き、短時間停止やActivityの揺れで経路を不要に分断しない。外部BLEビーコン、OBD-II、CarPlay、専用GPSはMVPへ追加しない。
 
 ## 1. 目的
 

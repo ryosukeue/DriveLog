@@ -3,8 +3,10 @@
 @MainActor
 final class FakeLocationProvider: LocationProviding {
     nonisolated let events: AsyncStream<LocationProviderEvent>
+    nonisolated let locationChanges: AsyncStream<LocationEventData>
 
     private let continuation: AsyncStream<LocationProviderEvent>.Continuation
+    private let locationContinuation: AsyncStream<LocationEventData>.Continuation
     private var state: LocationMonitoringState
     private var startCount = 0
     private var stopCount = 0
@@ -13,8 +15,11 @@ final class FakeLocationProvider: LocationProviding {
 
     init(state: LocationMonitoringState = .stopped) {
         let stream = AsyncStream.makeStream(of: LocationProviderEvent.self)
+        let locationStream = AsyncStream.makeStream(of: LocationEventData.self)
         events = stream.stream
+        locationChanges = locationStream.stream
         continuation = stream.continuation
+        locationContinuation = locationStream.continuation
         self.state = state
     }
 
@@ -44,6 +49,9 @@ final class FakeLocationProvider: LocationProviding {
 
     func send(_ event: LocationProviderEvent) {
         continuation.yield(event)
+        if case let .location(location) = event {
+            locationContinuation.yield(location)
+        }
     }
 
     func setState(_ state: LocationMonitoringState) {

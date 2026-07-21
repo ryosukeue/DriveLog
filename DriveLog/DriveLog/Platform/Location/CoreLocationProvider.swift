@@ -4,11 +4,13 @@ import Foundation
 @MainActor
 final class CoreLocationProvider: NSObject, LocationProviding {
     nonisolated let events: AsyncStream<LocationProviderEvent>
+    nonisolated let locationChanges: AsyncStream<LocationEventData>
 
     private let manager: CLLocationManager
     private let clock: any Clock
     private let localTimeContextProvider: any LocalTimeContextProviding
     private let continuation: AsyncStream<LocationProviderEvent>.Continuation
+    private let locationContinuation: AsyncStream<LocationEventData>.Continuation
     private var state: LocationMonitoringState = .stopped
     private var recordingMode: LocationRecordingMode = .lowPower
     private var highAccuracyEmissionFilter = ChargingLocationEmissionFilter()
@@ -19,8 +21,11 @@ final class CoreLocationProvider: NSObject, LocationProviding {
         localTimeContextProvider: any LocalTimeContextProviding
     ) {
         let stream = AsyncStream.makeStream(of: LocationProviderEvent.self)
+        let locationStream = AsyncStream.makeStream(of: LocationEventData.self)
         events = stream.stream
+        locationChanges = locationStream.stream
         continuation = stream.continuation
+        locationContinuation = locationStream.continuation
         self.manager = manager
         self.clock = clock
         self.localTimeContextProvider = localTimeContextProvider
@@ -85,6 +90,13 @@ final class CoreLocationProvider: NSObject, LocationProviding {
             manager.pausesLocationUpdatesAutomatically = true
             manager.allowsBackgroundLocationUpdates = false
             manager.startMonitoringSignificantLocationChanges()
+        case .automotiveCandidate:
+            manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+            manager.distanceFilter = 100
+            manager.activityType = .automotiveNavigation
+            manager.pausesLocationUpdatesAutomatically = false
+            manager.allowsBackgroundLocationUpdates = true
+            manager.startUpdatingLocation()
         case .automotiveHighAccuracy, .chargingHighAccuracy:
             manager.desiredAccuracy = kCLLocationAccuracyBest
             manager.distanceFilter = 50
@@ -158,9 +170,13 @@ extension CoreLocationProvider: CLLocationManagerDelegate {
         for location in locations {
             guard let event = convert(location) else { continue }
             if recordingMode != .lowPower {
-                guard highAccuracyEmissionFilter.shouldEmit(location.timestamp) else { continue }
+                let interval: TimeInterval? = recordingMode == .automotiveCandidate ? 10 : nil
+                guard highAccuracyEmissionFilter.shouldEmit(
+                    location.timestamp, minimumInterval: interval
+                ) else { continue }
             }
             continuation.yield(.location(event))
+            locationContinuation.yield(event)
             emittedCount += 1
         }
         continuation.yield(.acquisitionDiagnostic(LocationAcquisitionDiagnostic(

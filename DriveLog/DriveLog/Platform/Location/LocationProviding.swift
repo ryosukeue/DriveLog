@@ -2,6 +2,7 @@
 protocol LocationProviding: Sendable {
     var monitoringState: LocationMonitoringState { get async }
     nonisolated var events: AsyncStream<LocationProviderEvent> { get }
+    nonisolated var locationChanges: AsyncStream<LocationEventData> { get }
 
     func startSignificantLocationMonitoring() async throws
     func stopSignificantLocationMonitoring() async
@@ -10,6 +11,7 @@ protocol LocationProviding: Sendable {
 
 nonisolated enum LocationRecordingMode: String, Sendable, Equatable {
     case lowPower
+    case automotiveCandidate
     case automotiveHighAccuracy
     case chargingHighAccuracy
 }

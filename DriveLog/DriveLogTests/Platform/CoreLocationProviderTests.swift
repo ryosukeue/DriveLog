@@ -81,6 +81,39 @@ struct CoreLocationProviderTests {
         }
     }
 
+    @Test("candidate mode emits a separate movement stream")
+    func candidateModeStreamsMovementEvidence() async throws {
+        let now = Date(timeIntervalSince1970: 1_704_067_200)
+        let provider = makeProvider(now: now)
+        var eventIterator = provider.events.makeAsyncIterator()
+        var locationIterator = provider.locationChanges.makeAsyncIterator()
+
+        try await provider.setRecordingMode(.automotiveCandidate)
+
+        provider.locationManager(
+            CLLocationManager(),
+            didUpdateLocations: [location(now: now, accuracy: 80, speed: 4)]
+        )
+
+        let evidence = try #require(await locationIterator.next())
+        #expect(evidence.horizontalAccuracy == 80)
+        #expect(evidence.speedMetersPerSecond == 4)
+        var diagnosticValue: LocationAcquisitionDiagnostic?
+        while let event = await eventIterator.next() {
+            if case let .acquisitionDiagnostic(value) = event {
+                diagnosticValue = value
+                break
+            }
+        }
+        let diagnostic = try #require(diagnosticValue)
+        guard diagnostic.mode == .automotiveCandidate else {
+            Issue.record("Expected candidate diagnostic")
+            return
+        }
+        #expect(diagnostic.receivedCount == 1)
+        #expect(diagnostic.emittedCount == 1)
+    }
+
     @Test("fake tracks calls, state, location, and error")
     func fakeProvider() async throws {
         let fake = FakeLocationProvider()

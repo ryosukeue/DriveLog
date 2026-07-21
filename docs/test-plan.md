@@ -20,7 +20,7 @@
 - Movement選択中は端点付近のStayだけを強調し、無関係な独立StayとMedia付属Stay時間を減光し、選択解除で復元することをUnit Testする。
 - 出発未確定/5分未満VisitはMovementをhard splitせず、確定5分以上Visitは分割し、表示PolylineのStay接続は時間5分・距離150mの両条件をUnit Testする。
 - 同一場所の複数Stayは件数表示を持たず、Movement選択時は最も近い前後各1件だけを表示し、選択解除で汎用表示へ戻ることをUnit Testする。
-- 非充電中の車両系Activityで高精度Modeへ昇格し、Activity終了後の3分猶予、充電優先、Motion利用不可時のSLC fallbackをUnit Testする。
+- 非充電中の車両系ActivityでCandidateへ遷移し、GPS移動証拠2回後に高精度Modeへ昇格すること、Candidate 90秒タイムアウト、Activity終了後の3分猶予、充電単独では昇格しないこと、Motion利用不可時のSLC fallbackをUnit Testする。
 
 ## 1. 目的
 

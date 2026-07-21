@@ -2,11 +2,20 @@
 import Testing
 
 struct VehicleRecordingStateMachineTests {
-    @Test("automotive activity enters driving")
+    @Test("automotive activity enters candidate")
     func automotiveActivity() {
         var machine = VehicleRecordingStateMachine()
 
-        #expect(machine.observeAutomotiveActivity() == .driving)
+        #expect(machine.observeAutomotiveActivity() == .candidate)
+        #expect(machine.state == .candidate)
+    }
+
+    @Test("location movement confirms driving")
+    func locationMovementConfirmsDriving() {
+        var machine = VehicleRecordingStateMachine()
+        _ = machine.observeAutomotiveActivity()
+
+        #expect(machine.confirmLocationMovement() == .driving)
         #expect(machine.state == .driving)
     }
 
@@ -14,6 +23,7 @@ struct VehicleRecordingStateMachineTests {
     func nonAutomotiveActivity() {
         var machine = VehicleRecordingStateMachine()
         _ = machine.observeAutomotiveActivity()
+        _ = machine.confirmLocationMovement()
 
         #expect(machine.observeNonAutomotiveActivity() == .stopping)
         #expect(machine.state == .stopping)
@@ -23,6 +33,7 @@ struct VehicleRecordingStateMachineTests {
     func stopGraceExpiration() {
         var machine = VehicleRecordingStateMachine()
         _ = machine.observeAutomotiveActivity()
+        _ = machine.confirmLocationMovement()
         _ = machine.observeNonAutomotiveActivity()
 
         #expect(machine.expireStopGracePeriod() == .idle)
@@ -34,5 +45,14 @@ struct VehicleRecordingStateMachineTests {
         var machine = VehicleRecordingStateMachine()
 
         #expect(machine.observeNonAutomotiveActivity() == .idle)
+    }
+
+    @Test("candidate expires without location movement")
+    func candidateExpiration() {
+        var machine = VehicleRecordingStateMachine()
+        _ = machine.observeAutomotiveActivity()
+
+        #expect(machine.expireCandidate() == .idle)
+        #expect(machine.state == .idle)
     }
 }
