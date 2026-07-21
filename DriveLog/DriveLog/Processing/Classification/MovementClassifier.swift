@@ -136,28 +136,95 @@ nonisolated struct MovementClassifier: MovementClassifying {
         segment: MovementSegmentCandidate,
         motions: [MotionEventData]
     ) -> MotionOccupancy {
-        let relevant = motions.filter {
-            $0.startDate < segment.endDate && ($0.endDate ?? segment.endDate) > segment.startDate
-        }
+        let relevant = motionIntervals(for: segment, motions: motions)
         let boundaries = Set(
             [segment.startDate, segment.endDate] + relevant.flatMap {
-                [max($0.startDate, segment.startDate), min($0.endDate ?? segment.endDate, segment.endDate)]
+                [max($0.startDate, segment.startDate), min($0.endDate, segment.endDate)]
             }
         ).sorted()
         var occupancy = MotionOccupancy()
         for (start, end) in zip(boundaries, boundaries.dropFirst()) where end > start {
             let active = relevant.filter {
-                $0.startDate < end && ($0.endDate ?? segment.endDate) > start
+                $0.startDate < end && $0.endDate > start
             }
             let duration = end.timeIntervalSince(start)
-            occupancy.automotive += duration * maximumWeight(active.filter(\.isAutomotive))
+            occupancy.automotive += duration * maximumWeight(active.map(\.event).filter(\.isAutomotive))
             occupancy.walkingOrRunning += duration * maximumWeight(active.filter {
-                $0.isWalking || $0.isRunning
-            })
-            occupancy.cycling += duration * maximumWeight(active.filter(\.isCycling))
-            occupancy.unknown += duration * maximumWeight(active.filter(\.isUnknown))
+                $0.event.isWalking || $0.event.isRunning
+            }.map(\.event))
+            occupancy.cycling += duration * maximumWeight(active.map(\.event).filter(\.isCycling))
+            occupancy.unknown += duration * maximumWeight(active.map(\.event).filter(\.isUnknown))
         }
         return occupancy.divided(by: segment.durationSeconds)
+    }
+
+    private func motionIntervals(
+        for segment: MovementSegmentCandidate,
+        motions: [MotionEventData]
+    ) -> [MotionInterval] {
+        let ordered = motions.sorted(by: motionOrdering)
+        return ordered.enumerated().compactMap { index, motion in
+            let nextStartDate = index + 1 < ordered.count ? ordered[index + 1].startDate : nil
+            let endDate = motion.endDate ?? nextStartDate ?? segment.endDate
+            let startDate = max(motion.startDate, segment.startDate)
+            let clippedEndDate = min(endDate, segment.endDate)
+            guard startDate < clippedEndDate,
+                  motion.startDate < segment.endDate,
+                  endDate > segment.startDate
+            else {
+                return nil
+            }
+            return MotionInterval(
+                event: motion,
+                startDate: startDate,
+                endDate: clippedEndDate
+            )
+        }
+    }
+
+    private func motionOrdering(_ lhs: MotionEventData, _ rhs: MotionEventData) -> Bool {
+        if lhs.startDate != rhs.startDate {
+            return lhs.startDate < rhs.startDate
+        }
+        switch (lhs.endDate, rhs.endDate) {
+        case let (lhsEnd?, rhsEnd?) where lhsEnd != rhsEnd:
+            return lhsEnd < rhsEnd
+        case (nil, nil), (_?, _?):
+            break
+        case (nil, _?):
+            return false
+        case (_?, nil):
+            return true
+        }
+        let lhsFlags = [
+            lhs.isAutomotive, lhs.isWalking, lhs.isRunning,
+            lhs.isCycling, lhs.isStationary, lhs.isUnknown
+        ]
+        let rhsFlags = [
+            rhs.isAutomotive, rhs.isWalking, rhs.isRunning,
+            rhs.isCycling, rhs.isStationary, rhs.isUnknown
+        ]
+        for (lhsFlag, rhsFlag) in zip(lhsFlags, rhsFlags) where lhsFlag != rhsFlag {
+            return !lhsFlag && rhsFlag
+        }
+        if lhs.confidence != rhs.confidence {
+            return confidenceRank(lhs.confidence) < confidenceRank(rhs.confidence)
+        }
+        if lhs.timeZoneIdentifier != rhs.timeZoneIdentifier {
+            return lhs.timeZoneIdentifier < rhs.timeZoneIdentifier
+        }
+        return lhs.utcOffsetSeconds < rhs.utcOffsetSeconds
+    }
+
+    private func confidenceRank(_ confidence: MotionConfidence) -> Int {
+        switch confidence {
+        case .low:
+            0
+        case .medium:
+            1
+        case .high:
+            2
+        }
     }
 
     private func maximumWeight(_ motions: [MotionEventData]) -> Double {
@@ -174,6 +241,12 @@ nonisolated struct MovementClassifier: MovementClassifying {
             rules.highConfidenceWeight
         }
     }
+}
+
+private nonisolated struct MotionInterval {
+    let event: MotionEventData
+    let startDate: Date
+    let endDate: Date
 }
 
 private nonisolated struct MotionOccupancy {

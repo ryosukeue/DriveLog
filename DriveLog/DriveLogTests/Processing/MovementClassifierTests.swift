@@ -47,6 +47,40 @@ struct MovementClassifierTests {
         #expect(result.confidence == .high)
     }
 
+    @Test("limits an open snapshot to the next snapshot")
+    func openSnapshotUsesNextSnapshotBoundary() {
+        let segment = segment(distance: 1000, duration: 100)
+        let automotive = openMotion(startOffset: 0, automotive: true)
+        let walking = openMotion(startOffset: 40, walking: true)
+
+        let result = classify(segment: segment, motions: [walking, automotive])
+
+        #expect(result.automaticType == .walkingLike)
+    }
+
+    @Test("uses the movement end for the last open snapshot")
+    func lastOpenSnapshotUsesMovementBoundary() {
+        let segment = segment(distance: 1000, duration: 100)
+        let automotive = openMotion(startOffset: 60, automotive: true)
+
+        let result = classify(segment: segment, motions: [automotive])
+
+        #expect(result.automaticType == .other)
+        #expect(result.evidence == [.automotiveMotion(weightedRatio: 0.4)])
+    }
+
+    @Test("open snapshot classification is independent of input order")
+    func openSnapshotOrderingIsDeterministic() {
+        let segment = segment(distance: 1000, duration: 100)
+        let automotive = openMotion(startOffset: 0, automotive: true)
+        let walking = openMotion(startOffset: 40, walking: true)
+
+        let forward = classify(segment: segment, motions: [automotive, walking])
+        let reversed = classify(segment: segment, motions: [walking, automotive])
+
+        #expect(forward == reversed)
+    }
+
     @Test("resolves conflicting motion by ratio and automotive tie break")
     func conflictingMotion() {
         let automotiveTie = motion(endRatio: 0.6, automotive: true, walking: true)
@@ -174,6 +208,24 @@ extension MovementClassifierTests {
             confidence: confidence,
             timeZoneIdentifier: "Asia/Tokyo",
             utcOffsetSeconds: 32400,
+            localDateKey: "2024-01-01"
+        )
+    }
+
+    private func openMotion(
+        startOffset: TimeInterval,
+        automotive: Bool = false,
+        walking: Bool = false,
+        cycling: Bool = false,
+        unknown: Bool = false,
+        confidence: MotionConfidence = .high
+    ) -> MotionEventData {
+        MotionEventData(
+            startDate: baseDate.addingTimeInterval(startOffset), endDate: nil,
+            isAutomotive: automotive, isWalking: walking,
+            isRunning: false, isCycling: cycling, isStationary: false,
+            isUnknown: unknown, confidence: confidence,
+            timeZoneIdentifier: "Asia/Tokyo", utcOffsetSeconds: 32400,
             localDateKey: "2024-01-01"
         )
     }
