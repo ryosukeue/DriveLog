@@ -6,7 +6,6 @@ final class AppContainer {
     let timeZoneProvider: any TimeZoneProviding
     let localTimeContextProvider: any LocalTimeContextProviding
     let hapticFeedback: any HapticFeedbackProviding
-    private(set) var recordingStarter: (any RecordingStarting)?
 
     convenience init() {
         let timeZoneProvider = SystemTimeZoneProvider()
@@ -179,7 +178,6 @@ final class AppContainer {
             powerStateProvider: powerStateProvider,
             logger: logger
         )
-        recordingStarter = startMonitoring
         let processDay = makeProcessDayUseCase(
             stateRepository: stateRepository,
             rawRepository: rawRepository,

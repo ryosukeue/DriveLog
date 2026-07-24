@@ -1,12 +1,13 @@
+import AVFoundation
 import SwiftData
 import SwiftUI
+import UIKit
 
 @main
 struct DriveLogApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var onboardingFlowUITestCompleted = false
-    @State private var hasOpenedRecords = false
     private let calendarViewModel: CalendarViewModel?
     private let monthlySummaryViewModel: MonthlySummaryViewModel?
     private let monthlyOverviewViewModel: MonthlyOverviewViewModel?
@@ -15,13 +16,10 @@ struct DriveLogApp: App {
     private let modelContainer: ModelContainer?
     private let photoLibrary: any PhotoLibraryProviding
     private let permissionManager: any PermissionManaging
-    private let recordingStarter: (any RecordingStarting)?
     private let runsOnboardingFlowUITest: Bool
-    private let isUITesting: Bool
     private let lifecycleCoordinator: AppLifecycleCoordinator?
 
     @MainActor
-    // swiftlint:disable:next function_body_length
     init() {
         let container = AppContainer()
         appContainer = container
@@ -34,10 +32,8 @@ struct DriveLogApp: App {
             photoLibrary = uiTest.photoLibrary
             let isSeededUITesting = uiTest.isSeeded
             let isUITesting = uiTest.isEnabled
-            self.isUITesting = isUITesting
         #else
             runsOnboardingFlowUITest = false
-            isUITesting = false
             permissionManager = PermissionCoordinator()
             let isUITesting = false
             photoLibrary = PhotoLibraryProvider()
@@ -59,16 +55,10 @@ struct DriveLogApp: App {
                 }
             #endif
             self.modelContainer = modelContainer
-            if isUITesting {
-                lifecycleCoordinator = nil
-                recordingStarter = uiTest.recordingStarter
-            } else {
-                lifecycleCoordinator = container.makeAppLifecycleCoordinator(
-                    modelContainer: modelContainer,
-                    permissionManager: permissionManager
-                )
-                recordingStarter = container.recordingStarter
-            }
+            lifecycleCoordinator = isUITesting ? nil : container.makeAppLifecycleCoordinator(
+                modelContainer: modelContainer,
+                permissionManager: permissionManager
+            )
             calendarViewModel = container.makeCalendarViewModel(modelContainer: modelContainer, displayedMonth: month)
             monthlySummaryViewModel = container.makeMonthlySummaryViewModel(modelContainer: modelContainer)
             monthlyOverviewViewModel = container.makeMonthlyOverviewViewModel(modelContainer: modelContainer)
@@ -78,7 +68,6 @@ struct DriveLogApp: App {
             monthlySummaryViewModel = nil
             monthlyOverviewViewModel = nil
             lifecycleCoordinator = nil
-            recordingStarter = nil
         }
     }
 
@@ -91,15 +80,6 @@ struct DriveLogApp: App {
                         onCompleted: {
                             hasCompletedOnboarding = true
                             onboardingFlowUITestCompleted = true
-                        }
-                    )
-                } else if shouldShowRecordingStart, let recordingStarter {
-                    RecordingStartView(
-                        viewModel: RecordingStartViewModel(
-                            startRecording: recordingStarter
-                        ),
-                        onBrowseRecords: {
-                            hasOpenedRecords = true
                         }
                     )
                 } else {
@@ -177,7 +157,6 @@ struct DriveLogApp: App {
             let arguments = ProcessInfo.processInfo.arguments
             let runsOnboardingFlow = arguments.contains("-ui-testing-onboarding-flow")
             let usesDenseMapFixture = arguments.contains("-ui-testing-july-17-map")
-            let runsRecordingStartFlow = arguments.contains("-ui-testing-recording-start")
             let isMedia = arguments.contains("-ui-testing-media") || usesDenseMapFixture
             let isSeeded = isMedia
                 || arguments.contains("-ui-testing-day-detail")
@@ -185,7 +164,6 @@ struct DriveLogApp: App {
             let isEnabled = isSeeded
                 || arguments.contains("-ui-testing-calendar")
                 || runsOnboardingFlow
-                || runsRecordingStartFlow
             let permissionManager: any PermissionManaging = runsOnboardingFlow
                 ? UITestPermissionManager() : PermissionCoordinator()
             let photoLibrary: any PhotoLibraryProviding = isMedia
@@ -197,9 +175,7 @@ struct DriveLogApp: App {
                 runsOnboardingFlow: runsOnboardingFlow,
                 isSeeded: isSeeded,
                 isEnabled: isEnabled,
-                usesDenseMapFixture: usesDenseMapFixture,
-                recordingStarter: runsRecordingStartFlow || runsOnboardingFlow
-                    ? UITestRecordingStarter() : nil
+                usesDenseMapFixture: usesDenseMapFixture
             )
         }
 
@@ -284,11 +260,6 @@ struct DriveLogApp: App {
         let isSeeded: Bool
         let isEnabled: Bool
         let usesDenseMapFixture: Bool
-        let recordingStarter: (any RecordingStarting)?
-    }
-
-    private struct UITestRecordingStarter: RecordingStarting {
-        func startHighDensityRecording() async throws {}
     }
 #endif
 
@@ -326,17 +297,90 @@ private extension DriveLogApp {
         return !hasCompletedOnboarding
     }
 
-    var shouldShowRecordingStart: Bool {
-        #if DEBUG
-            let arguments = ProcessInfo.processInfo.arguments
-            if arguments.contains("-ui-testing-recording-start") || runsOnboardingFlowUITest {
-                return !shouldShowOnboarding && !hasOpenedRecords
-            }
-        #endif
-        return !isUITesting && !hasOpenedRecords
-    }
-
     static func makeModelContainer(isUITesting: Bool) throws -> ModelContainer {
         try DriveLogModelContainerFactory.make(isStoredInMemoryOnly: isUITesting)
     }
 }
+
+#if DEBUG
+    private final class UITestPhotoLibraryProvider: PhotoLibraryProviding, @unchecked Sendable {
+        let libraryChanges = AsyncStream<PhotoLibraryChange> { $0.finish() }
+        private let assets: [MediaAssetReference]
+        private let thumbnailImage: UIImage
+
+        init(now: Date, timeZone: TimeZone) {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = timeZone
+            let start = calendar.startOfDay(for: now)
+            assets = [
+                MediaAssetReference(
+                    localIdentifier: "ui-photo",
+                    mediaType: .photo,
+                    creationDate: start.addingTimeInterval(3600),
+                    location: RouteCoordinate(latitude: 37.350, longitude: -122.000),
+                    durationSeconds: nil,
+                    isScreenshot: false,
+                    isScreenRecording: false
+                ),
+                MediaAssetReference(
+                    localIdentifier: "ui-video",
+                    mediaType: .video,
+                    creationDate: start.addingTimeInterval(7200),
+                    location: RouteCoordinate(latitude: 37.350, longitude: -122.000),
+                    durationSeconds: 10,
+                    isScreenshot: false,
+                    isScreenRecording: false
+                ),
+                MediaAssetReference(
+                    localIdentifier: "ui-unavailable",
+                    mediaType: .photo,
+                    creationDate: start.addingTimeInterval(10800),
+                    location: nil,
+                    durationSeconds: nil,
+                    isScreenshot: false,
+                    isScreenRecording: false
+                )
+            ]
+            thumbnailImage = UIImage(systemName: "car.fill") ?? UIImage()
+        }
+
+        func authorizationState() async -> PhotoPermissionState {
+            .authorized
+        }
+
+        func fetchAssets(in interval: DateInterval) async throws -> [MediaAssetReference] {
+            assets.filter { asset in
+                guard let creationDate = asset.creationDate else { return false }
+                return interval.contains(creationDate)
+            }
+        }
+
+        func requestThumbnail(localIdentifier: String, targetSize _: CGSize) async throws -> UIImage {
+            guard localIdentifier != "ui-unavailable" else {
+                throw DriveLogError.mediaUnavailable
+            }
+            return thumbnailImage
+        }
+
+        func requestPhotoPreview(localIdentifier: String) async throws -> UIImage {
+            guard localIdentifier == "ui-photo" else { throw DriveLogError.mediaUnavailable }
+            return thumbnailImage
+        }
+
+        func requestVideoAsset(localIdentifier: String) async throws -> AVAsset {
+            guard localIdentifier == "ui-video" else { throw DriveLogError.mediaUnavailable }
+            return AVURLAsset(url: URL(fileURLWithPath: "/tmp/drivelog-ui-video.mov"))
+        }
+
+        func requestShareableResource(localIdentifier: String) async throws -> ShareableMediaResource {
+            guard let asset = assets.first(where: { $0.localIdentifier == localIdentifier }) else {
+                throw DriveLogError.mediaUnavailable
+            }
+            let mediaType = asset.mediaType
+            return ShareableMediaResource(
+                fileURL: URL(fileURLWithPath: "/tmp/drivelog-ui-share"),
+                mediaType: mediaType
+            )
+        }
+    }
+#endif
