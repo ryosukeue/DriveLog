@@ -15,7 +15,8 @@ struct LoadMonthlySummaryUseCaseTests {
             movements: [
                 "2026-07-01": [
                     movement(id: "car-1", distance: 1000, duration: 600),
-                    movement(id: "walk-1", distance: 2000, duration: 1200, classification: .walkingLike)
+                    movement(id: "walk-1", distance: 2000, duration: 1200, classification: .walkingLike),
+                    movement(id: "other-1", distance: 500, duration: 300, classification: .other)
                 ],
                 "2026-07-02": [movement(id: "car-2", distance: 2000, duration: 600)]
             ],
@@ -34,8 +35,8 @@ struct LoadMonthlySummaryUseCaseTests {
 
         let result = try await useCase.execute(month: month)
 
-        #expect(result.totalDistanceMeters == 3000)
-        #expect(result.totalMovementDurationSeconds == 1200)
+        #expect(result.totalDistanceMeters == 3500)
+        #expect(result.totalMovementDurationSeconds == 1500)
         #expect(result.cityRankings == [
             CityVisitRanking(cityName: "東京", visitCount: 2),
             CityVisitRanking(cityName: "大阪", visitCount: 1)

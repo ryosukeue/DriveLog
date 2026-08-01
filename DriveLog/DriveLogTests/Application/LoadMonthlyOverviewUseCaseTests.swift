@@ -4,7 +4,7 @@ import Testing
 
 @Suite("Load monthly overview use case")
 struct LoadMonthlyOverviewUseCaseTests {
-    @Test("retains automotive movement and all cached media")
+    @Test("retains non-walking movement and all cached media")
     func overview() async throws {
         let day = "2026-07-01"
         let month = LocalMonth(year: 2026, month: 7)
@@ -18,7 +18,8 @@ struct LoadMonthlyOverviewUseCaseTests {
             movements: [
                 day: [
                     movement(id: "car", classification: .automotiveLike, route: route),
-                    movement(id: "walk", classification: .walkingLike, route: route)
+                    movement(id: "walk", classification: .walkingLike, route: route),
+                    movement(id: "other", classification: .other, route: route)
                 ]
             ],
             stays: [day: [stay(id: "stay")]]
@@ -44,9 +45,9 @@ struct LoadMonthlyOverviewUseCaseTests {
 
         let result = try await useCase.execute(month: month)
 
-        #expect(result.movements.map(\.stableID) == ["car"])
+        #expect(result.movements.map(\.stableID) == ["car", "other"])
         #expect(result.media.map(\.localIdentifier) == ["no-location", "photo"])
-        #expect(result.mapScene.polylines.count == 1)
+        #expect(result.mapScene.polylines.count == 2)
         #expect(result.mapScene.mediaAnnotations.map(\.localIdentifier) == ["photo"])
     }
 

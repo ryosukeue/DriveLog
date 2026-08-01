@@ -42,7 +42,7 @@ nonisolated struct DefaultLoadCalendarMonthUseCase: LoadCalendarMonthUseCase {
             ProcessingConfiguration.mvp.dayValidation.minimumValidMovementSegments &&
             aggregate.locationRecordCount >=
             ProcessingConfiguration.mvp.dayValidation.minimumValidLocationPointCount
-            : aggregate.hasValidMovement && aggregate.automaticClassification == .automotiveLike
+            : aggregate.hasValidMovement && aggregate.automaticClassification != .walkingLike
         return CalendarDayData(
             localDateKey: aggregate.localDateKey,
             day: day,

@@ -76,7 +76,7 @@ nonisolated struct DefaultLoadMonthlySummaryUseCase: LoadMonthlySummaryUseCase {
         let duration = usesStoredAggregate ? aggregate.totalMovementDurationSeconds :
             retainedMovements.reduce(0) { $0 + $1.durationSeconds }
         let hasValidStoredAggregate = aggregate.hasValidMovement &&
-            aggregate.automaticClassification == .automotiveLike
+            aggregate.automaticClassification != .walkingLike
         let hasUsableMovements = !retainedMovements.isEmpty
         guard (usesStoredAggregate && hasValidStoredAggregate) ||
             (!usesStoredAggregate && hasUsableMovements)

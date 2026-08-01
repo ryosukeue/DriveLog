@@ -65,6 +65,31 @@ struct LoadCalendarMonthUseCaseTests {
         ])
     }
 
+    @Test("uses an other aggregate fallback")
+    func includesOtherFallback() async throws {
+        let useCase = DefaultLoadCalendarMonthUseCase(
+            repository: CalendarDerivedRepositoryFake(aggregates: [
+                aggregate(
+                    day: "2024-01-04",
+                    distance: 2500,
+                    isValid: true,
+                    classification: .other
+                )
+            ])
+        )
+
+        let result = try await useCase.execute(month: month)
+
+        #expect(result.days == [
+            CalendarDayData(
+                localDateKey: "2024-01-04",
+                day: 4,
+                totalDistanceMeters: 2500,
+                hasValidMovement: true
+            )
+        ])
+    }
+
     @Test("rejects an invalid local date key")
     func invalidDateKey() async {
         let useCase = DefaultLoadCalendarMonthUseCase(
