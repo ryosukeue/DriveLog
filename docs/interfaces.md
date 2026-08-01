@@ -1,5 +1,9 @@
 # Interfaces
 
+## 実機フィードバックによるLocation契約補足（2026-08-01）
+
+`LocationProviding`の記録ModeはSLCを表す`lowPower`だけとする。`CoreLocationProvider`は同一Managerでstandard updateを停止してからSignificant Location Changeを開始し、Power／Motion snapshotではModeを変更しない。
+
 ## 実機フィードバックによるLocation契約補足（2026-07-15）
 
 `LocationProviding`は従来のSLC開始/停止に加え、`lowPower`、`automotiveCandidate`、`automotiveHighAccuracy`、`chargingHighAccuracy`を排他的に切り替える`setRecordingMode(_:)`を持つ。`automotiveCandidate`は車両Activity後のGPS確認用であり、走行確定を意味しない。`PowerStateProviding`は現在状態と、初期・Battery通知・定期照合時のSnapshot Streamを提供し、AppleのBattery型をApplicationへ露出しない。`MotionProviding`は保存用`events`に加えて記録Mode判定用の`activityChanges`を提供する。同じSnapshotを繰り返し受信しても正常動作中のLocation Modeは再起動せず、切替失敗時は再試行する。Location callbackの診断はMode、受信件数、emit件数だけを返す。

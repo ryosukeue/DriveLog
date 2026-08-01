@@ -1,5 +1,11 @@
 # Test Plan
 
+## 実機フィードバック改訂の追加検証（2026-08-01）
+
+- Location Modeは`lowPower`だけで、Power／Motion／GPS証拠による再起動やstandard updateへの昇格がないことをUnit Testする。
+- Motion／Visitの失敗分離とRaw Event保存の既存Testを維持する。
+- SLCのBackground受信と電池消費は実機で確認する。
+
 ## 実機フィードバック改訂の追加検証（2026-07-15）
 
 - 停止中GPSドリフトは5分、0.5m/s、進行率40%、Motion Evidence 3分、stationary比率60%の全条件と各境界をUnit Testし、低速前進、travel優勢、Evidence不足のMovementを維持する。

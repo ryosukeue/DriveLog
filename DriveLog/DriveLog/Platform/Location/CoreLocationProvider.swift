@@ -13,7 +13,6 @@ final class CoreLocationProvider: NSObject, LocationProviding {
     private let locationContinuation: AsyncStream<LocationEventData>.Continuation
     private var state: LocationMonitoringState = .stopped
     private var recordingMode: LocationRecordingMode = .lowPower
-    private var highAccuracyEmissionFilter = ChargingLocationEmissionFilter()
 
     init(
         manager: CLLocationManager = CLLocationManager(),
@@ -80,7 +79,6 @@ final class CoreLocationProvider: NSObject, LocationProviding {
         manager.stopMonitoringSignificantLocationChanges()
         manager.stopUpdatingLocation()
         recordingMode = mode
-        highAccuracyEmissionFilter.reset()
         setState(.starting)
         switch mode {
         case .lowPower:
@@ -90,22 +88,6 @@ final class CoreLocationProvider: NSObject, LocationProviding {
             manager.pausesLocationUpdatesAutomatically = true
             manager.allowsBackgroundLocationUpdates = false
             manager.startMonitoringSignificantLocationChanges()
-        case .automotiveCandidate:
-            manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
-            manager.distanceFilter = 100
-            manager.activityType = .automotiveNavigation
-            manager.pausesLocationUpdatesAutomatically = false
-            manager.allowsBackgroundLocationUpdates = true
-            manager.startUpdatingLocation()
-        case .automotiveHighAccuracy, .chargingHighAccuracy:
-            manager.desiredAccuracy = kCLLocationAccuracyBest
-            manager.distanceFilter = 50
-            manager.activityType = .automotiveNavigation
-            // Charging mode prioritizes a continuous vehicle route. Automatic pauses can leave
-            // standard updates stopped after the device begins moving again.
-            manager.pausesLocationUpdatesAutomatically = false
-            manager.allowsBackgroundLocationUpdates = true
-            manager.startUpdatingLocation()
         }
         setState(.running)
     }
@@ -169,12 +151,6 @@ extension CoreLocationProvider: CLLocationManagerDelegate {
         var emittedCount = 0
         for location in locations {
             guard let event = convert(location) else { continue }
-            if recordingMode != .lowPower {
-                let interval: TimeInterval? = recordingMode == .automotiveCandidate ? 10 : nil
-                guard highAccuracyEmissionFilter.shouldEmit(
-                    location.timestamp, minimumInterval: interval
-                ) else { continue }
-            }
             continuation.yield(.location(event))
             locationContinuation.yield(event)
             emittedCount += 1

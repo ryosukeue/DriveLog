@@ -1,5 +1,11 @@
 # Processing Rules
 
+## Location取得Mode（2026-08-01）
+
+- Raw LocationはSignificant Location Changeだけから取得する。
+- Motion、GPS証拠、充電状態でstandard updateへ昇格しない。
+- SLCの粗い位置点は既存Sanitizer、Segmenter、Classifierへ同じ形式で渡す。
+
 ## 車両候補のGPS確認（2026-07-21）
 
 - Core Motionの車両系Activityは走行候補として扱い、単独で走行確定しない。

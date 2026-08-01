@@ -1,5 +1,10 @@
 # Requirements
 
+## 実機フィードバックによるLocation改訂（2026-08-01）
+
+- 位置取得は常にSignificant Location Changeを使用し、Motion、GPS証拠、充電状態による標準Location Updateへの切替は行わない。
+- Core MotionとCLVisitのRaw Event監視は分類・滞在処理のため維持する。
+
 ## 実機フィードバックによるMVP改訂（2026-07-15）
 
 - 非充電時はSignificant Location Changeを基本とし、Core Motionが車両系Activityを示した後にGPSの実移動を確認できた走行中だけ単一Location Managerの走行更新へ排他的に切り替える。充電中/満充電だけでは切り替えず、走行確定後の補助情報とする。車両系Activity終了後は短い猶予を置いてSLCへ戻す。Battery通知と定期的な現在状態照合を併用し、走行Modeの保存目標はOS制約下で約1分間隔とする。

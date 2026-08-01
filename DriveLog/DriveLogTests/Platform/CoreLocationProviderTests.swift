@@ -81,14 +81,14 @@ struct CoreLocationProviderTests {
         }
     }
 
-    @Test("candidate mode emits a separate movement stream")
-    func candidateModeStreamsMovementEvidence() async throws {
+    @Test("SLC mode emits the shared location stream")
+    func significantLocationModeStreamsLocations() async throws {
         let now = Date(timeIntervalSince1970: 1_704_067_200)
         let provider = makeProvider(now: now)
         var eventIterator = provider.events.makeAsyncIterator()
         var locationIterator = provider.locationChanges.makeAsyncIterator()
 
-        try await provider.setRecordingMode(.automotiveCandidate)
+        try await provider.setRecordingMode(.lowPower)
 
         provider.locationManager(
             CLLocationManager(),
@@ -106,8 +106,8 @@ struct CoreLocationProviderTests {
             }
         }
         let diagnostic = try #require(diagnosticValue)
-        guard diagnostic.mode == .automotiveCandidate else {
-            Issue.record("Expected candidate diagnostic")
+        guard diagnostic.mode == .lowPower else {
+            Issue.record("Expected SLC diagnostic")
             return
         }
         #expect(diagnostic.receivedCount == 1)

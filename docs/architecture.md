@@ -1,5 +1,9 @@
 # Architecture
 
+## 実機フィードバックによるLocation補足（2026-08-01）
+
+ApplicationのMonitoring coordinatorはLocationをSignificant Location Changeだけで開始する。Power state、Motion Activity、GPS移動証拠はLocation取得Modeを切り替えない。Core MotionとCLVisitはRaw Event入力として維持し、単一`CLLocationManager`でstandard updateを開始しない。
+
 ## 実機フィードバックによるLocation補足（2026-07-15）
 
 Power stateとMotion ActivityはPlatform Protocolへ隔離し、ApplicationのMonitoring coordinatorが`lowPower`、`automotiveCandidate`、`automotiveHighAccuracy`、`chargingHighAccuracy`を選ぶ。Battery通知に加えて現在状態を定期照合し、通知欠落や一時的な切替失敗から自己修復する。Core Motionの車両系Activityを候補として標準Locationで実移動を確認した後だけ走行Modeへ昇格し、Activity終了後は短い猶予を置いてSLCへ戻す。充電状態だけでは高精度Modeを開始せず、走行確定後の補助情報とする。単一`CLLocationManager`内でSLCとstandard updateを排他的に停止/開始し、Providerを重複起動しない。高精度Modeは走行確定後だけで、Best accuracy、50m distance filter、automotive navigation、約60秒のemit filterを使用する。

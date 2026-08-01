@@ -9,13 +9,4 @@ nonisolated enum PowerState: String, Sendable, Equatable {
     case unplugged
     case charging
     case full
-
-    var locationRecordingMode: LocationRecordingMode {
-        switch self {
-        case .charging, .full:
-            .chargingHighAccuracy
-        case .unknown, .unplugged:
-            .lowPower
-        }
-    }
 }

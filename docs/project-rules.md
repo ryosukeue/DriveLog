@@ -2,8 +2,9 @@
 
 ## 実機フィードバックによる優先ルール（2026-08-01）
 
-この節は後続のMovement表示に関する旧記述より優先する。
+この節は後続のLocation取得とMovement表示に関する旧記述より優先する。
 
+- Location取得はSignificant Location Changeだけを使用する。車両系Activity、GPS証拠、充電状態による標準Location Update／高精度Modeへの昇格は行わない。
 - Production UIは徒歩系Movementだけを非表示とし、車両系と`other`のMovementを日別・月間の地図、距離、時間へ表示する。分類変更UIは引き続き表示しない。
 
 ## 実機フィードバックによる優先ルール（2026-07-15）
