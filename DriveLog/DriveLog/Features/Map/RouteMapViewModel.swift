@@ -60,9 +60,38 @@ final class RouteMapViewModel {
         visibleMedia.first { $0.localIdentifier == localIdentifier }
     }
 
-    func media(localIdentifiers: [String]) -> [MediaAssetReference] {
+    func media(
+        atPlaceContaining localIdentifiers: [String],
+        maximumDistanceMeters: Double = ProcessingConfiguration.mvp.stay.stayRadius
+    ) -> [MediaAssetReference] {
         let identifiers = Set(localIdentifiers)
-        return visibleMedia.filter { identifiers.contains($0.localIdentifier) }
+        let anchors = visibleMedia.filter {
+            identifiers.contains($0.localIdentifier)
+        }.compactMap(\.location)
+        guard !anchors.isEmpty else {
+            return visibleMedia.filter { identifiers.contains($0.localIdentifier) }
+        }
+        let distanceCalculator = GeodesicDistanceCalculator()
+        var mediaAtPlace: [MediaAssetReference] = []
+        for asset in visibleMedia {
+            if identifiers.contains(asset.localIdentifier) {
+                mediaAtPlace.append(asset)
+                continue
+            }
+            guard let location = asset.location else {
+                continue
+            }
+            for anchor in anchors where distanceCalculator.meters(
+                fromLatitude: anchor.latitude,
+                longitude: anchor.longitude,
+                toLatitude: location.latitude,
+                longitude: location.longitude
+            ) <= maximumDistanceMeters {
+                mediaAtPlace.append(asset)
+                break
+            }
+        }
+        return mediaAtPlace
     }
 
     func stays(stableIDs: [String]) -> [StayDisplayData] {

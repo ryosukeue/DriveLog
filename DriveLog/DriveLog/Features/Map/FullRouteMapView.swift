@@ -1,9 +1,15 @@
 import SwiftUI
 
+private struct PendingMapMediaSelection {
+    let asset: MediaAssetReference
+    let media: [MediaAssetReference]
+}
+
 struct FullRouteMapView: View {
     @State private var viewModel: RouteMapViewModel
     @State private var userTrackingRequestID = 0
     @State private var selectedPlace: MapPlaceSelection?
+    @State private var pendingMediaSelection: PendingMapMediaSelection?
     let thumbnailLoader: any LoadMediaThumbnailUseCase
     let onSelectMedia: (MediaAssetReference, [MediaAssetReference]) -> Void
     let onBack: () -> Void
@@ -59,7 +65,7 @@ struct FullRouteMapView: View {
         .alert("滞在表示を更新できませんでした", isPresented: stayErrorBinding) {
             Button("OK", role: .cancel) {}
         }
-        .sheet(item: $selectedPlace) { selection in
+        .sheet(item: $selectedPlace, onDismiss: presentPendingMedia) { selection in
             placeSheet(selection)
                 .presentationDetents([.medium, .large])
         }
@@ -135,22 +141,33 @@ struct FullRouteMapView: View {
 
     private func selectMedia(localIdentifier: String) {
         guard let asset = viewModel.media(localIdentifier: localIdentifier) else { return }
-        onSelectMedia(asset, [asset])
+        onSelectMedia(
+            asset,
+            viewModel.media(atPlaceContaining: [asset.localIdentifier])
+        )
     }
 
     private func selectMediaFromPlace(
         _ asset: MediaAssetReference,
         media: [MediaAssetReference]
     ) {
+        pendingMediaSelection = PendingMapMediaSelection(asset: asset, media: media)
         selectedPlace = nil
-        onSelectMedia(asset, media)
+    }
+
+    private func presentPendingMedia() {
+        guard let pendingMediaSelection else { return }
+        self.pendingMediaSelection = nil
+        onSelectMedia(pendingMediaSelection.asset, pendingMediaSelection.media)
     }
 
     private func placeSheet(_ selection: MapPlaceSelection) -> some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    let media = viewModel.media(localIdentifiers: selection.mediaIdentifiers)
+                    let media = viewModel.media(
+                        atPlaceContaining: selection.mediaIdentifiers
+                    )
                     if !media.isEmpty {
                         MediaGridSection(
                             media: media,

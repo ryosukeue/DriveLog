@@ -5,6 +5,7 @@
 - Location Modeは`lowPower`だけで、Power／Motion／GPS証拠による再起動やstandard updateへの昇格がないことをUnit Testする。
 - Motion／Visitの失敗分離とRaw Event保存の既存Testを維持する。
 - SLCのBackground受信と電池消費は実機で確認する。
+- 地図の場所Sheetと月間全画面地図はdismiss完了後にMedia Previewへ遷移し、同じ場所のMediaを左右SwipeできることをUI Testする。
 
 ## 実機フィードバック改訂の追加検証（2026-07-15）
 

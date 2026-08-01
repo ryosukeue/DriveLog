@@ -1,5 +1,11 @@
 # UI Specification
 
+## 実機フィードバックによるMedia補足（2026-08-01）
+
+- 地図の場所SheetからMediaを選択した場合は、Sheetを閉じ終えてからPreviewへ遷移する。
+- 月間全画面地図からMediaを選択した場合は、地図を閉じ終えてからPreviewを表示する。
+- 同じ場所（150m以内）の写真・動画を選択元Contextとし、標準Page TabViewで左右Swipeする。
+
 ## 実機フィードバックによる優先仕様（2026-07-15）
 
 この節は、後続の旧MVP記述にある単月横Swipe、Movement分類変更、詳細統計より優先する。

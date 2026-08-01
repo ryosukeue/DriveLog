@@ -13,6 +13,7 @@ struct MonthlyOverviewView: View {
     @State private var viewModel: MonthlyOverviewViewModel
     @State private var isShowingMap = false
     @State private var selectedPreview: MonthlyMediaPreviewSelection?
+    @State private var pendingMapPreview: MonthlyMediaPreviewSelection?
     let thumbnailLoader: any LoadMediaThumbnailUseCase
     let updateStayOverride: any UpdateStayOverrideUseCase
     let hapticFeedback: any HapticFeedbackProviding
@@ -56,7 +57,10 @@ struct MonthlyOverviewView: View {
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .padding(.horizontal)
-        .fullScreenCover(isPresented: $isShowingMap) {
+        .fullScreenCover(
+            isPresented: $isShowingMap,
+            onDismiss: presentPendingMapPreview
+        ) {
             if let overview = viewModel.overview {
                 FullRouteMapView(
                     viewModel: RouteMapViewModel(
@@ -72,7 +76,7 @@ struct MonthlyOverviewView: View {
                         hapticFeedback: hapticFeedback
                     ),
                     thumbnailLoader: thumbnailLoader,
-                    onSelectMedia: selectMedia,
+                    onSelectMedia: selectMediaFromMap,
                     onBack: { isShowingMap = false }
                 )
             }
@@ -163,5 +167,22 @@ struct MonthlyOverviewView: View {
             assets: assets,
             selectedIdentifier: asset.localIdentifier
         )
+    }
+
+    private func selectMediaFromMap(
+        _ asset: MediaAssetReference,
+        _ assets: [MediaAssetReference]
+    ) {
+        pendingMapPreview = MonthlyMediaPreviewSelection(
+            assets: assets,
+            selectedIdentifier: asset.localIdentifier
+        )
+        isShowingMap = false
+    }
+
+    private func presentPendingMapPreview() {
+        guard let pendingMapPreview else { return }
+        self.pendingMapPreview = nil
+        selectedPreview = pendingMapPreview
     }
 }

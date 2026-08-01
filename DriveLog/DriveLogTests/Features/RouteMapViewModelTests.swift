@@ -29,6 +29,35 @@ struct RouteMapViewModelTests {
         #expect(viewModel.selectedStayID == nil)
     }
 
+    @Test("builds paging context from media at the same place")
+    func samePlaceMedia() {
+        let media = [
+            makeMedia(
+                id: "selected",
+                type: .photo,
+                coordinate: RouteCoordinate(latitude: 35, longitude: 139)
+            ),
+            makeMedia(
+                id: "nearby",
+                type: .video,
+                coordinate: RouteCoordinate(latitude: 35.0005, longitude: 139)
+            ),
+            makeMedia(
+                id: "far",
+                type: .photo,
+                coordinate: RouteCoordinate(latitude: 35.01, longitude: 139)
+            )
+        ]
+        let viewModel = RouteMapViewModel(
+            scene: makeScene(mediaIdentifiers: media.map(\.localIdentifier)),
+            media: media
+        )
+
+        let context = viewModel.media(atPlaceContaining: ["selected"])
+
+        #expect(context.map(\.localIdentifier) == ["selected", "nearby"])
+    }
+
     @Test("clears every selection on an empty map tap")
     func clear() {
         let viewModel = RouteMapViewModel(scene: makeScene())
@@ -251,11 +280,16 @@ private func makeStayDisplay(automaticVisibility: Bool) -> StayDisplayData {
 }
 
 @MainActor
-private func makeMedia(id: String, type: MediaType, hasLocation: Bool) -> MediaAssetReference {
+private func makeMedia(
+    id: String,
+    type: MediaType,
+    hasLocation: Bool = true,
+    coordinate: RouteCoordinate = RouteCoordinate(latitude: 35, longitude: 139)
+) -> MediaAssetReference {
     MediaAssetReference(
         localIdentifier: id, mediaType: type,
         creationDate: Date(timeIntervalSince1970: 0),
-        location: hasLocation ? RouteCoordinate(latitude: 35, longitude: 139) : nil,
+        location: hasLocation ? coordinate : nil,
         durationSeconds: type == .video ? 10 : nil,
         isScreenshot: false,
         isScreenRecording: false

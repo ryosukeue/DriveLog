@@ -293,6 +293,7 @@ final class DriveLogUITests: XCTestCase {
         XCTAssertTrue(
             app.descendants(matching: .any)["mediaPreview.video"].waitForExistence(timeout: 5)
         )
+        XCTAssertTrue(app.buttons["mediaPreview.back"].isHittable)
     }
 
     @MainActor
@@ -347,6 +348,39 @@ extension DriveLogUITests {
         XCTAssertTrue(back.isHittable)
         back.tap()
         XCTAssertTrue(gallery.waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testMonthlyMapMediaPreviewDismissesMapBeforeOpening() {
+        let app = XCUIApplication()
+        app.launchArguments.append("-ui-testing-july-17-map")
+        app.launch()
+
+        let map = app.descendants(matching: .any)["calendar.monthlyMap"]
+        for _ in 0 ..< 5 where map.waitForExistence(timeout: 1) == false {
+            app.swipeUp()
+        }
+        XCTAssertTrue(map.waitForExistence(timeout: 5))
+        map.tap()
+
+        let mediaAnnotation = app.descendants(matching: .any)["map.mediaAnnotation"].firstMatch
+        XCTAssertTrue(mediaAnnotation.waitForExistence(timeout: 5))
+        mediaAnnotation.tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["map.placeSheet"].waitForExistence(timeout: 5)
+        )
+        let media = app.buttons["写真"].firstMatch
+        XCTAssertTrue(media.waitForExistence(timeout: 5))
+        media.tap()
+
+        XCTAssertTrue(
+            app.descendants(matching: .any)["mediaPreview.photo"].waitForExistence(timeout: 5)
+        )
+        XCTAssertFalse(app.buttons["map.back"].exists)
+        let back = app.buttons["mediaPreview.back"]
+        XCTAssertTrue(back.isHittable)
+        back.tap()
+        XCTAssertTrue(map.waitForExistence(timeout: 5))
     }
 }
 
