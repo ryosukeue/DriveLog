@@ -31,6 +31,7 @@ struct MediaPreviewView: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
+            .highPriorityGesture(pagingGesture)
         }
         .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
@@ -95,6 +96,25 @@ struct MediaPreviewView: View {
                 }
             }
         )
+    }
+
+    private func selectAdjacentPage(swipingLeft: Bool) {
+        guard let currentIndex = viewModels.firstIndex(where: {
+            $0.asset.localIdentifier == selectedIdentifier
+        }) else { return }
+        let nextIndex = currentIndex + (swipingLeft ? 1 : -1)
+        guard viewModels.indices.contains(nextIndex) else { return }
+        withAnimation {
+            selectedIdentifier = viewModels[nextIndex].asset.localIdentifier
+        }
+    }
+
+    private var pagingGesture: some Gesture {
+        DragGesture(minimumDistance: 30)
+            .onEnded { value in
+                guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                selectAdjacentPage(swipingLeft: value.translation.width < 0)
+            }
     }
 }
 

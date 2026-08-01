@@ -70,7 +70,9 @@ struct FullRouteMapView: View {
                 .presentationDetents([.medium, .large])
         }
     }
+}
 
+private extension FullRouteMapView {
     private var mapBackButton: some View {
         Button(action: onBack) {
             Image(systemName: "chevron.left")
@@ -92,7 +94,7 @@ struct FullRouteMapView: View {
 
     private var accessibilityControls: some View {
         VStack(alignment: .leading) {
-            HStack(spacing: 0) {
+            LazyVGrid(columns: accessibilityColumns, alignment: .leading, spacing: 0) {
                 ForEach(viewModel.scene.movementLabels, id: \.segmentStableID) { movement in
                     accessibilityButton(
                         identifier: "map.polyline",
@@ -103,7 +105,7 @@ struct FullRouteMapView: View {
                 }
                 ForEach(viewModel.scene.stayAnnotations, id: \.stayStableID) { stay in
                     accessibilityButton(
-                        identifier: "map.stayAnnotation",
+                        identifier: "map.placeStayControl",
                         label: "滞在 \(stay.text)"
                     ) {
                         selectedPlace = MapPlaceSelection(
@@ -114,7 +116,7 @@ struct FullRouteMapView: View {
                 }
                 ForEach(viewModel.visibleMedia, id: \.localIdentifier) { asset in
                     accessibilityButton(
-                        identifier: "map.mediaAnnotation",
+                        identifier: "map.placeMediaControl",
                         label: asset.mediaType == .video ? "動画" : "写真"
                     ) {
                         selectedPlace = MapPlaceSelection(
@@ -123,7 +125,6 @@ struct FullRouteMapView: View {
                         )
                     }
                 }
-                Spacer()
             }
             selectedCalloutAccessibilityElement
             Spacer()
@@ -137,6 +138,10 @@ struct FullRouteMapView: View {
                 }
             }
         }
+    }
+
+    private var accessibilityColumns: [GridItem] {
+        Array(repeating: GridItem(.fixed(44), spacing: 0), count: 7)
     }
 
     private func selectMedia(localIdentifier: String) {
@@ -169,18 +174,7 @@ struct FullRouteMapView: View {
                         atPlaceContaining: selection.mediaIdentifiers
                     )
                     if !media.isEmpty {
-                        MediaGridSection(
-                            media: media,
-                            loadThumbnail: { identifier, size in
-                                try await thumbnailLoader.execute(
-                                    localIdentifier: identifier,
-                                    targetSize: size
-                                )
-                            },
-                            onSelect: { asset in
-                                selectMediaFromPlace(asset, media: media)
-                            }
-                        )
+                        placeMediaGrid(media)
                     }
                     let stays = viewModel.stays(stableIDs: selection.stayStableIDs)
                     let displayGroups = StayDisplayGrouping().groups(
@@ -213,6 +207,21 @@ struct FullRouteMapView: View {
             }
             .accessibilityIdentifier("map.placeSheet")
         }
+    }
+
+    private func placeMediaGrid(_ media: [MediaAssetReference]) -> some View {
+        MediaGridSection(
+            media: media,
+            loadThumbnail: { identifier, size in
+                try await thumbnailLoader.execute(
+                    localIdentifier: identifier,
+                    targetSize: size
+                )
+            },
+            onSelect: { asset in
+                selectMediaFromPlace(asset, media: media)
+            }
+        )
     }
 
     private func stayRow(_ stay: StayDisplayGroup) -> some View {

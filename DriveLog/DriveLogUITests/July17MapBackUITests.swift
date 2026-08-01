@@ -30,7 +30,7 @@ final class July17MapBackUITests: XCTestCase {
         movement.tap()
         assertVisible(back, count: backButtons.count, in: app)
 
-        let stay = app.descendants(matching: .any)["map.stayAnnotation"].firstMatch
+        let stay = app.descendants(matching: .any)["map.placeStayControl"].firstMatch
         XCTAssertTrue(stay.waitForExistence(timeout: 5))
         stay.tap()
         XCTAssertTrue(
