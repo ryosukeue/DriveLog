@@ -16,7 +16,7 @@
 
 - ピンチZoom、写真編集、Media削除
 - PhotoKit Provider、Cache、SwiftData Schemaの変更
-- 独自Swipe Gestureの追加
+- Page TabViewを置き換える独自Paging UIの追加
 
 ## Required Documents
 
@@ -41,6 +41,8 @@
 - `DriveLog/DriveLog/Features/MediaPreview/MediaPreviewView.swift`
 - `DriveLog/DriveLogTests/Features/RouteMapViewModelTests.swift`
 - `DriveLog/DriveLogUITests/DriveLogUITests.swift`
+- `DriveLog/DriveLogUITests/DriveLogFeedbackUITests.swift`
+- `DriveLog/DriveLogUITests/July17MapBackUITests.swift`
 
 ### Forbidden Changes
 
@@ -80,11 +82,11 @@
 
 ## Acceptance Criteria
 
-- [ ] 地図から写真・動画を開いて固まらない。
-- [ ] ギャラリーセルから拡大Previewへ遷移する。
-- [ ] 同じ場所のMediaを左右Swipeできる。
-- [ ] Previewを戻るボタンで閉じられる。
-- [ ] 自動検証が成功する。
+- [x] 地図から写真・動画を開いて固まらない。
+- [x] ギャラリーセルから拡大Previewへ遷移する。
+- [x] 同じ場所のMediaを左右Swipeできる。
+- [x] Previewを戻るボタンで閉じられる。
+- [x] 自動検証が成功する。
 
 ## Completion Report Format
 
@@ -98,3 +100,45 @@
 - Manual Verification
 - Deviations
 - Unresolved Issues
+
+## Completion Report
+
+### Summary
+
+場所Sheetと月間全画面地図を閉じ終えてからMedia Previewを表示し、Gallery、地図、動画ページのどこからでも安定して左右Pagingできるようにした。
+
+### Root Cause
+
+Sheet/coverのdismissと次のPresentationを同時に更新していたこと、単体AnnotationのContextが1件だけだったこと、`VideoPlayer`がPage Swipeと競合していたことが原因だった。
+
+### Presentation Sequence
+
+場所Sheet選択はpendingへ保持してSheetの`onDismiss`後に通知する。月間地図はpendingへ保持して地図coverの`onDismiss`後にPreview coverを表示する。
+
+### Paging Context
+
+既存Stay半径と同じ150m以内のMediaを撮影場所Contextへ含め、Page TabView上の水平DragをPreview全体で一貫して処理する。
+
+### Changed Files
+
+Monthly Overview、Full Route Map、Route Map ViewModel、Media Preview、Unit/UI Test、UI/Test文書を更新した。
+
+### Tests Added
+
+150m内外のContext Unit Test、Gallery Preview、月間地図からのdismiss順序、写真・動画Swipe、密集地図の操作をUI Testで確認した。
+
+### Verification
+
+450 Unit TestとUI Test 18本を確認し、Build、SwiftLint strict、SwiftFormat lint、Diff Checkを通過した。
+
+### Manual Verification
+
+iPhone 17 Simulatorで自動操作確認済み。実機確認は未実施。
+
+### Deviations
+
+標準Page TabViewは維持したまま、`VideoPlayer`とのGesture競合を避ける水平Drag判定を親Viewへ追加した。
+
+### Unresolved Issues
+
+なし。

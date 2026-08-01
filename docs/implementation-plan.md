@@ -1,11 +1,11 @@
 # Implementation Plan
 
-## Phase 18: 最新実機フィードバック
+## Phase 18: 最新実機フィードバック（完了）
 
-- [ ] 18-1 月間ギャラリーの閉じる導線と空状態を修正する
-- [ ] 18-2 徒歩以外の移動を表示する
-- [ ] 18-3 位置取得をSignificant Location Changeへ統一する
-- [ ] 18-4 Media Previewと場所Pagingを安定化する
+- [x] 18-1 月間ギャラリーの閉じる導線と空状態を修正する
+- [x] 18-2 徒歩以外の移動を表示する
+- [x] 18-3 位置取得をSignificant Location Changeへ統一する
+- [x] 18-4 Media Previewと場所Pagingを安定化する
 
 Phase 18では位置取得をSLCだけへ戻し、標準Location Updateへの自動昇格を使用しない。Core MotionとCLVisitは後処理用Raw Eventとして維持する。
 

@@ -36,6 +36,7 @@
 - `DriveLog/DriveLog/Features/Calendar/MonthlyOverviewView.swift`
 - `DriveLog/DriveLog/Features/Calendar/MonthlySummaryView.swift`
 - `DriveLog/DriveLogUITests/DriveLogUITests.swift`
+- `DriveLog/DriveLogUITests/DriveLogFeedbackUITests.swift`
 
 ### Forbidden Changes
 
@@ -70,10 +71,10 @@
 
 ## Acceptance Criteria
 
-- [ ] 月間ギャラリーPreviewに戻るボタンが表示される。
-- [ ] 戻る操作で月間ギャラリーへ復帰する。
-- [ ] 空状態が重ならない。
-- [ ] 自動検証が成功する。
+- [x] 月間ギャラリーPreviewに戻るボタンが表示される。
+- [x] 戻る操作で月間ギャラリーへ復帰する。
+- [x] 空状態が重ならない。
+- [x] 自動検証が成功する。
 
 ## Completion Report Format
 
@@ -85,3 +86,37 @@
 - Manual Verification
 - Deviations
 - Unresolved Issues
+
+## Completion Report
+
+### Summary
+
+月間Previewを`NavigationStack`内に表示して戻るToolbarを有効化し、Calendarと月間Overviewの重複する空Overlayを除去した。
+
+### Root Cause
+
+PreviewにNavigation containerがなく、Calendar、月間Summary、月間Overviewがそれぞれ空状態を表示していた。
+
+### Changed Files
+
+Calendar、Monthly Overview、Monthly Summaryと専用UI回帰Testを更新した。
+
+### Tests Added
+
+空状態が1つだけであることと、月間Gallery Previewの戻る操作をUI Testへ追加した。
+
+### Verification
+
+450 Unit Test、関連する全UI Test、Build、SwiftLint strict、SwiftFormat lint、Diff Checkを通過した。
+
+### Manual Verification
+
+iPhone 17 Simulatorで自動操作確認済み。実機確認は未実施。
+
+### Deviations
+
+UI Testの型・File行数規約を守るため、追加Testを`DriveLogFeedbackUITests.swift`へ分離した。
+
+### Unresolved Issues
+
+なし。

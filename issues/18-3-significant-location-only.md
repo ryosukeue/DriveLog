@@ -82,10 +82,10 @@ Application起動後に単一`CLLocationManager`でSLCだけを開始し、Power
 
 ## Acceptance Criteria
 
-- [ ] 標準Location Updateを開始するProduction codeがない。
-- [ ] Power/MotionでLocation Modeが変化しない。
-- [ ] SLC、Motion、VisitのRaw Event保存が維持される。
-- [ ] 自動検証が成功する。
+- [x] 標準Location Updateを開始するProduction codeがない。
+- [x] Power/MotionでLocation Modeが変化しない。
+- [x] SLC、Motion、VisitのRaw Event保存が維持される。
+- [x] 自動検証が成功する。
 
 ## Completion Report Format
 
@@ -97,3 +97,37 @@ Application起動後に単一`CLLocationManager`でSLCだけを開始し、Power
 - Manual Verification
 - Deviations
 - Unresolved Issues
+
+## Completion Report
+
+### Summary
+
+ProductionのLocation監視をSignificant Location Changeだけへ統一し、走行・充電状態による標準Location Updateへの切替を削除した。
+
+### Location Contract
+
+Locationは`lowPower`（SLC）のみ。Motion Raw EventとVisit監視は独立して継続し、SLC callbackは追加間引きなしで保存へ流す。
+
+### Changed Files
+
+Location Provider、Monitoring Use Case、AppContainer、Location関連文書とTestを更新し、標準Location用emit filterを削除した。
+
+### Tests Added/Removed
+
+SLC単一Mode、重複開始防止、Motion/Visit失敗時の継続をTestし、削除した充電切替契約のTestを除去した。
+
+### Verification
+
+450 Unit Test、関連UI Test、Build、SwiftLint strict、SwiftFormat lint、Diff Checkを通過した。
+
+### Manual Verification
+
+SimulatorでLifecycleを確認済み。実機での長時間SLC取得確認は未実施。
+
+### Deviations
+
+なし。
+
+### Unresolved Issues
+
+なし。

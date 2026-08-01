@@ -69,10 +69,10 @@ Production UIの移動表示を「車両系のみ」から「徒歩系だけ除�
 
 ## Acceptance Criteria
 
-- [ ] 徒歩系区間は表示されない。
-- [ ] 車両系とその他の区間は表示される。
-- [ ] 日別と月間の合計が同じ表示規則に従う。
-- [ ] 自動検証が成功する。
+- [x] 徒歩系区間は表示されない。
+- [x] 車両系とその他の区間は表示される。
+- [x] 日別と月間の合計が同じ表示規則に従う。
+- [x] 自動検証が成功する。
 
 ## Completion Report Format
 
@@ -83,3 +83,33 @@ Production UIの移動表示を「車両系のみ」から「徒歩系だけ除�
 - Verification
 - Deviations
 - Unresolved Issues
+
+## Completion Report
+
+### Summary
+
+表示境界を「車両系のみ」から「徒歩系だけ除外」へ変更し、日別・Calendar・月間Summary・月間地図へ統一した。
+
+### Display Policy
+
+`.automotiveLike`と`.other`を保持し、`.walkingLike`だけを除外する。表示用Aggregateは保持区間から再構築する。
+
+### Changed Files
+
+Movement Filter、Calendar/MonthlyのAggregate fallback、Project Rules、関連Unit Testを更新した。
+
+### Tests Added
+
+車両系とその他の保持、徒歩系の除外、その他だけのAggregate表示をUnit Testで確認した。
+
+### Verification
+
+450 Unit Test、関連UI Test、Build、SwiftLint strict、SwiftFormat lint、Diff Checkを通過した。
+
+### Deviations
+
+なし。
+
+### Unresolved Issues
+
+なし。
