@@ -35,6 +35,21 @@ final class DriveLogUITests: XCTestCase {
     }
 
     @MainActor
+    func testEmptyCalendarShowsOneMonthlyEmptyState() {
+        let app = XCUIApplication()
+        app.launchArguments.append("-ui-testing-calendar")
+        app.launch()
+
+        let emptyState = app.staticTexts["この月の移動記録はありません"]
+        for _ in 0 ..< 3 where emptyState.waitForExistence(timeout: 1) == false {
+            app.swipeUp()
+        }
+        XCTAssertTrue(emptyState.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["calendar.empty"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["calendar.monthlyOverview.empty"].exists)
+    }
+
+    @MainActor
     func testOnboardingContentAndStartFlow() {
         let app = XCUIApplication()
         app.launchArguments.append("-ui-testing-onboarding")
@@ -310,6 +325,28 @@ extension DriveLogUITests {
             app.descendants(matching: .any)["calendar.monthlyGallery"]
                 .waitForExistence(timeout: 5)
         )
+    }
+
+    @MainActor
+    func testMonthlyGalleryPreviewHasWorkingBackButton() {
+        let app = XCUIApplication()
+        app.launchArguments.append("-ui-testing-july-17-map")
+        app.launch()
+
+        let gallery = app.descendants(matching: .any)["calendar.monthlyGallery"]
+        for _ in 0 ..< 6 where gallery.waitForExistence(timeout: 1) == false {
+            app.swipeUp()
+        }
+        XCTAssertTrue(gallery.waitForExistence(timeout: 5))
+        let mediaCell = app.buttons["写真"].firstMatch
+        XCTAssertTrue(mediaCell.waitForExistence(timeout: 5))
+        mediaCell.tap()
+
+        let back = app.buttons["mediaPreview.back"]
+        XCTAssertTrue(back.waitForExistence(timeout: 5))
+        XCTAssertTrue(back.isHittable)
+        back.tap()
+        XCTAssertTrue(gallery.waitForExistence(timeout: 5))
     }
 }
 

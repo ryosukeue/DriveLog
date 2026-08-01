@@ -94,8 +94,8 @@ struct MonthlySummaryView: View {
 
     private var emptyView: some View {
         ContentUnavailableView(
-            "この月の車移動記録がありません",
-            systemImage: "car"
+            "この月の移動記録はありません",
+            systemImage: "calendar"
         )
         .accessibilityIdentifier("calendar.monthlySummary.empty")
     }

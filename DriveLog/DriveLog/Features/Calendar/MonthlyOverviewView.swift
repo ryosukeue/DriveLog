@@ -78,10 +78,12 @@ struct MonthlyOverviewView: View {
             }
         }
         .fullScreenCover(item: $selectedPreview) { selection in
-            MediaPreviewView(
-                viewModels: selection.assets.map(makeMediaPreviewViewModel),
-                selectedIdentifier: selection.selectedIdentifier
-            )
+            NavigationStack {
+                MediaPreviewView(
+                    viewModels: selection.assets.map(makeMediaPreviewViewModel),
+                    selectedIdentifier: selection.selectedIdentifier
+                )
+            }
         }
     }
 
@@ -153,13 +155,7 @@ struct MonthlyOverviewView: View {
     }
 
     private var emptyView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("この月の地図と写真はありません", systemImage: "map")
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.vertical)
-        .accessibilityIdentifier("calendar.monthlyOverview.empty")
+        EmptyView()
     }
 
     private func selectMedia(_ asset: MediaAssetReference, _ assets: [MediaAssetReference]) {

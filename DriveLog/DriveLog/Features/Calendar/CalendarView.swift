@@ -208,10 +208,7 @@ struct CalendarView: View {
     private var calendarStatusMessage: some View {
         switch viewModel.state {
         case .empty:
-            ContentUnavailableView("移動記録がありません", systemImage: "calendar")
-                .frame(maxWidth: .infinity)
-                .padding(.bottom, 12)
-                .accessibilityIdentifier("calendar.empty")
+            EmptyView()
         case .error:
             VStack(spacing: 8) {
                 Text("移動記録を読み込めませんでした")
