@@ -59,7 +59,7 @@ final class DriveLogFeedbackUITests: XCTestCase {
         XCTAssertTrue(map.waitForExistence(timeout: 5))
         map.tap()
 
-        let mediaAnnotation = app.descendants(matching: .any)["map.placeMediaControl"].firstMatch
+        let mediaAnnotation = app.descendants(matching: .any)["map.mediaCluster"].firstMatch
         XCTAssertTrue(mediaAnnotation.waitForExistence(timeout: 5))
         mediaAnnotation.tap()
         XCTAssertTrue(
@@ -79,5 +79,37 @@ final class DriveLogFeedbackUITests: XCTestCase {
         XCTAssertTrue(back.isHittable)
         back.tap()
         XCTAssertTrue(map.waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testSelectedPolylineKeepsPinchZoomWithoutOpeningPlaceSheet() {
+        let app = XCUIApplication()
+        app.launchArguments.append("-ui-testing-media")
+        app.launch()
+
+        let day = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'calendar.day.' AND enabled == true")
+        ).firstMatch
+        XCTAssertTrue(day.waitForExistence(timeout: 5))
+        day.tap()
+        let preview = app.buttons["dayDetail.mapPreview"]
+        XCTAssertTrue(preview.waitForExistence(timeout: 5))
+        preview.tap()
+
+        let map = app.descendants(matching: .any)["map.route"].firstMatch
+        XCTAssertTrue(map.waitForExistence(timeout: 5))
+        map.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["map.movementCallout"]
+                .waitForExistence(timeout: 5)
+        )
+
+        map.pinch(withScale: 1.8, velocity: 1)
+        map.pinch(withScale: 0.6, velocity: -1)
+
+        XCTAssertTrue(map.exists)
+        XCTAssertFalse(app.descendants(matching: .any)["map.placeSheet"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["mediaPreview.photo"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["mediaPreview.video"].exists)
     }
 }

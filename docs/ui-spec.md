@@ -550,6 +550,10 @@ Pro Maxでも横に広げすぎず、読みやすい最大幅を保つ。
 - メディア選択
 - クラスタ選択
 
+Pan、Pinch、Rotationなど地図表示を変更するGestureは、Polyline、滞在、Mediaの選択より優先する。
+地図操作中にPolylineの選択・解除や場所Sheetの表示を開始しない。
+VoiceOver用の補助操作要素は通常のTouchを横取りしない。
+
 ## 10.4 現在地ボタン
 
 現在地ボタンを表示する。

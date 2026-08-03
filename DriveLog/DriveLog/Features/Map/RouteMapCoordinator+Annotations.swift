@@ -24,6 +24,12 @@ extension RouteMapCoordinator {
     }
 
     func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
+        guard !suppressesSelectionDuringNavigation else {
+            if let annotation = view.annotation {
+                mapView.deselectAnnotation(annotation, animated: false)
+            }
+            return
+        }
         if let cluster = view.annotation as? MKClusterAnnotation {
             let members = cluster.memberAnnotations.compactMap { $0 as? RouteMapPointAnnotation }
             onSelectPlace(MapPlaceSelection(

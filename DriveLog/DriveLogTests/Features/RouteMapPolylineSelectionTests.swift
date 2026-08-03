@@ -105,6 +105,25 @@ struct RouteMapPolylineSelectionTests {
         #expect(view.displayPriority == .required)
     }
 
+    @Test("map navigation gestures take priority over the polyline tap recognizer")
+    func navigationGesturePriority() {
+        let coordinator = RouteMapCoordinator()
+        let tap = UITapGestureRecognizer()
+
+        #expect(!coordinator.gestureRecognizer(
+            tap,
+            shouldRecognizeSimultaneouslyWith: UIPinchGestureRecognizer()
+        ))
+        #expect(!coordinator.gestureRecognizer(
+            tap,
+            shouldRecognizeSimultaneouslyWith: UIPanGestureRecognizer()
+        ))
+        #expect(coordinator.gestureRecognizer(
+            tap,
+            shouldRecognizeSimultaneouslyWith: UITapGestureRecognizer()
+        ))
+    }
+
     private func configuredMapView() -> MKMapView {
         let mapView = MKMapView(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
         mapView.setRegion(

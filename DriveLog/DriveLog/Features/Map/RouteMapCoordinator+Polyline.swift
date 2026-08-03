@@ -35,7 +35,7 @@ extension RouteMapCoordinator {
     }
 
     @objc func handleTap(_ recognizer: UITapGestureRecognizer) {
-        guard let mapView else { return }
+        guard let mapView, !suppressesSelectionDuringNavigation else { return }
         let tapPoint = recognizer.location(in: mapView)
         if selectPolyline(at: tapPoint, in: mapView) {
             return
@@ -85,6 +85,7 @@ extension RouteMapCoordinator {
     }
 
     func gestureRecognizer(_: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        prepareForNewTouchSequence()
         var touchedView = touch.view
         while let view = touchedView {
             if view is MKAnnotationView || view is UIControl {
@@ -96,10 +97,64 @@ extension RouteMapCoordinator {
     }
 
     func gestureRecognizer(
-        _: UIGestureRecognizer,
-        shouldRecognizeSimultaneouslyWith _: UIGestureRecognizer
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
-        true
+        let isMapTap = gestureRecognizer is UITapGestureRecognizer
+        if isMapTap, isMapNavigationGesture(otherGestureRecognizer) {
+            return false
+        }
+        return true
+    }
+
+    func prioritizeMapNavigationGestures(
+        over mapTapRecognizer: UITapGestureRecognizer,
+        in mapView: MKMapView
+    ) {
+        for recognizer in mapView.gestureRecognizers ?? [] {
+            guard isMapNavigationGesture(recognizer) else { continue }
+            mapTapRecognizer.require(toFail: recognizer)
+            let identifier = ObjectIdentifier(recognizer)
+            guard navigationGestureRecognizerIDs.insert(identifier).inserted else { continue }
+            recognizer.addTarget(self, action: #selector(handleMapNavigationGesture(_:)))
+        }
+    }
+
+    func stopObservingMapNavigationGestures(in mapView: MKMapView) {
+        for recognizer in mapView.gestureRecognizers ?? [] {
+            let identifier = ObjectIdentifier(recognizer)
+            guard navigationGestureRecognizerIDs.remove(identifier) != nil else { continue }
+            recognizer.removeTarget(self, action: #selector(handleMapNavigationGesture(_:)))
+        }
+        suppressesSelectionDuringNavigation = false
+    }
+
+    @objc func handleMapNavigationGesture(_ recognizer: UIGestureRecognizer) {
+        guard recognizer.state == .began || recognizer.state == .changed else { return }
+        noteMapNavigationGestureStarted()
+    }
+
+    func noteMapNavigationGestureStarted() {
+        suppressesSelectionDuringNavigation = true
+    }
+
+    func prepareForNewTouchSequence() {
+        guard !hasActiveMapNavigationGesture else { return }
+        suppressesSelectionDuringNavigation = false
+    }
+
+    func isMapNavigationGesture(_ recognizer: UIGestureRecognizer) -> Bool {
+        recognizer is UIPanGestureRecognizer ||
+            recognizer is UIPinchGestureRecognizer ||
+            recognizer is UIRotationGestureRecognizer
+    }
+
+    private var hasActiveMapNavigationGesture: Bool {
+        guard let mapView else { return false }
+        return (mapView.gestureRecognizers ?? []).contains { recognizer in
+            guard isMapNavigationGesture(recognizer) else { return false }
+            return recognizer.state == .began || recognizer.state == .changed
+        }
     }
 
     func movementCalloutCoordinate(for movement: MapMovementLabel) -> CLLocationCoordinate2D {

@@ -177,7 +177,7 @@ final class DriveLogUITests: XCTestCase {
     @MainActor
     func testFullMapCalloutFlow() {
         let app = XCUIApplication()
-        app.launchArguments.append("-ui-testing-day-detail")
+        app.launchArguments.append("-ui-testing-media")
         app.launch()
 
         let enabledDay = app.buttons.matching(
@@ -193,9 +193,9 @@ final class DriveLogUITests: XCTestCase {
         XCTAssertTrue(back.waitForExistence(timeout: 5))
         XCTAssertTrue(back.isHittable)
         XCTAssertTrue(app.descendants(matching: .any)["map.currentLocation"].exists)
-        let movement = app.descendants(matching: .any)["map.polyline"].firstMatch
-        XCTAssertTrue(movement.waitForExistence(timeout: 5))
-        movement.tap()
+        let map = app.descendants(matching: .any)["map.route"].firstMatch
+        XCTAssertTrue(map.waitForExistence(timeout: 5))
+        map.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         XCTAssertTrue(
             app.descendants(matching: .any)["map.movementCallout"].firstMatch
                 .waitForExistence(timeout: 5)
@@ -203,9 +203,9 @@ final class DriveLogUITests: XCTestCase {
         XCTAssertTrue(back.exists)
         XCTAssertTrue(back.isHittable)
 
-        let stay = app.descendants(matching: .any)["map.placeStayControl"].firstMatch
-        XCTAssertTrue(stay.waitForExistence(timeout: 5))
-        stay.tap()
+        let media = app.descendants(matching: .any)["map.mediaCluster"].firstMatch
+        XCTAssertTrue(media.waitForExistence(timeout: 5))
+        media.tap()
         XCTAssertTrue(
             app.descendants(matching: .any)["map.placeSheet"].firstMatch
                 .waitForExistence(timeout: 5)

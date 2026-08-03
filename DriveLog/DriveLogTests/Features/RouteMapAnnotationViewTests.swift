@@ -107,6 +107,30 @@ struct RouteMapAnnotationViewTests {
         #expect(selection?.stayStableIDs == [])
     }
 
+    @Test("map navigation suppresses incidental place selection until the next touch")
+    func navigationSuppressesPlaceSelection() {
+        let mapView = MKMapView()
+        let coordinator = RouteMapCoordinator()
+        let cluster = MKClusterAnnotation(memberAnnotations: [
+            point(id: "one", kind: .media, mediaType: .photo),
+            point(id: "two", kind: .media, mediaType: .video)
+        ])
+        var selection: MapPlaceSelection?
+        coordinator.onSelectPlace = { selection = $0 }
+        let view = MKAnnotationView(annotation: cluster, reuseIdentifier: nil)
+
+        coordinator.noteMapNavigationGestureStarted()
+        coordinator.mapView(mapView, didSelect: view)
+
+        #expect(selection == nil)
+        #expect(mapView.selectedAnnotations.isEmpty)
+
+        coordinator.prepareForNewTouchSequence()
+        coordinator.mapView(mapView, didSelect: view)
+
+        #expect(selection?.mediaIdentifiers == ["one", "two"])
+    }
+
     @Test("media absorbs nearby repeated stays into one place summary")
     func mediaStaySummary() throws {
         let mapView = MKMapView()

@@ -54,6 +54,7 @@ struct FullRouteMapView: View {
                         alignment: .topLeading
                     )
                     .clipped()
+                    .allowsHitTesting(false)
             }
         }
         .overlay(alignment: .topLeading) {

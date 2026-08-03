@@ -104,6 +104,8 @@ struct RouteMapView: UIViewRepresentable {
     private func configure(_ container: RouteMapContainerView) {
         let mapView = container.mapView
         let isFull = mode == .full
+        container.accessibilityIdentifier = isFull ? "map.route" : "map.preview"
+        mapView.accessibilityIdentifier = container.accessibilityIdentifier
         mapView.isAccessibilityElement = false
         mapView.accessibilityElementsHidden = false
         mapView.isScrollEnabled = isFull
@@ -220,7 +222,9 @@ final class RouteMapCoordinator: NSObject, MKMapViewDelegate, UIGestureRecognize
     var thumbnailLoader: (any LoadMediaThumbnailUseCase)?
 
     var onTapEmpty: () -> Void = {}
-    private var tapRecognizer: UITapGestureRecognizer?
+    var tapRecognizer: UITapGestureRecognizer?
+    var navigationGestureRecognizerIDs: Set<ObjectIdentifier> = []
+    var suppressesSelectionDuringNavigation = false
     var selectedSegmentAnchor: (id: String, coordinate: CLLocationCoordinate2D)?
 
     func configure(
@@ -259,8 +263,10 @@ final class RouteMapCoordinator: NSObject, MKMapViewDelegate, UIGestureRecognize
             recognizer.cancelsTouchesInView = false
             recognizer.delegate = self
             mapView.addGestureRecognizer(recognizer)
+            prioritizeMapNavigationGestures(over: recognizer, in: mapView)
             tapRecognizer = recognizer
         } else if interaction.mode == .preview, let tapRecognizer {
+            stopObservingMapNavigationGestures(in: mapView)
             mapView.removeGestureRecognizer(tapRecognizer)
             self.tapRecognizer = nil
         }

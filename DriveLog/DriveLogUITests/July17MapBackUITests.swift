@@ -25,12 +25,12 @@ final class July17MapBackUITests: XCTestCase {
         XCTAssertTrue(back.waitForExistence(timeout: 5))
         assertVisible(back, count: backButtons.count, in: app)
 
-        let movement = app.descendants(matching: .any)["map.polyline"].firstMatch
-        XCTAssertTrue(movement.waitForExistence(timeout: 5))
-        movement.tap()
+        let map = app.descendants(matching: .any)["map.route"].firstMatch
+        XCTAssertTrue(map.waitForExistence(timeout: 5))
+        map.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         assertVisible(back, count: backButtons.count, in: app)
 
-        let stay = app.descendants(matching: .any)["map.placeStayControl"].firstMatch
+        let stay = app.descendants(matching: .any)["map.mediaCluster"].firstMatch
         XCTAssertTrue(stay.waitForExistence(timeout: 5))
         stay.tap()
         XCTAssertTrue(
