@@ -10,19 +10,22 @@ nonisolated struct DefaultLoadMonthlyOverviewUseCase: LoadMonthlyOverviewUseCase
     private let mediaPlacementCalculator: any MediaPlacementCalculating
     private let mapSceneBuilder: any MapSceneBuilding
     private let movementFilter: AutomotiveMovementFilter
+    private let refreshMediaCache: (any RefreshMediaCacheUseCase)?
 
     init(
         repository: any DerivedDataRepository,
         mediaCacheRepository: any MediaCacheRepository,
         mediaPlacementCalculator: any MediaPlacementCalculating,
         mapSceneBuilder: any MapSceneBuilding,
-        movementFilter: AutomotiveMovementFilter = AutomotiveMovementFilter()
+        movementFilter: AutomotiveMovementFilter = AutomotiveMovementFilter(),
+        refreshMediaCache: (any RefreshMediaCacheUseCase)? = nil
     ) {
         self.repository = repository
         self.mediaCacheRepository = mediaCacheRepository
         self.mediaPlacementCalculator = mediaPlacementCalculator
         self.mapSceneBuilder = mapSceneBuilder
         self.movementFilter = movementFilter
+        self.refreshMediaCache = refreshMediaCache
     }
 
     func execute(month: LocalMonth) async throws -> MonthlyOverviewData {
@@ -39,9 +42,8 @@ nonisolated struct DefaultLoadMonthlyOverviewUseCase: LoadMonthlyOverviewUseCase
                 )
                 movements.append(contentsOf: movementFilter.retained(dayMovements))
                 try await stays.append(contentsOf: repository.staySegments(for: aggregate.localDateKey))
-                for asset in try await mediaCacheRepository.cachedAssets(
-                    for: aggregate.localDateKey
-                ) {
+                let dayMedia = try await currentMedia(for: aggregate.localDateKey)
+                for asset in dayMedia where asset.location != nil {
                     mediaByIdentifier[asset.localIdentifier] = asset
                 }
             }
@@ -69,6 +71,18 @@ nonisolated struct DefaultLoadMonthlyOverviewUseCase: LoadMonthlyOverviewUseCase
             throw DriveLogError.cancelled
         } catch {
             throw DriveLogError.persistenceFailure(code: "load_monthly_overview")
+        }
+    }
+
+    private func currentMedia(for localDateKey: String) async throws -> [MediaAssetReference] {
+        guard let refreshMediaCache else {
+            return try await mediaCacheRepository.cachedAssets(for: localDateKey)
+        }
+        do {
+            return try await refreshMediaCache.execute(localDateKey: localDateKey)
+        } catch {
+            try Task.checkCancellation()
+            return try await mediaCacheRepository.cachedAssets(for: localDateKey)
         }
     }
 

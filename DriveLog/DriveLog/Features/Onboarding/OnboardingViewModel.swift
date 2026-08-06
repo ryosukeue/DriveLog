@@ -7,6 +7,7 @@ final class OnboardingViewModel {
         case location
         case motion
         case photos
+        case cameraPhotoLocation
     }
 
     private(set) var permissionState: PermissionState
@@ -26,7 +27,10 @@ final class OnboardingViewModel {
         }
         if phase == .photos {
             return permissionState.photos == .notDetermined
-                ? "写真と動画の利用を許可する" : "DriveLogを始める"
+                ? "写真と動画の利用を許可する" : "写真の位置情報設定を確認する"
+        }
+        if phase == .cameraPhotoLocation {
+            return "確認してDriveLogを始める"
         }
         return switch permissionState.location {
         case .notDetermined:
@@ -46,6 +50,8 @@ final class OnboardingViewModel {
             "モーションが許可されていません。移動方法の推定は利用できませんが、位置記録は継続できます。"
         case .photos where isDenied(permissionState.photos):
             "写真へのアクセスが許可されていません。移動記録は利用できますが、写真や動画は表示されません。"
+        case .cameraPhotoLocation:
+            nil
         default:
             nil
         }
@@ -54,6 +60,10 @@ final class OnboardingViewModel {
     var limitedPhotosMessage: String? {
         guard phase == .photos, permissionState.photos == .limited else { return nil }
         return "選択した写真と動画だけを表示します。表示する項目は設定から変更できます。"
+    }
+
+    var showsCameraLocationGuidance: Bool {
+        phase == .cameraPhotoLocation
     }
 
     func openSystemSettings() {
@@ -71,6 +81,8 @@ final class OnboardingViewModel {
             return await performMotionAction()
         case .photos:
             return await performPhotosAction()
+        case .cameraPhotoLocation:
+            return true
         }
     }
 
@@ -112,7 +124,8 @@ final class OnboardingViewModel {
             synchronizeState()
             return false
         case .authorized, .limited, .denied, .restricted:
-            return true
+            phase = .cameraPhotoLocation
+            return false
         }
     }
 

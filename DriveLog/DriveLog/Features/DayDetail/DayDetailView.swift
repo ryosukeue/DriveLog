@@ -136,7 +136,7 @@ struct DayDetailView: View {
                 await viewModel.load()
             }
         }
-        .buttonStyle(.bordered)
+        .driveLogGlassButtonStyle()
         .accessibilityIdentifier("dayDetail.retry")
     }
 }

@@ -60,7 +60,7 @@ struct MediaPreviewView: View {
             if selectedViewModel?.isSharing == true {
                 ProgressView("共有準備中")
                     .padding()
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .driveLogGlassEffect(in: RoundedRectangle(cornerRadius: 12))
                     .accessibilityIdentifier("mediaPreview.sharing")
             }
         }
@@ -162,7 +162,7 @@ private struct MediaPreviewPage: View {
                 Button("再試行") {
                     Task { await viewModel.load() }
                 }
-                .buttonStyle(.bordered)
+                .driveLogGlassButtonStyle()
             }
             .foregroundStyle(.white)
             .accessibilityIdentifier("mediaPreview.error")

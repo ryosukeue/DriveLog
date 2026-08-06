@@ -1,5 +1,14 @@
 # Test Plan
 
+## 実機フィードバック改訂の追加検証（2026-08-07）
+
+- 月間MediaはPhotos再取得結果を優先し、削除済み参照を除去し、refresh失敗時だけCacheへfallbackすることをUnit Testする。
+- 月間ギャラリーは写真・動画とも位置情報付きだけを返すことをUnit Testする。
+- 日別距離Analyticsは月の全日をzero-fillし、徒歩系Movementを除外し、保存済Aggregate fallbackと未来月制限をUnit Testする。
+- OnboardingはPhotos案内後にCamera位置情報設定の説明を表示し、その確認後にCalendarへ到達することをUnit/UI Testする。
+- Calendar/Analytics Tabと日別棒グラフ表示をUI Testする。
+- Liquid Glass APIはiOS 26 availabilityで保護し、iOS 17 Deployment TargetのBuildを維持する。
+
 ## 実機フィードバック改訂の追加検証（2026-08-01）
 
 - Location Modeは`lowPower`だけで、Power／Motion／GPS証拠による再起動やstandard updateへの昇格がないことをUnit Testする。

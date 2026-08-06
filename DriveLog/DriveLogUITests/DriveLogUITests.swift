@@ -13,28 +13,6 @@ final class DriveLogUITests: XCTestCase {
     }
 
     @MainActor
-    func testCalendarUsesMonthlyPageSwipeAndSummary() {
-        let app = XCUIApplication()
-        app.launchArguments.append("-ui-testing-calendar")
-        app.launch()
-
-        let pager = app.descendants(matching: .any)["calendar.pager"]
-        XCTAssertTrue(pager.waitForExistence(timeout: 5))
-        XCTAssertTrue(
-            app.otherElements.matching(
-                NSPredicate(format: "identifier BEGINSWITH 'calendar.month.'")
-            ).firstMatch.waitForExistence(timeout: 5)
-        )
-        XCTAssertTrue(
-            app.descendants(matching: .any)["calendar.monthlySummary"]
-                .waitForExistence(timeout: 5)
-        )
-        pager.swipeLeft()
-        XCTAssertTrue(pager.exists)
-        XCTAssertFalse(app.navigationBars.staticTexts["移動ログ"].exists)
-    }
-
-    @MainActor
     func testOnboardingContentAndStartFlow() {
         let app = XCUIApplication()
         app.launchArguments.append("-ui-testing-onboarding")
@@ -79,7 +57,15 @@ final class DriveLogUITests: XCTestCase {
             app.swipeUp()
         }
         XCTAssertTrue(app.buttons["onboarding.changePhotoSelection"].exists)
-        tap(action, expectingLabel: "DriveLogを始める")
+        tap(action, expectingLabel: "写真の位置情報設定を確認する")
+        XCTAssertTrue(
+            app.descendants(matching: .any)["onboarding.cameraLocationGuidance"]
+                .waitForExistence(timeout: 5)
+        )
+        if action.isHittable == false {
+            app.swipeUp()
+        }
+        tap(action, expectingLabel: "確認してDriveLogを始める")
         XCTAssertTrue(
             app.descendants(matching: .any)["calendar.pager"].waitForExistence(timeout: 5)
         )

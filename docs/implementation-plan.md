@@ -1,5 +1,11 @@
 # Implementation Plan
 
+## Phase 19: 月間Media同期と距離Analytics（完了）
+
+- [x] 19-1 月間Media同期・日別距離Analytics・Liquid Glass Navigationを追加する
+
+Phase 19では月間MediaをPhotosの現在状態へ同期し、位置情報付きだけを月間表示へ含める。Calendar/Analyticsの2 Tab、月別の日別距離棒グラフ、Camera位置情報の初回案内を追加する。距離は既存の徒歩除外ルールに従い、外部Analytics SDKや通信は使用しない。
+
 ## Phase 18: 最新実機フィードバック（完了）
 
 - [x] 18-1 月間ギャラリーの閉じる導線と空状態を修正する

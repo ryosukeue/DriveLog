@@ -12,7 +12,7 @@ struct DayMapPreview: View {
                     Image(systemName: "arrow.up.left.and.arrow.down.right")
                         .font(.body.weight(.semibold))
                         .padding(10)
-                        .background(.regularMaterial, in: Circle())
+                        .driveLogGlassEffect(in: Circle())
                         .padding(12)
                         .accessibilityHidden(true)
                 }

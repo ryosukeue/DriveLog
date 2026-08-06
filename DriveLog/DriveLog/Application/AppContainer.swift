@@ -57,14 +57,28 @@ final class AppContainer {
     }
 
     func makeMonthlyOverviewViewModel(
-        modelContainer: ModelContainer
+        modelContainer: ModelContainer,
+        photoLibrary: any PhotoLibraryProviding = PhotoLibraryProvider()
     ) -> MonthlyOverviewViewModel {
-        MonthlyOverviewViewModel(
+        let mediaCacheRepository = SwiftDataMediaCacheRepository(modelContainer: modelContainer)
+        let refreshMediaCache = DefaultRefreshMediaCacheUseCase(
+            photoLibrary: photoLibrary,
+            eligibilityEvaluator: DefaultMediaEligibilityEvaluator(),
+            mediaCacheRepository: mediaCacheRepository,
+            clock: clock,
+            timeZoneProvider: timeZoneProvider,
+            logger: logger
+        )
+        return MonthlyOverviewViewModel(
             loadMonthlyOverview: DefaultLoadMonthlyOverviewUseCase(
                 repository: SwiftDataDerivedDataRepository(modelContainer: modelContainer),
-                mediaCacheRepository: SwiftDataMediaCacheRepository(modelContainer: modelContainer),
+                mediaCacheRepository: mediaCacheRepository,
                 mediaPlacementCalculator: MediaPlacementCalculator(),
-                mapSceneBuilder: MapSceneBuilder()
+                mapSceneBuilder: MapSceneBuilder(),
+                refreshMediaCache: refreshMediaCache
+            ),
+            observePhotoLibraryChanges: DefaultObservePhotoLibraryChangesUseCase(
+                photoLibrary: photoLibrary
             )
         )
     }

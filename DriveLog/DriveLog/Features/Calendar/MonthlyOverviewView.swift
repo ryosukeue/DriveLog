@@ -148,7 +148,7 @@ struct MonthlyOverviewView: View {
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 7)
-                        .background(.ultraThinMaterial, in: Capsule())
+                        .driveLogGlassEffect(in: Capsule())
                         .padding(12)
                 }
             }

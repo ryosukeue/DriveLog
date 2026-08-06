@@ -1,5 +1,15 @@
 # UI Specification
 
+## 実機フィードバックによる優先仕様（2026-08-07）
+
+この節は後続の「タブバーを使用しない」「位置情報なしMediaを月間Galleryへ表示」に関する旧記述より優先する。
+
+- 下部Tabは`カレンダー`（calendar icon）と`アナリティクス`（bar chart icon）の2つとする。
+- Analyticsは現在月を初期表示し、月を選択して1日から月末までの日別移動距離を棒グラフ表示する。記録なし日は0km、徒歩系Movementは除外し、棒の選択時は日付と距離を表示する。
+- 月間ギャラリーと月間地図へ表示する写真・動画は位置情報付きだけとし、Photos側で削除された項目は再読込後に残さない。日別Media Gridの位置情報なしMedia表示は維持する。
+- OnboardingのPhotos権限案内後に、`設定 → プライバシーとセキュリティ → 位置情報サービス → カメラ`の設定手順を説明する。既存の位置情報なしMediaへ遡及しないことも表示する。
+- iOS 26では標準Liquid GlassをTab、Navigation、ButtonなどのControl layerへ適用する。iOS 17〜25はMaterial fallbackとし、地図・写真・グラフ・Summary cardなどのContent layerは可読性を優先する。
+
 ## 実機フィードバックによるMedia補足（2026-08-01）
 
 - 地図の場所SheetからMediaを選択した場合は、Sheetを閉じ終えてからPreviewへ遷移する。

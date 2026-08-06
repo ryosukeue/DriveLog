@@ -80,7 +80,7 @@ private extension FullRouteMapView {
                 .font(.body.weight(.semibold))
                 .foregroundStyle(.primary)
                 .frame(width: 44, height: 44)
-                .background(.ultraThinMaterial, in: Circle())
+                .driveLogGlassEffect(in: Circle(), interactive: true)
                 .overlay {
                     Circle()
                         .stroke(.primary.opacity(0.08), lineWidth: 0.5)

@@ -4,7 +4,7 @@ import Testing
 
 @Suite("Load monthly overview use case")
 struct LoadMonthlyOverviewUseCaseTests {
-    @Test("retains non-walking movement and all cached media")
+    @Test("retains non-walking movement and only located media")
     func overview() async throws {
         let day = "2026-07-01"
         let month = LocalMonth(year: 2026, month: 7)
@@ -46,9 +46,54 @@ struct LoadMonthlyOverviewUseCaseTests {
         let result = try await useCase.execute(month: month)
 
         #expect(result.movements.map(\.stableID) == ["car", "other"])
-        #expect(result.media.map(\.localIdentifier) == ["no-location", "photo"])
+        #expect(result.media.map(\.localIdentifier) == ["photo"])
         #expect(result.mapScene.polylines.count == 2)
         #expect(result.mapScene.mediaAnnotations.map(\.localIdentifier) == ["photo"])
+    }
+
+    @Test("uses the refreshed photo library result instead of deleted cached media")
+    func refreshesMedia() async throws {
+        let day = "2026-07-01"
+        let coordinate = RouteCoordinate(latitude: 35, longitude: 139)
+        let repository = MonthlyOverviewRepositoryFake(
+            aggregates: [aggregate(day: day)], movements: [:], stays: [:]
+        )
+        let cached = MonthlyMediaCacheFake(assets: [media(id: "deleted", at: coordinate)])
+        let refreshed = MonthlyMediaRefreshFake(assets: [media(id: "current", at: coordinate)])
+        let useCase = DefaultLoadMonthlyOverviewUseCase(
+            repository: repository,
+            mediaCacheRepository: cached,
+            mediaPlacementCalculator: MediaPlacementCalculator(),
+            mapSceneBuilder: MapSceneBuilder(),
+            refreshMediaCache: refreshed
+        )
+
+        let result = try await useCase.execute(month: LocalMonth(year: 2026, month: 7))
+
+        #expect(result.media.map(\.localIdentifier) == ["current"])
+    }
+
+    @Test("falls back to cached media when refreshing Photos fails")
+    func refreshFallback() async throws {
+        let day = "2026-07-01"
+        let coordinate = RouteCoordinate(latitude: 35, longitude: 139)
+        let repository = MonthlyOverviewRepositoryFake(
+            aggregates: [aggregate(day: day)], movements: [:], stays: [:]
+        )
+        let cached = MonthlyMediaCacheFake(assets: [media(id: "cached", at: coordinate)])
+        let useCase = DefaultLoadMonthlyOverviewUseCase(
+            repository: repository,
+            mediaCacheRepository: cached,
+            mediaPlacementCalculator: MediaPlacementCalculator(),
+            mapSceneBuilder: MapSceneBuilder(),
+            refreshMediaCache: MonthlyMediaRefreshFake(
+                assets: [], error: .mediaUnavailable
+            )
+        )
+
+        let result = try await useCase.execute(month: LocalMonth(year: 2026, month: 7))
+
+        #expect(result.media.map(\.localIdentifier) == ["cached"])
     }
 
     private func aggregate(day: String) -> DayAggregateData {
@@ -89,6 +134,35 @@ struct LoadMonthlyOverviewUseCaseTests {
             isVisibleByAutomaticRule: true, sourceRawRevision: 1,
             generatedAt: Date(timeIntervalSince1970: 0)
         )
+    }
+
+    private func media(id: String, at location: RouteCoordinate?) -> MediaAssetReference {
+        MediaAssetReference(
+            localIdentifier: id,
+            mediaType: .photo,
+            creationDate: Date(timeIntervalSince1970: 0),
+            location: location,
+            durationSeconds: nil,
+            isScreenshot: false,
+            isScreenRecording: false
+        )
+    }
+}
+
+private struct MonthlyMediaRefreshFake: RefreshMediaCacheUseCase {
+    let assets: [MediaAssetReference]
+    let error: DriveLogError?
+
+    init(assets: [MediaAssetReference], error: DriveLogError? = nil) {
+        self.assets = assets
+        self.error = error
+    }
+
+    func execute(localDateKey _: String) throws -> [MediaAssetReference] {
+        if let error {
+            throw error
+        }
+        return assets
     }
 }
 

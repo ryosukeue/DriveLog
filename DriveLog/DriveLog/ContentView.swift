@@ -49,6 +49,7 @@ struct ContentView: View {
     let calendarViewModel: CalendarViewModel
     let monthlySummaryViewModel: MonthlySummaryViewModel
     let monthlyOverviewViewModel: MonthlyOverviewViewModel
+    let analyticsViewModel: AnalyticsViewModel
     let today: Date
     let makeDayDetailViewModel: (String) -> DayDetailViewModel
     let loadMediaThumbnail: any LoadMediaThumbnailUseCase
@@ -59,21 +60,35 @@ struct ContentView: View {
     @State private var detailPath: [ContentRoute] = []
 
     var body: some View {
-        NavigationStack {
-            CalendarView(
-                viewModel: calendarViewModel,
-                monthlySummaryViewModel: monthlySummaryViewModel,
-                monthlyOverviewViewModel: monthlyOverviewViewModel,
-                today: today,
-                onSelectDate: {
-                    detailPath.removeAll()
-                    selectedDay = SelectedDay(localDateKey: $0)
-                },
-                thumbnailLoader: loadMediaThumbnail,
-                updateStayOverride: updateStayOverride,
-                hapticFeedback: hapticFeedback,
-                makeMediaPreviewViewModel: makeMediaPreviewViewModel
-            )
+        TabView {
+            NavigationStack {
+                CalendarView(
+                    viewModel: calendarViewModel,
+                    monthlySummaryViewModel: monthlySummaryViewModel,
+                    monthlyOverviewViewModel: monthlyOverviewViewModel,
+                    today: today,
+                    onSelectDate: {
+                        detailPath.removeAll()
+                        selectedDay = SelectedDay(localDateKey: $0)
+                    },
+                    thumbnailLoader: loadMediaThumbnail,
+                    updateStayOverride: updateStayOverride,
+                    hapticFeedback: hapticFeedback,
+                    makeMediaPreviewViewModel: makeMediaPreviewViewModel
+                )
+            }
+            .tabItem {
+                Label("カレンダー", systemImage: "calendar")
+            }
+            .accessibilityIdentifier("tab.calendar")
+
+            NavigationStack {
+                AnalyticsView(viewModel: analyticsViewModel)
+            }
+            .tabItem {
+                Label("アナリティクス", systemImage: "chart.bar.xaxis")
+            }
+            .accessibilityIdentifier("tab.analytics")
         }
         .sheet(
             item: $selectedDay,

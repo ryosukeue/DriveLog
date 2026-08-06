@@ -8,9 +8,7 @@ struct DriveLogApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var onboardingFlowUITestCompleted = false
-    private let calendarViewModel: CalendarViewModel?
-    private let monthlySummaryViewModel: MonthlySummaryViewModel?
-    private let monthlyOverviewViewModel: MonthlyOverviewViewModel?
+    private let rootViewModels: DriveLogRootViewModels?
     private let appContainer: AppContainer
     private let today: Date
     private let modelContainer: ModelContainer?
@@ -59,14 +57,14 @@ struct DriveLogApp: App {
                 modelContainer: modelContainer,
                 permissionManager: permissionManager
             )
-            calendarViewModel = container.makeCalendarViewModel(modelContainer: modelContainer, displayedMonth: month)
-            monthlySummaryViewModel = container.makeMonthlySummaryViewModel(modelContainer: modelContainer)
-            monthlyOverviewViewModel = container.makeMonthlyOverviewViewModel(modelContainer: modelContainer)
+            rootViewModels = container.makeRootViewModels(
+                modelContainer: modelContainer,
+                displayedMonth: month,
+                photoLibrary: photoLibrary
+            )
         } catch {
             modelContainer = nil
-            calendarViewModel = nil
-            monthlySummaryViewModel = nil
-            monthlyOverviewViewModel = nil
+            rootViewModels = nil
             lifecycleCoordinator = nil
         }
     }
@@ -83,17 +81,13 @@ struct DriveLogApp: App {
                         }
                     )
                 } else {
-                    switch (calendarViewModel, monthlySummaryViewModel, monthlyOverviewViewModel, modelContainer) {
-                    case let (
-                        .some(calendarViewModel),
-                        .some(monthlySummaryViewModel),
-                        .some(monthlyOverviewViewModel),
-                        .some(modelContainer)
-                    ):
+                    switch (rootViewModels, modelContainer) {
+                    case let (.some(viewModels), .some(modelContainer)):
                         ContentView(
-                            calendarViewModel: calendarViewModel,
-                            monthlySummaryViewModel: monthlySummaryViewModel,
-                            monthlyOverviewViewModel: monthlyOverviewViewModel,
+                            calendarViewModel: viewModels.calendar,
+                            monthlySummaryViewModel: viewModels.monthlySummary,
+                            monthlyOverviewViewModel: viewModels.monthlyOverview,
+                            analyticsViewModel: viewModels.analytics,
                             today: today,
                             makeDayDetailViewModel: { localDateKey in
                                 appContainer.makeDayDetailViewModel(

@@ -4,19 +4,18 @@ import UIKit
 
 // swiftlint:disable:next line_length
 final nonisolated class PhotoLibraryProvider: NSObject, PhotoLibraryProviding, PHPhotoLibraryChangeObserver, @unchecked Sendable {
-    let libraryChanges: AsyncStream<PhotoLibraryChange>
+    var libraryChanges: AsyncStream<PhotoLibraryChange> {
+        changeBroadcaster.makeStream()
+    }
 
     private let imageManager: PHImageManager
-    private let changeContinuation: AsyncStream<PhotoLibraryChange>.Continuation
+    private let changeBroadcaster = PhotoLibraryChangeBroadcaster()
 
     override convenience init() {
         self.init(imageManager: PHImageManager.default())
     }
 
     init(imageManager: PHImageManager) {
-        let stream = AsyncStream<PhotoLibraryChange>.makeStream(bufferingPolicy: .bufferingNewest(1))
-        libraryChanges = stream.stream
-        changeContinuation = stream.continuation
         self.imageManager = imageManager
         super.init()
         PHPhotoLibrary.shared().register(self)
@@ -24,7 +23,7 @@ final nonisolated class PhotoLibraryProvider: NSObject, PhotoLibraryProviding, P
 
     deinit {
         PHPhotoLibrary.shared().unregisterChangeObserver(self)
-        changeContinuation.finish()
+        changeBroadcaster.finish()
     }
 
     func authorizationState() async -> PhotoPermissionState {
@@ -127,7 +126,7 @@ final nonisolated class PhotoLibraryProvider: NSObject, PhotoLibraryProviding, P
     }
 
     func photoLibraryDidChange(_: PHChange) {
-        changeContinuation.yield(.libraryDidChange)
+        changeBroadcaster.yield(.libraryDidChange)
     }
 
     static func permissionState(_ status: PHAuthorizationStatus) -> PhotoPermissionState {
@@ -207,5 +206,49 @@ final nonisolated class PhotoLibraryProvider: NSObject, PhotoLibraryProviding, P
 
     private static func hasError(_ info: [AnyHashable: Any]?) -> Bool {
         info?[PHImageErrorKey] != nil
+    }
+}
+
+/// NSLock guards every continuation access because PhotoKit can notify on arbitrary queues.
+private final nonisolated class PhotoLibraryChangeBroadcaster: @unchecked Sendable {
+    private typealias Continuation = AsyncStream<PhotoLibraryChange>.Continuation
+    private let lock = NSLock()
+    private var continuations: [UUID: Continuation] = [:]
+
+    func makeStream() -> AsyncStream<PhotoLibraryChange> {
+        let identifier = UUID()
+        return AsyncStream(bufferingPolicy: .bufferingNewest(1)) { continuation in
+            lock.lock()
+            continuations[identifier] = continuation
+            lock.unlock()
+            continuation.onTermination = { [weak self] _ in
+                self?.removeContinuation(identifier: identifier)
+            }
+        }
+    }
+
+    func yield(_ change: PhotoLibraryChange) {
+        lock.lock()
+        let currentContinuations = Array(continuations.values)
+        lock.unlock()
+        for continuation in currentContinuations {
+            continuation.yield(change)
+        }
+    }
+
+    func finish() {
+        lock.lock()
+        let currentContinuations = Array(continuations.values)
+        continuations.removeAll()
+        lock.unlock()
+        for continuation in currentContinuations {
+            continuation.finish()
+        }
+    }
+
+    private func removeContinuation(identifier: UUID) {
+        lock.lock()
+        continuations[identifier] = nil
+        lock.unlock()
     }
 }

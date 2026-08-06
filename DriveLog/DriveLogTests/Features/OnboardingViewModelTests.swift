@@ -57,7 +57,7 @@ struct OnboardingViewModelTests {
         }
     }
 
-    @Test("requests photos last and completes for every terminal photo state")
+    @Test("requests photos, shows camera location guidance, then completes")
     func photos() async {
         let permissions = FakePermissionManager(state: PermissionState(
             location: .always,
@@ -82,6 +82,9 @@ struct OnboardingViewModelTests {
             let terminalViewModel = OnboardingViewModel(permissionManager: terminal)
             #expect(await terminalViewModel.performPrimaryAction() == false)
             #expect(await terminalViewModel.performPrimaryAction() == false)
+            #expect(await terminalViewModel.performPrimaryAction() == false)
+            #expect(terminalViewModel.phase == .cameraPhotoLocation)
+            #expect(terminalViewModel.showsCameraLocationGuidance)
             #expect(await terminalViewModel.performPrimaryAction())
             #expect(terminal.photosRequestCount == 0)
         }
@@ -103,6 +106,9 @@ struct OnboardingViewModelTests {
         #expect(viewModel.deniedMessage?.contains("移動方法") == true)
         #expect(await viewModel.performPrimaryAction() == false)
         #expect(viewModel.deniedMessage?.contains("写真や動画") == true)
+        #expect(await viewModel.performPrimaryAction() == false)
+        #expect(viewModel.phase == .cameraPhotoLocation)
+        #expect(viewModel.deniedMessage == nil)
         #expect(await viewModel.performPrimaryAction())
     }
 
@@ -123,6 +129,8 @@ struct OnboardingViewModelTests {
         #expect(viewModel.deniedMessage == nil)
         viewModel.openSystemSettings()
         #expect(permissions.openSettingsCount == 1)
+        #expect(await viewModel.performPrimaryAction() == false)
+        #expect(viewModel.showsCameraLocationGuidance)
         #expect(await viewModel.performPrimaryAction())
     }
 

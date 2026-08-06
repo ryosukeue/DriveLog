@@ -1,5 +1,14 @@
 # Project Rules
 
+## 実機フィードバックによる優先ルール（2026-08-07）
+
+この節は後続の「タブバー追加禁止」「位置情報なしMediaをGridへ表示」に関する旧記述より優先する。
+
+- Root NavigationはCalendarとAnalyticsの2 Tabとする。Analytics SDKや外部送信は追加せず、端末内の派生データだけを日別距離グラフへ使用する。
+- 月間ギャラリーと月間地図は位置情報付きの写真・動画だけを表示し、Photos側の削除・Limited Access変更を再読込時に反映する。日別Media Gridは従来どおり位置情報なしMediaも表示できる。
+- 初回設定でCameraの位置情報設定手順を説明する。DriveLogからCameraの権限状態を推測したり、設定を変更したりしない。
+- iOS 26では標準Liquid GlassをNavigationとControlへ使用し、iOS 17〜25では標準Materialへfallbackする。データContentそのものへGlassを過剰適用しない。
+
 ## 実機フィードバックによる優先ルール（2026-08-01）
 
 この節は後続のLocation取得とMovement表示に関する旧記述より優先する。

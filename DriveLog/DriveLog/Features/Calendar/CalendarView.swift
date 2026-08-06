@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct CalendarView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel: CalendarViewModel
     @State private var monthlySummaryViewModel: MonthlySummaryViewModel
     @State private var monthlyOverviewViewModel: MonthlyOverviewViewModel
@@ -74,6 +75,15 @@ struct CalendarView: View {
             await monthlySummaryViewModel.load(month: selectedMonth)
             await monthlyOverviewViewModel.load(month: selectedMonth)
         }
+        .task {
+            await monthlyOverviewViewModel.observeLibraryChanges()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task {
+                await monthlyOverviewViewModel.load(month: selectedMonth)
+            }
+        }
         .onChange(of: selectedMonth) { _, month in
             viewModel.select(month: month)
             Task {
@@ -92,7 +102,7 @@ struct CalendarView: View {
             if viewModel.state == .loading {
                 ProgressView("読み込み中")
                     .padding()
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .driveLogGlassEffect(in: RoundedRectangle(cornerRadius: 12))
                     .accessibilityIdentifier("calendar.loading")
             }
         }
@@ -216,7 +226,7 @@ struct CalendarView: View {
                     .accessibilityIdentifier("calendar.retry")
             }
             .padding()
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .driveLogGlassEffect(in: RoundedRectangle(cornerRadius: 12))
             .padding(.bottom, 12)
             .accessibilityIdentifier("calendar.error")
         case .idle, .loading, .loaded:

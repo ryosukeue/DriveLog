@@ -31,7 +31,7 @@ struct OnboardingView: View {
                 )
                 permissionRow(
                     title: "写真と動画",
-                    description: "移動した日に撮影した写真や動画を振り返るために使用します。",
+                    description: "移動した日に撮影した写真や動画を振り返ります。すべての写真へのアクセスをおすすめします。",
                     systemImage: "photo.on.rectangle"
                 )
                 Label {
@@ -52,7 +52,7 @@ struct OnboardingView: View {
                         Button("設定を開く") {
                             viewModel.openSystemSettings()
                         }
-                        .buttonStyle(.bordered)
+                        .driveLogGlassButtonStyle()
                         .accessibilityIdentifier("onboarding.openSettings")
                     }
                     .padding()
@@ -66,11 +66,14 @@ struct OnboardingView: View {
                         Button("選択内容を変更") {
                             viewModel.openSystemSettings()
                         }
-                        .buttonStyle(.bordered)
+                        .driveLogGlassButtonStyle()
                         .accessibilityIdentifier("onboarding.changePhotoSelection")
                     }
                     .padding()
                     .background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
+                }
+                if viewModel.showsCameraLocationGuidance {
+                    cameraLocationGuidance
                 }
                 Button(viewModel.primaryActionTitle) {
                     Task { @MainActor in
@@ -79,7 +82,7 @@ struct OnboardingView: View {
                         }
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .driveLogProminentButtonStyle()
                 .controlSize(.large)
                 .frame(maxWidth: .infinity)
                 .disabled(viewModel.isRequesting)
@@ -92,6 +95,39 @@ struct OnboardingView: View {
         .task {
             await viewModel.observePermissionUpdates()
         }
+    }
+
+    private var cameraLocationGuidance: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("写真に位置情報を付ける", systemImage: "camera.fill")
+                .font(.headline)
+            Text("地図と月間ギャラリーに写真や動画を表示するには、カメラで撮る時に位置情報を付けてください。DriveLogからこの設定を変更することはできません。")
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+                guidanceStep(number: 1, text: "設定を開く")
+                guidanceStep(number: 2, text: "プライバシーとセキュリティ → 位置情報サービス")
+                guidanceStep(number: 3, text: "カメラ → このAppの使用中")
+                guidanceStep(number: 4, text: "正確な位置情報をオン")
+            }
+            Text("この設定は今後撮影する写真と動画に反映されます。すでに位置情報がないものには自動で追加されません。")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .padding()
+        .driveLogGlassEffect(in: RoundedRectangle(cornerRadius: 18))
+        .accessibilityIdentifier("onboarding.cameraLocationGuidance")
+    }
+
+    private func guidanceStep(number: Int, text: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text(number, format: .number)
+                .font(.caption.bold())
+                .frame(width: 24, height: 24)
+                .foregroundStyle(.white)
+                .background(Color.accentColor, in: Circle())
+            Text(text)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private func permissionRow(
