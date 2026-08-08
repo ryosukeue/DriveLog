@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ICloudSetupView: View {
     @State private var viewModel: ICloudSetupViewModel
+    @State private var closesAfterSuccess = false
     let onDismiss: () -> Void
 
     init(viewModel: ICloudSetupViewModel, onDismiss: @escaping () -> Void) {
@@ -29,7 +30,7 @@ struct ICloudSetupView: View {
             statusMessage
             Button {
                 Task {
-                    _ = await viewModel.connect()
+                    closesAfterSuccess = await viewModel.connect()
                 }
             } label: {
                 if viewModel.isConnecting {
@@ -54,6 +55,7 @@ struct ICloudSetupView: View {
             .foregroundStyle(.secondary)
             if viewModel.isConnected {
                 Button("この端末のiCloud連携を解除", role: .destructive) {
+                    closesAfterSuccess = false
                     viewModel.disconnect()
                 }
             }
@@ -86,7 +88,10 @@ struct ICloudSetupView: View {
                 set: { if !$0 { viewModel.dismissSuccess() } }
             )
         ) {
-            Button("OK") { viewModel.dismissSuccess() }
+            Button("OK") {
+                viewModel.dismissSuccess()
+                if closesAfterSuccess { onDismiss() }
+            }
         } message: {
             Text(viewModel.successMessage ?? "")
         }

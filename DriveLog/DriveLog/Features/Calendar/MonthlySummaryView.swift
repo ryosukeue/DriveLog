@@ -52,37 +52,39 @@ struct MonthlySummaryView: View {
             Text("月間サマリー")
                 .font(.title2.bold())
                 .accessibilityAddTraits(.isHeader)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 16)], spacing: 16) {
+            VStack(alignment: .leading, spacing: 12) {
                 summaryItem(
                     title: "総移動距離",
                     value: distanceFormatter.kilometers(
                         fromMeters: summary.totalDistanceMeters
                     ) ?? "--"
                 )
+                if !summary.vehicleDistances.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(summary.vehicleDistances) { value in
+                            HStack(alignment: .top, spacing: 10) {
+                                Circle()
+                                    .fill(Color(hex: value.vehicle.colorHex))
+                                    .frame(width: 12, height: 12)
+                                    .padding(.top, 5)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(value.vehicle.name)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    Text(distanceFormatter.kilometers(
+                                        fromMeters: value.distanceMeters
+                                    ) ?? "--")
+                                    .font(.title3.bold().monospacedDigit())
+                                }
+                            }
+                        }
+                    }
+                    .accessibilityIdentifier("calendar.monthlySummary.vehicles")
+                }
                 summaryItem(
                     title: "総移動時間",
                     value: formatter.duration(seconds: summary.totalMovementDurationSeconds)
                 )
-            }
-            if !summary.vehicleDistances.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(summary.vehicleDistances) { value in
-                        HStack(spacing: 10) {
-                            Circle()
-                                .fill(Color(hex: value.vehicle.colorHex))
-                                .frame(width: 10, height: 10)
-                            Text(value.vehicle.name)
-                                .font(.subheadline.weight(.semibold))
-                            Spacer()
-                            Text(distanceFormatter.kilometers(
-                                fromMeters: value.distanceMeters
-                            ) ?? "--")
-                            .font(.subheadline.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                .accessibilityIdentifier("calendar.monthlySummary.vehicles")
             }
             if summary.cityRankings.isEmpty {
                 Text("主要な都市の記録はありません")

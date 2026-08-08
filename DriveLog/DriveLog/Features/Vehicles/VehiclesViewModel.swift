@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import StoreKit
 
 @MainActor
 @Observable
@@ -8,17 +9,26 @@ final class VehiclesViewModel {
     private(set) var availableDevices: [AudioRouteDevice] = []
     private(set) var detectedVehicle: VehicleProfile?
     private(set) var errorMessage: String?
+    private let slotStore: VehicleSlotStore
 
     var canAddVehicle: Bool {
-        vehicles.isEmpty
+        vehicles.count < slotStore.vehicleLimit
     }
+
+    var extraSlotProduct: Product? { slotStore.product }
+    var isPurchasingSlot: Bool { slotStore.isPurchasing }
 
     private let store: UserDefaultsVehicleStore
     private let detector: AudioRouteVehicleDetector
 
-    init(store: UserDefaultsVehicleStore, detector: AudioRouteVehicleDetector) {
+    init(
+        store: UserDefaultsVehicleStore,
+        detector: AudioRouteVehicleDetector,
+        slotStore: VehicleSlotStore? = nil
+    ) {
         self.store = store
         self.detector = detector
+        self.slotStore = slotStore ?? VehicleSlotStore()
         reload()
     }
 
@@ -34,13 +44,13 @@ final class VehiclesViewModel {
                 name: name,
                 audioRouteUID: device.uid,
                 audioRouteName: device.name,
-                userVisibleLimit: 1
+                userVisibleLimit: slotStore.vehicleLimit
             )
             detector.refresh()
             reload()
             return true
         } catch UserDefaultsVehicleStore.StoreError.vehicleLimitReached {
-            errorMessage = "現在登録できる車は1台までです"
+            errorMessage = "登録可能な車両数の上限です"
         } catch UserDefaultsVehicleStore.StoreError.duplicateAudioRoute {
             errorMessage = "このオーディオデバイスは登録済みです"
         } catch {
@@ -57,6 +67,14 @@ final class VehiclesViewModel {
 
     func dismissError() {
         errorMessage = nil
+    }
+
+    func loadPurchaseProduct() async { await slotStore.loadProduct() }
+
+    func purchaseExtraSlot() async -> Bool {
+        let completed = await slotStore.purchaseSlot()
+        if let message = slotStore.errorMessage { errorMessage = message }
+        return completed
     }
 
     private func reload() {

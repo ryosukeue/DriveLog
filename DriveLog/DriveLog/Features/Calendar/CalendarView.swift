@@ -56,6 +56,7 @@ struct CalendarView: View {
                         viewModel: monthlySummaryViewModel,
                         onRetry: reloadSummary
                     )
+                    CalendarBannerAd()
                     MonthlyOverviewView(
                         viewModel: monthlyOverviewViewModel,
                         thumbnailLoader: thumbnailLoader,

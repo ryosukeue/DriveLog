@@ -69,7 +69,7 @@ final class ICloudSetupViewModel {
         defaults.removeObject(forKey: "iCloudDisplayName")
         defaults.set(false, forKey: "hasConnectedCloudFriends")
         displayName = ""
-        successMessage = nil
+        successMessage = "iCloud連携を解除しました！"
     }
 
     private func connectionErrorMessage(for error: Error) -> String {

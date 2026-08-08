@@ -125,6 +125,7 @@ struct DriveLogApp: App {
             }
             .task {
                 appContainer.startVehicleDetection()
+                AdMobConfiguration.startIfConfigured()
                 await lifecycleCoordinator?.handleLaunch()
             }
             .onChange(of: scenePhase) { _, phase in
