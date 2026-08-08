@@ -2,7 +2,7 @@ import GoogleMobileAds
 import SwiftUI
 
 enum AdMobConfiguration {
-    static var appID: String? { configuredValue(for: "AdMobAppID") }
+    static var appID: String? { configuredValue(for: "GADApplicationIdentifier") }
     static var bannerUnitID: String? { configuredValue(for: "AdMobBannerUnitID") }
 
     static func startIfConfigured() {

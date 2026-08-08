@@ -52,11 +52,11 @@ struct CalendarView: View {
                     calendarPager
                         .frame(height: calendarHeight)
                     Divider()
+                    CalendarBannerAd()
                     MonthlySummaryView(
                         viewModel: monthlySummaryViewModel,
                         onRetry: reloadSummary
                     )
-                    CalendarBannerAd()
                     MonthlyOverviewView(
                         viewModel: monthlyOverviewViewModel,
                         thumbnailLoader: thumbnailLoader,

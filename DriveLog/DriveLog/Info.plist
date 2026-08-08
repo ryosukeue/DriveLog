@@ -2,10 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>AdMobAppID</key>
-	<string>YOUR_ADMOB_APP_ID</string>
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-3940256099942544~1458002511</string>
 	<key>AdMobBannerUnitID</key>
-	<string>YOUR_ADMOB_BANNER_UNIT_ID</string>
+	<string>ca-app-pub-3940256099942544/2435281174</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
