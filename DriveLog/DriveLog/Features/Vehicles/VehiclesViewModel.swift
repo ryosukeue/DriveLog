@@ -20,14 +20,17 @@ final class VehiclesViewModel {
 
     private let store: UserDefaultsVehicleStore
     private let detector: AudioRouteVehicleDetector
+    private let oilChangeNotifier: any VehicleOilChangeNotifying
 
     init(
         store: UserDefaultsVehicleStore,
         detector: AudioRouteVehicleDetector,
+        oilChangeNotifier: any VehicleOilChangeNotifying = EmptyVehicleOilChangeNotifier(),
         slotStore: VehicleSlotStore? = nil
     ) {
         self.store = store
         self.detector = detector
+        self.oilChangeNotifier = oilChangeNotifier
         self.slotStore = slotStore ?? VehicleSlotStore()
         reload()
     }
@@ -38,12 +41,21 @@ final class VehiclesViewModel {
         reload()
     }
 
-    func addVehicle(name: String, device: AudioRouteDevice) -> Bool {
+    func addVehicle(
+        name: String,
+        device: AudioRouteDevice,
+        odometerKilometers: Double,
+        oilChangeIntervalKilometers: Double,
+        lastOilChangeOdometerKilometers: Double
+    ) -> Bool {
         do {
             try store.addVehicle(
                 name: name,
                 audioRouteUID: device.uid,
                 audioRouteName: device.name,
+                odometerKilometers: odometerKilometers,
+                oilChangeIntervalKilometers: oilChangeIntervalKilometers,
+                lastOilChangeOdometerKilometers: lastOilChangeOdometerKilometers,
                 userVisibleLimit: slotStore.vehicleLimit
             )
             detector.refresh()
@@ -53,10 +65,41 @@ final class VehiclesViewModel {
             errorMessage = "登録可能な車両数の上限です"
         } catch UserDefaultsVehicleStore.StoreError.duplicateAudioRoute {
             errorMessage = "このオーディオデバイスは登録済みです"
+        } catch UserDefaultsVehicleStore.StoreError.invalidMaintenanceValues {
+            errorMessage = "走行距離とオイル交換情報を確認してください"
         } catch {
             errorMessage = "車を登録できませんでした"
         }
         return false
+    }
+
+    func updateVehicle(
+        id: UUID,
+        name: String,
+        odometerKilometers: Double,
+        oilChangeIntervalKilometers: Double,
+        lastOilChangeOdometerKilometers: Double
+    ) -> Bool {
+        do {
+            try store.updateVehicle(
+                id: id,
+                name: name,
+                odometerKilometers: odometerKilometers,
+                oilChangeIntervalKilometers: oilChangeIntervalKilometers,
+                lastOilChangeOdometerKilometers: lastOilChangeOdometerKilometers
+            )
+            reload()
+            return true
+        } catch UserDefaultsVehicleStore.StoreError.invalidMaintenanceValues {
+            errorMessage = "走行距離とオイル交換情報を確認してください"
+        } catch {
+            errorMessage = "車の情報を更新できませんでした"
+        }
+        return false
+    }
+
+    func requestOilChangeNotificationAuthorization() async {
+        await oilChangeNotifier.requestAuthorization()
     }
 
     func removeVehicle(id: UUID) {

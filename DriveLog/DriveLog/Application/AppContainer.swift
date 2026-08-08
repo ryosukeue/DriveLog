@@ -9,6 +9,7 @@ final class AppContainer {
     let hapticFeedback: any HapticFeedbackProviding
     let vehicleStore: UserDefaultsVehicleStore
     let audioRouteVehicleDetector: AudioRouteVehicleDetector
+    let oilChangeNotificationService: OilChangeNotificationService
     let cloudFriendsService: CloudFriendsService
 
     convenience init() {
@@ -33,6 +34,8 @@ final class AppContainer {
         localTimeContextProvider: any LocalTimeContextProviding,
         hapticFeedback: any HapticFeedbackProviding,
         vehicleStore: UserDefaultsVehicleStore = UserDefaultsVehicleStore(),
+        oilChangeNotificationService: OilChangeNotificationService =
+            OilChangeNotificationService(),
         cloudFriendsService: CloudFriendsService = CloudFriendsService()
     ) {
         self.logger = logger
@@ -41,6 +44,7 @@ final class AppContainer {
         self.localTimeContextProvider = localTimeContextProvider
         self.hapticFeedback = hapticFeedback
         self.vehicleStore = vehicleStore
+        self.oilChangeNotificationService = oilChangeNotificationService
         self.cloudFriendsService = cloudFriendsService
         audioRouteVehicleDetector = AudioRouteVehicleDetector(store: vehicleStore)
     }
@@ -145,7 +149,8 @@ final class AppContainer {
     func makeVehiclesViewModel() -> VehiclesViewModel {
         VehiclesViewModel(
             store: vehicleStore,
-            detector: audioRouteVehicleDetector
+            detector: audioRouteVehicleDetector,
+            oilChangeNotifier: oilChangeNotificationService
         )
     }
 
@@ -279,6 +284,8 @@ final class AppContainer {
             mediaCountLoader: { localDateKey in
                 try await mediaCacheRepository.cachedAssets(for: localDateKey).count
             },
+            vehicleDistanceRecorder: vehicleStore,
+            oilChangeNotifier: oilChangeNotificationService,
             clock: clock,
             logger: logger
         )

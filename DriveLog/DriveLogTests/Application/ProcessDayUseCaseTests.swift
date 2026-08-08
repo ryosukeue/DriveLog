@@ -23,6 +23,26 @@ struct ProcessDayUseCaseTests {
         ])
     }
 
+    @Test("records vehicle distance and sends oil change notifications")
+    func recordsVehicleDistanceAndSendsNotification() async throws {
+        let expectedNotification = VehicleOilChangeNotification.overdue(
+            vehicleID: UUID(),
+            vehicleName: "テストカー"
+        )
+        let distanceRecorder = DistanceRecorderSpy(notification: expectedNotification)
+        let notifier = OilChangeNotifierSpy()
+        let fixture = Fixture(
+            date: date,
+            vehicleDistanceRecorder: distanceRecorder,
+            oilChangeNotifier: notifier
+        )
+
+        _ = try await fixture.useCase.execute(localDateKey: "2024-01-01")
+
+        #expect(distanceRecorder.recordedDateKeys == ["2024-01-01"])
+        #expect(await notifier.sentNotifications == [expectedNotification])
+    }
+
     @Test("returns stored data without processing a completed generation")
     func skipsCompletedDay() async throws {
         let fixture = Fixture(date: date, completed: true)
@@ -80,7 +100,9 @@ private struct Fixture {
         date: Date,
         completed: Bool = false,
         processorError: (any Error)? = nil,
-        replacementError: (any Error)? = nil
+        replacementError: (any Error)? = nil,
+        vehicleDistanceRecorder: (any VehicleProcessedDistanceRecording)? = nil,
+        oilChangeNotifier: any VehicleOilChangeNotifying = EmptyVehicleOilChangeNotifier()
     ) {
         state = StateRepositoryFake(date: date, completed: completed)
         processor = ProcessorFake(date: date, error: processorError)
@@ -93,9 +115,38 @@ private struct Fixture {
             derivedRepository: derived,
             processor: processor,
             mediaCountLoader: { _ in 3 },
+            vehicleDistanceRecorder: vehicleDistanceRecorder,
+            oilChangeNotifier: oilChangeNotifier,
             clock: FixedClock(now: date),
             logger: logger
         )
+    }
+}
+
+private final class DistanceRecorderSpy: VehicleProcessedDistanceRecording, @unchecked Sendable {
+    private(set) var recordedDateKeys: [String] = []
+    private let notification: VehicleOilChangeNotification
+
+    init(notification: VehicleOilChangeNotification) {
+        self.notification = notification
+    }
+
+    func replaceProcessedDistances(
+        for localDateKey: String,
+        movements _: [MovementSegmentData]
+    ) -> [VehicleOilChangeNotification] {
+        recordedDateKeys.append(localDateKey)
+        return [notification]
+    }
+}
+
+private actor OilChangeNotifierSpy: VehicleOilChangeNotifying {
+    private(set) var sentNotifications: [VehicleOilChangeNotification] = []
+
+    func requestAuthorization() {}
+
+    func send(_ notification: VehicleOilChangeNotification) {
+        sentNotifications.append(notification)
     }
 }
 

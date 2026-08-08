@@ -13,6 +13,8 @@ nonisolated struct DefaultProcessDayUseCase: ProcessDayUseCase {
     private let derivedRepository: any DerivedDataRepository
     private let processor: any DayProcessing
     private let mediaCountLoader: MediaCountLoader
+    private let vehicleDistanceRecorder: (any VehicleProcessedDistanceRecording)?
+    private let oilChangeNotifier: any VehicleOilChangeNotifying
     private let clock: any Clock
     private let logger: any Logging
 
@@ -23,6 +25,8 @@ nonisolated struct DefaultProcessDayUseCase: ProcessDayUseCase {
         derivedRepository: any DerivedDataRepository,
         processor: any DayProcessing,
         mediaCountLoader: @escaping MediaCountLoader = { _ in 0 },
+        vehicleDistanceRecorder: (any VehicleProcessedDistanceRecording)? = nil,
+        oilChangeNotifier: any VehicleOilChangeNotifying = EmptyVehicleOilChangeNotifier(),
         clock: any Clock = SystemClock(),
         logger: any Logging = OSLogLogger()
     ) {
@@ -32,6 +36,8 @@ nonisolated struct DefaultProcessDayUseCase: ProcessDayUseCase {
         self.derivedRepository = derivedRepository
         self.processor = processor
         self.mediaCountLoader = mediaCountLoader
+        self.vehicleDistanceRecorder = vehicleDistanceRecorder
+        self.oilChangeNotifier = oilChangeNotifier
         self.clock = clock
         self.logger = logger
     }
@@ -87,11 +93,18 @@ nonisolated struct DefaultProcessDayUseCase: ProcessDayUseCase {
             result: result,
             processedRevision: revision.rawRevision
         )
+        let oilChangeNotifications = vehicleDistanceRecorder?.replaceProcessedDistances(
+            for: localDateKey,
+            movements: result.movements
+        ) ?? []
         try await stateRepository.markCompleted(
             localDateKey: localDateKey,
             processedRevision: revision.rawRevision,
             completedAt: clock.now
         )
+        for notification in oilChangeNotifications {
+            await oilChangeNotifier.send(notification)
+        }
         logger.info(.dayProcessingCompleted(localDateKey: localDateKey))
         return result
     }
