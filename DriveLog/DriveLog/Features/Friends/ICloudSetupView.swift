@@ -29,22 +29,20 @@ struct ICloudSetupView: View {
             statusMessage
             Button {
                 Task {
-                    if await viewModel.connect() {
-                        onDismiss()
-                    }
+                    _ = await viewModel.connect()
                 }
             } label: {
                 if viewModel.isConnecting {
                     ProgressView()
                         .frame(maxWidth: .infinity)
                 } else {
-                    Text("iCloudに接続")
+                    Text(viewModel.isConnected ? "表示名を更新" : "iCloudに接続")
                         .frame(maxWidth: .infinity)
                 }
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(viewModel.status != .available || viewModel.isConnecting)
+            .disabled(viewModel.status != .available || viewModel.isConnecting || !viewModel.canConnect)
             if viewModel.status != .available && viewModel.status != .checking {
                 Button("再確認") {
                     Task { await viewModel.check() }
@@ -54,6 +52,11 @@ struct ICloudSetupView: View {
                 onDismiss()
             }
             .foregroundStyle(.secondary)
+            if viewModel.isConnected {
+                Button("この端末のiCloud連携を解除", role: .destructive) {
+                    viewModel.disconnect()
+                }
+            }
             Spacer()
         }
         .padding(28)
@@ -76,6 +79,17 @@ struct ICloudSetupView: View {
         } message: {
             Text(viewModel.errorMessage ?? "")
         }
+        .alert(
+            "iCloud連携",
+            isPresented: Binding(
+                get: { viewModel.successMessage != nil },
+                set: { if !$0 { viewModel.dismissSuccess() } }
+            )
+        ) {
+            Button("OK") { viewModel.dismissSuccess() }
+        } message: {
+            Text(viewModel.successMessage ?? "")
+        }
         .accessibilityIdentifier("icloud.setup")
     }
 
@@ -85,7 +99,10 @@ struct ICloudSetupView: View {
         case .idle, .checking:
             ProgressView("iCloudアカウントを確認中")
         case .available:
-            Label("iCloudを利用できます", systemImage: "checkmark.circle.fill")
+            Label(
+                viewModel.isConnected ? "iCloudに接続済み" : "iCloudを利用できます",
+                systemImage: "checkmark.circle.fill"
+            )
                 .foregroundStyle(.green)
         case .noAccount:
             Label(

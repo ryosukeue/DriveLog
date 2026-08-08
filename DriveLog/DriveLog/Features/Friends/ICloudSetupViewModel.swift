@@ -8,7 +8,17 @@ final class ICloudSetupViewModel {
     private(set) var status: ICloudSetupStatus = .idle
     private(set) var isConnecting = false
     private(set) var errorMessage: String?
+    private(set) var successMessage: String?
     var displayName: String
+
+    var isConnected: Bool {
+        defaults.bool(forKey: "hasConnectedCloudFriends") ||
+            defaults.string(forKey: "iCloudDisplayName") != nil
+    }
+
+    var canConnect: Bool {
+        !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     private let service: CloudFriendsService
     private let defaults: UserDefaults
@@ -33,9 +43,12 @@ final class ICloudSetupViewModel {
         errorMessage = nil
         defer { isConnecting = false }
         do {
+            let wasConnected = isConnected
             try await service.bootstrap(displayName: displayName)
             let trimmed = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-            defaults.set(trimmed.isEmpty ? "ドライバー" : trimmed, forKey: "iCloudDisplayName")
+            defaults.set(trimmed, forKey: "iCloudDisplayName")
+            defaults.set(true, forKey: "hasConnectedCloudFriends")
+            successMessage = wasConnected ? "iCloudに接続済みです。表示名を更新しました。" : "iCloudに接続できました！"
             return true
         } catch {
             errorMessage = connectionErrorMessage(for: error)
@@ -46,6 +59,17 @@ final class ICloudSetupViewModel {
 
     func dismissError() {
         errorMessage = nil
+    }
+
+    func dismissSuccess() {
+        successMessage = nil
+    }
+
+    func disconnect() {
+        defaults.removeObject(forKey: "iCloudDisplayName")
+        defaults.set(false, forKey: "hasConnectedCloudFriends")
+        displayName = ""
+        successMessage = nil
     }
 
     private func connectionErrorMessage(for error: Error) -> String {

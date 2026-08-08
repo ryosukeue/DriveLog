@@ -42,7 +42,7 @@ struct FriendsView: View {
                 hasSeenICloudIntro = true
                 isShowingICloudSetup = true
             }
-            guard viewModel.state == .idle else { return }
+            guard viewModel.isConnected, viewModel.state == .idle else { return }
             await viewModel.load()
         }
         .sheet(isPresented: $isShowingInvitation) {
@@ -58,7 +58,10 @@ struct FriendsView: View {
             NavigationStack {
                 ICloudSetupView(
                     viewModel: iCloudSetupViewModel,
-                    onDismiss: { isShowingICloudSetup = false }
+                    onDismiss: {
+                        isShowingICloudSetup = false
+                        Task { await viewModel.load() }
+                    }
                 )
             }
         }
@@ -127,18 +130,29 @@ struct FriendsView: View {
 
     @ViewBuilder
     private var content: some View {
-        switch viewModel.state {
-        case .idle, .loading:
-            ProgressView("ランキングを更新中")
-                .frame(maxWidth: .infinity, minHeight: 220)
-        case .error:
+        if !viewModel.isConnected {
             ContentUnavailableView {
-                Label("ランキングを読み込めませんでした", systemImage: "icloud.slash")
+                Label("iCloud連携が必要です", systemImage: "icloud")
+            } description: {
+                Text("右上の設定からiCloudに接続すると、月間距離ランキングと友達追加を利用できます。")
             } actions: {
-                Button("再試行") { Task { await viewModel.load() } }
+                Button("iCloud設定を開く") { isShowingICloudSetup = true }
             }
-        case .loaded:
-            ranking
+            .frame(maxWidth: .infinity, minHeight: 220)
+        } else {
+            switch viewModel.state {
+            case .idle, .loading:
+                ProgressView("ランキングを更新中")
+                    .frame(maxWidth: .infinity, minHeight: 220)
+            case .error:
+                ContentUnavailableView {
+                    Label("ランキングを読み込めませんでした", systemImage: "icloud.slash")
+                } actions: {
+                    Button("再試行") { Task { await viewModel.load() } }
+                }
+            case .loaded:
+                ranking
+            }
         }
     }
 

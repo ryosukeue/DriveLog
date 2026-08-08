@@ -23,6 +23,11 @@ final class FriendsViewModel {
         selectedMonth < currentMonth
     }
 
+    var isConnected: Bool {
+        defaults.bool(forKey: "hasConnectedCloudFriends") ||
+            defaults.string(forKey: "iCloudDisplayName") != nil
+    }
+
     private let service: CloudFriendsService
     private let loadMonthlyDistance: any LoadMonthlyDistanceSeriesUseCase
     private let defaults: UserDefaults
@@ -41,6 +46,11 @@ final class FriendsViewModel {
     }
 
     func load() async {
+        guard isConnected else {
+            state = .idle
+            entries = []
+            return
+        }
         await load(month: selectedMonth)
     }
 
@@ -54,6 +64,10 @@ final class FriendsViewModel {
     }
 
     func prepareInvitation() async {
+        guard isConnected else {
+            errorMessage = "友達追加にはiCloud連携が必要です"
+            return
+        }
         do {
             invitationURL = try await service.invitationURL(displayName: displayName)
         } catch {
@@ -98,6 +112,6 @@ final class FriendsViewModel {
     }
 
     private var displayName: String {
-        defaults.string(forKey: "iCloudDisplayName") ?? "ドライバー"
+        defaults.string(forKey: "iCloudDisplayName") ?? ""
     }
 }
