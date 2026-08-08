@@ -1,3 +1,4 @@
+import CloudKit
 import Foundation
 import Observation
 
@@ -37,8 +38,7 @@ final class ICloudSetupViewModel {
             defaults.set(trimmed.isEmpty ? "ドライバー" : trimmed, forKey: "iCloudDisplayName")
             return true
         } catch {
-            errorMessage = "iCloudに接続できませんでした。" +
-                "設定と通信状態を確認してください。"
+            errorMessage = connectionErrorMessage(for: error)
             status = await service.setupStatus()
             return false
         }
@@ -46,5 +46,28 @@ final class ICloudSetupViewModel {
 
     func dismissError() {
         errorMessage = nil
+    }
+
+    private func connectionErrorMessage(for error: Error) -> String {
+        if case CloudFriendsService.ServiceError.iCloudUnavailable = error {
+            return "iCloudアカウントを確認できません。設定アプリでiCloudにサインインしてから、もう一度お試しください。"
+        }
+        guard let cloudError = error as? CKError else {
+            return "iCloud連携中に予期しないエラーが起きました。\n\(error.localizedDescription)"
+        }
+        switch cloudError.code {
+        case .notAuthenticated:
+            return "iCloudにサインインしていません。設定アプリでiCloudにサインインしてください。"
+        case .badContainer, .missingEntitlement:
+            return "CloudKitコンテナの設定に問題があります。XcodeのSigning & CapabilitiesでiCloud.com.ryosukeue.DriveLogを確認してください。"
+        case .permissionFailure, .serverRejectedRequest:
+            return "CloudKitのアクセス権限またはスキーマ設定に問題があります。CloudKit ConsoleのDevelopment環境を確認してください。"
+        case .networkUnavailable, .networkFailure:
+            return "ネットワークに接続できません。通信状態を確認して、もう一度お試しください。"
+        case .serviceUnavailable, .requestRateLimited, .zoneBusy:
+            return "iCloudが一時的に利用できません。少し時間をおいてから、もう一度お試しください。"
+        default:
+            return "iCloud連携に失敗しました（CloudKit: \(cloudError.code.rawValue)）。"
+        }
     }
 }

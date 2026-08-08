@@ -4,13 +4,18 @@ import SwiftUI
 struct FriendsView: View {
     @State private var viewModel: FriendsViewModel
     @State private var isShowingInvitation = false
+    @State private var isShowingICloudSetup = false
+    @AppStorage("hasSeenFriendsICloudIntro") private var hasSeenICloudIntro = false
+    let iCloudSetupViewModel: ICloudSetupViewModel
     private let distanceFormatter: DistanceFormatter
 
     init(
         viewModel: FriendsViewModel,
+        iCloudSetupViewModel: ICloudSetupViewModel,
         distanceFormatter: DistanceFormatter = DistanceFormatter()
     ) {
         _viewModel = State(initialValue: viewModel)
+        self.iCloudSetupViewModel = iCloudSetupViewModel
         self.distanceFormatter = distanceFormatter
     }
 
@@ -24,7 +29,19 @@ struct FriendsView: View {
             .padding()
         }
         .navigationTitle("友達")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("iCloud設定", systemImage: "gearshape") {
+                    isShowingICloudSetup = true
+                }
+                .accessibilityIdentifier("friends.icloudSettings")
+            }
+        }
         .task {
+            if !hasSeenICloudIntro {
+                hasSeenICloudIntro = true
+                isShowingICloudSetup = true
+            }
             guard viewModel.state == .idle else { return }
             await viewModel.load()
         }
@@ -35,6 +52,14 @@ struct FriendsView: View {
                 ProgressView("招待を準備中")
                     .task { await viewModel.prepareInvitation() }
                     .presentationDetents([.medium])
+            }
+        }
+        .sheet(isPresented: $isShowingICloudSetup) {
+            NavigationStack {
+                ICloudSetupView(
+                    viewModel: iCloudSetupViewModel,
+                    onDismiss: { isShowingICloudSetup = false }
+                )
             }
         }
         .alert(
@@ -87,7 +112,8 @@ struct FriendsView: View {
                 Image(systemName: "chevron.left").frame(width: 36, height: 36)
             }
             Spacer()
-            Text("\(viewModel.selectedMonth.year)年\(viewModel.selectedMonth.month)月")
+            Text(String(viewModel.selectedMonth.year) + "年" + String(viewModel.selectedMonth.month) + "月")
+                .monospacedDigit()
                 .font(.title2.bold())
             Spacer()
             Button {

@@ -25,8 +25,6 @@ struct VehiclesView: View {
                 }
             } header: {
                 Text("登録済みの車")
-            } footer: {
-                Text("現在は1台まで登録できます。車の色は自動で割り当てられます。")
             }
         }
         .navigationTitle("車種登録")

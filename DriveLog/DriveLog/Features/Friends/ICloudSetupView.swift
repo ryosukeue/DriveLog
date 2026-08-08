@@ -2,11 +2,11 @@ import SwiftUI
 
 struct ICloudSetupView: View {
     @State private var viewModel: ICloudSetupViewModel
-    let onCompleted: () -> Void
+    let onDismiss: () -> Void
 
-    init(viewModel: ICloudSetupViewModel, onCompleted: @escaping () -> Void) {
+    init(viewModel: ICloudSetupViewModel, onDismiss: @escaping () -> Void) {
         _viewModel = State(initialValue: viewModel)
-        self.onCompleted = onCompleted
+        self.onDismiss = onDismiss
     }
 
     var body: some View {
@@ -18,10 +18,8 @@ struct ICloudSetupView: View {
             VStack(spacing: 10) {
                 Text("iCloudと連携")
                     .font(.largeTitle.bold())
-                Text(
-                    "友達との月間距離バトルと招待にiCloudを使います。" +
-                        "移動経路や写真は友達には共有されません。"
-                )
+                Text("友達機能を利用するにはiCloud連携が必要です。" +
+                    "共有するのは名前と月間の総移動距離のみで、移動経路や写真は共有されません。")
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
             }
@@ -32,7 +30,7 @@ struct ICloudSetupView: View {
             Button {
                 Task {
                     if await viewModel.connect() {
-                        onCompleted()
+                        onDismiss()
                     }
                 }
             } label: {
@@ -53,7 +51,7 @@ struct ICloudSetupView: View {
                 }
             }
             Button("あとで") {
-                onCompleted()
+                onDismiss()
             }
             .foregroundStyle(.secondary)
             Spacer()
@@ -61,6 +59,11 @@ struct ICloudSetupView: View {
         .padding(28)
         .task {
             await viewModel.check()
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("閉じる", systemImage: "xmark") { onDismiss() }
+            }
         }
         .alert(
             "iCloud連携",

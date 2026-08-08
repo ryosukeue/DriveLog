@@ -51,6 +51,7 @@ struct ContentView: View {
     let monthlyOverviewViewModel: MonthlyOverviewViewModel
     let analyticsViewModel: AnalyticsViewModel
     let friendsViewModel: FriendsViewModel
+    let iCloudSetupViewModel: ICloudSetupViewModel
     let vehiclesViewModel: VehiclesViewModel
     let today: Date
     let makeDayDetailViewModel: (String) -> DayDetailViewModel
@@ -93,7 +94,10 @@ struct ContentView: View {
             .accessibilityIdentifier("tab.analytics")
 
             NavigationStack {
-                FriendsView(viewModel: friendsViewModel)
+                FriendsView(
+                    viewModel: friendsViewModel,
+                    iCloudSetupViewModel: iCloudSetupViewModel
+                )
             }
             .tabItem {
                 Label("友達", systemImage: "person.2.fill")
