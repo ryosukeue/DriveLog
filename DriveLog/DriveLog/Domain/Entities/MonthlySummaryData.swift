@@ -5,6 +5,21 @@ nonisolated struct MonthlySummaryData: Sendable, Equatable {
     let totalDistanceMeters: Double
     let totalMovementDurationSeconds: Double
     let cityRankings: [CityVisitRanking]
+    let vehicleDistances: [VehicleDistanceSummary]
+
+    init(
+        month: LocalMonth,
+        totalDistanceMeters: Double,
+        totalMovementDurationSeconds: Double,
+        cityRankings: [CityVisitRanking],
+        vehicleDistances: [VehicleDistanceSummary] = []
+    ) {
+        self.month = month
+        self.totalDistanceMeters = totalDistanceMeters
+        self.totalMovementDurationSeconds = totalMovementDurationSeconds
+        self.cityRankings = cityRankings
+        self.vehicleDistances = vehicleDistances
+    }
 }
 
 nonisolated struct CityVisitRanking: Sendable, Equatable, Identifiable {

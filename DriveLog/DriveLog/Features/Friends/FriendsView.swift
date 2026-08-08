@@ -1,0 +1,212 @@
+import CoreImage.CIFilterBuiltins
+import SwiftUI
+
+struct FriendsView: View {
+    @State private var viewModel: FriendsViewModel
+    @State private var isShowingInvitation = false
+    private let distanceFormatter: DistanceFormatter
+
+    init(
+        viewModel: FriendsViewModel,
+        distanceFormatter: DistanceFormatter = DistanceFormatter()
+    ) {
+        _viewModel = State(initialValue: viewModel)
+        self.distanceFormatter = distanceFormatter
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                addFriendButton
+                monthSelector
+                content
+            }
+            .padding()
+        }
+        .navigationTitle("友達")
+        .task {
+            guard viewModel.state == .idle else { return }
+            await viewModel.load()
+        }
+        .sheet(isPresented: $isShowingInvitation) {
+            if let invitationURL = viewModel.invitationURL {
+                FriendInvitationView(url: invitationURL)
+            } else {
+                ProgressView("招待を準備中")
+                    .task { await viewModel.prepareInvitation() }
+                    .presentationDetents([.medium])
+            }
+        }
+        .alert(
+            "友達",
+            isPresented: Binding(
+                get: { viewModel.errorMessage != nil || viewModel.invitationMessage != nil },
+                set: { if !$0 { viewModel.dismissMessages() } }
+            )
+        ) {
+            Button("OK") { viewModel.dismissMessages() }
+        } message: {
+            Text(viewModel.errorMessage ?? viewModel.invitationMessage ?? "")
+        }
+        .accessibilityIdentifier("friends.root")
+    }
+
+    private var addFriendButton: some View {
+        Button {
+            isShowingInvitation = true
+            Task { await viewModel.prepareInvitation() }
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "person.badge.plus")
+                    .font(.title2)
+                    .frame(width: 40, height: 40)
+                    .background(.blue.opacity(0.14), in: Circle())
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("友達追加")
+                        .font(.headline)
+                    Text("QRコードまたはリンクで招待")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(.tertiary)
+            }
+            .padding()
+            .background(.background.secondary, in: RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("friends.add")
+    }
+
+    private var monthSelector: some View {
+        HStack {
+            Button {
+                Task { await viewModel.moveToPreviousMonth() }
+            } label: {
+                Image(systemName: "chevron.left").frame(width: 36, height: 36)
+            }
+            Spacer()
+            Text("\(viewModel.selectedMonth.year)年\(viewModel.selectedMonth.month)月")
+                .font(.title2.bold())
+            Spacer()
+            Button {
+                Task { await viewModel.moveToNextMonth() }
+            } label: {
+                Image(systemName: "chevron.right").frame(width: 36, height: 36)
+            }
+            .disabled(!viewModel.canMoveToNextMonth)
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch viewModel.state {
+        case .idle, .loading:
+            ProgressView("ランキングを更新中")
+                .frame(maxWidth: .infinity, minHeight: 220)
+        case .error:
+            ContentUnavailableView {
+                Label("ランキングを読み込めませんでした", systemImage: "icloud.slash")
+            } actions: {
+                Button("再試行") { Task { await viewModel.load() } }
+            }
+        case .loaded:
+            ranking
+        }
+    }
+
+    private var ranking: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("月間移動距離ランキング")
+                .font(.headline)
+            ForEach(viewModel.entries) { entry in
+                HStack(spacing: 14) {
+                    Text("\(entry.rank)")
+                        .font(.title3.bold().monospacedDigit())
+                        .frame(width: 28)
+                        .foregroundStyle(entry.rank <= 3 ? .orange : .secondary)
+                    Image(systemName: entry.isCurrentUser ? "person.crop.circle.fill" : "person.crop.circle")
+                        .font(.title2)
+                        .foregroundStyle(entry.isCurrentUser ? .blue : .secondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.displayName + (entry.isCurrentUser ? "（自分）" : ""))
+                            .font(.body.weight(.semibold))
+                        Text(distanceFormatter.kilometers(
+                            fromMeters: entry.distanceMeters
+                        ) ?? "0 km")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+                .padding()
+                .background(
+                    entry.isCurrentUser ? Color.blue.opacity(0.1) : Color.secondary.opacity(0.08),
+                    in: RoundedRectangle(cornerRadius: 14)
+                )
+            }
+            if viewModel.entries.count == 1 {
+                Text("友達を追加すると、ここでその月の距離と順位を競えます。")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 4)
+            }
+        }
+    }
+}
+
+private struct FriendInvitationView: View {
+    @Environment(\.dismiss) private var dismiss
+    let url: URL
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 24) {
+                Text("このQRコードを友達に読み取ってもらうか、リンクを送ってください。")
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+                if let qrImage {
+                    Image(uiImage: qrImage)
+                        .interpolation(.none)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: 260, maxHeight: 260)
+                        .accessibilityLabel("友達追加用QRコード")
+                }
+                ShareLink(
+                    item: url,
+                    subject: Text("ドライブログで友達になろう"),
+                    message: Text("このリンクからドライブログの友達に追加できます")
+                ) {
+                    Label("LINEなどでリンクを共有", systemImage: "square.and.arrow.up")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+            }
+            .padding(24)
+            .navigationTitle("友達追加")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("完了") { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.large])
+    }
+
+    private var qrImage: UIImage? {
+        let filter = CIFilter.qrCodeGenerator()
+        filter.message = Data(url.absoluteString.utf8)
+        filter.correctionLevel = "M"
+        guard let output = filter.outputImage else { return nil }
+        let transformed = output.transformed(by: CGAffineTransform(scaleX: 12, y: 12))
+        let context = CIContext()
+        guard let image = context.createCGImage(transformed, from: transformed.extent) else {
+            return nil
+        }
+        return UIImage(cgImage: image)
+    }
+}

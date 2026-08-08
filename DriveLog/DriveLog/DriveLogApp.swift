@@ -7,6 +7,7 @@ import UIKit
 struct DriveLogApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @AppStorage("hasCompletedICloudSetup") private var hasCompletedICloudSetup = false
     @State private var onboardingFlowUITestCompleted = false
     private let rootViewModels: DriveLogRootViewModels?
     private let appContainer: AppContainer
@@ -16,6 +17,7 @@ struct DriveLogApp: App {
     private let permissionManager: any PermissionManaging
     private let runsOnboardingFlowUITest: Bool
     private let lifecycleCoordinator: AppLifecycleCoordinator?
+    private let skipsICloudSetup: Bool
 
     @MainActor
     init() {
@@ -30,10 +32,15 @@ struct DriveLogApp: App {
             photoLibrary = uiTest.photoLibrary
             let isSeededUITesting = uiTest.isSeeded
             let isUITesting = uiTest.isEnabled
+            let isRunningTests = ProcessInfo.processInfo.environment[
+                "XCTestConfigurationFilePath"
+            ] != nil
+            skipsICloudSetup = isUITesting || isRunningTests
         #else
             runsOnboardingFlowUITest = false
             permissionManager = PermissionCoordinator()
             let isUITesting = false
+            skipsICloudSetup = false
             photoLibrary = PhotoLibraryProvider()
         #endif
         do {
@@ -72,7 +79,15 @@ struct DriveLogApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if shouldShowOnboarding {
+                if !hasCompletedICloudSetup,
+                   !skipsICloudSetup,
+                   let viewModels = rootViewModels
+                {
+                    ICloudSetupView(
+                        viewModel: viewModels.iCloudSetup,
+                        onCompleted: { hasCompletedICloudSetup = true }
+                    )
+                } else if shouldShowOnboarding {
                     OnboardingView(
                         viewModel: OnboardingViewModel(permissionManager: permissionManager),
                         onCompleted: {
@@ -88,6 +103,8 @@ struct DriveLogApp: App {
                             monthlySummaryViewModel: viewModels.monthlySummary,
                             monthlyOverviewViewModel: viewModels.monthlyOverview,
                             analyticsViewModel: viewModels.analytics,
+                            friendsViewModel: viewModels.friends,
+                            vehiclesViewModel: viewModels.vehicles,
                             today: today,
                             makeDayDetailViewModel: { localDateKey in
                                 appContainer.makeDayDetailViewModel(
@@ -121,6 +138,7 @@ struct DriveLogApp: App {
                 }
             }
             .task {
+                appContainer.startVehicleDetection()
                 await lifecycleCoordinator?.handleLaunch()
             }
             .onChange(of: scenePhase) { _, phase in

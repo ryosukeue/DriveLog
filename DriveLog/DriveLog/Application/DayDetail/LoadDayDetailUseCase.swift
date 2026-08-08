@@ -12,6 +12,7 @@ nonisolated struct DefaultLoadDayDetailUseCase: LoadDayDetailUseCase {
     private let mediaPlacementCalculator: any MediaPlacementCalculating
     private let mapSceneBuilder: any MapSceneBuilding
     private let overrideMatcher: any OverrideMatching
+    private let vehicleAttribution: any VehicleAttributionProviding
 
     init(
         derivedRepository: any DerivedDataRepository,
@@ -20,6 +21,7 @@ nonisolated struct DefaultLoadDayDetailUseCase: LoadDayDetailUseCase {
         mediaCacheRepository: any MediaCacheRepository,
         mediaPlacementCalculator: any MediaPlacementCalculating,
         mapSceneBuilder: any MapSceneBuilding,
+        vehicleAttribution: any VehicleAttributionProviding = EmptyVehicleAttributionProvider(),
         overrideMatcher: any OverrideMatching = OverrideMatcher(
             rules: ProcessingConfiguration.mvp.overrideMatching
         )
@@ -30,6 +32,7 @@ nonisolated struct DefaultLoadDayDetailUseCase: LoadDayDetailUseCase {
         self.mediaCacheRepository = mediaCacheRepository
         self.mediaPlacementCalculator = mediaPlacementCalculator
         self.mapSceneBuilder = mapSceneBuilder
+        self.vehicleAttribution = vehicleAttribution
         self.overrideMatcher = overrideMatcher
     }
 
@@ -77,7 +80,10 @@ nonisolated struct DefaultLoadDayDetailUseCase: LoadDayDetailUseCase {
             aggregate: display.aggregate, movements: display.movements, stays: display.stays,
             media: media, mapScene: display.mapScene,
             isReprocessing: state.status == .processing ||
-                state.rawRevision > state.processedRevision
+                state.rawRevision > state.processedRevision,
+            vehicleDistances: vehicleAttribution.distanceBreakdown(
+                for: display.movements.map(\.segment)
+            )
         )
     }
 
@@ -100,6 +106,10 @@ nonisolated struct DefaultLoadDayDetailUseCase: LoadDayDetailUseCase {
                     for: movement,
                     movements: automotiveMovements,
                     overrides: overrides.classification
+                ),
+                vehicle: vehicleAttribution.vehicle(
+                    forStartDate: movement.startDate,
+                    endDate: movement.endDate
                 )
             )
         }

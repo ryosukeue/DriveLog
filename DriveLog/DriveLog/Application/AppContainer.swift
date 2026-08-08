@@ -1,11 +1,15 @@
 import SwiftData
 
+@MainActor
 final class AppContainer {
     let logger: any Logging
     let clock: any Clock
     let timeZoneProvider: any TimeZoneProviding
     let localTimeContextProvider: any LocalTimeContextProviding
     let hapticFeedback: any HapticFeedbackProviding
+    let vehicleStore: UserDefaultsVehicleStore
+    let audioRouteVehicleDetector: AudioRouteVehicleDetector
+    let cloudFriendsService: CloudFriendsService
 
     convenience init() {
         let timeZoneProvider = SystemTimeZoneProvider()
@@ -16,7 +20,9 @@ final class AppContainer {
             localTimeContextProvider: DefaultLocalTimeContextProvider(
                 timeZoneProvider: timeZoneProvider
             ),
-            hapticFeedback: SystemHapticFeedbackProvider()
+            hapticFeedback: SystemHapticFeedbackProvider(),
+            vehicleStore: UserDefaultsVehicleStore(),
+            cloudFriendsService: CloudFriendsService()
         )
     }
 
@@ -25,13 +31,18 @@ final class AppContainer {
         clock: any Clock,
         timeZoneProvider: any TimeZoneProviding,
         localTimeContextProvider: any LocalTimeContextProviding,
-        hapticFeedback: any HapticFeedbackProviding
+        hapticFeedback: any HapticFeedbackProviding,
+        vehicleStore: UserDefaultsVehicleStore = UserDefaultsVehicleStore(),
+        cloudFriendsService: CloudFriendsService = CloudFriendsService()
     ) {
         self.logger = logger
         self.clock = clock
         self.timeZoneProvider = timeZoneProvider
         self.localTimeContextProvider = localTimeContextProvider
         self.hapticFeedback = hapticFeedback
+        self.vehicleStore = vehicleStore
+        self.cloudFriendsService = cloudFriendsService
+        audioRouteVehicleDetector = AudioRouteVehicleDetector(store: vehicleStore)
     }
 
     func makeCalendarViewModel(
@@ -51,7 +62,8 @@ final class AppContainer {
         MonthlySummaryViewModel(
             loadMonthlySummary: DefaultLoadMonthlySummaryUseCase(
                 repository: SwiftDataDerivedDataRepository(modelContainer: modelContainer),
-                cityNameProvider: SystemCityNameProvider()
+                cityNameProvider: SystemCityNameProvider(),
+                vehicleAttribution: vehicleStore
             )
         )
     }
@@ -75,7 +87,8 @@ final class AppContainer {
                 mediaCacheRepository: mediaCacheRepository,
                 mediaPlacementCalculator: MediaPlacementCalculator(),
                 mapSceneBuilder: MapSceneBuilder(),
-                refreshMediaCache: refreshMediaCache
+                refreshMediaCache: refreshMediaCache,
+                vehicleAttribution: vehicleStore
             ),
             observePhotoLibraryChanges: DefaultObservePhotoLibraryChangesUseCase(
                 photoLibrary: photoLibrary
@@ -106,7 +119,8 @@ final class AppContainer {
                 ),
                 mediaCacheRepository: mediaCacheRepository,
                 mediaPlacementCalculator: MediaPlacementCalculator(),
-                mapSceneBuilder: MapSceneBuilder()
+                mapSceneBuilder: MapSceneBuilder(),
+                vehicleAttribution: vehicleStore
             ),
             loadMediaThumbnail: DefaultLoadMediaThumbnailUseCase(photoLibrary: photoLibrary),
             refreshMediaCache: DefaultRefreshMediaCacheUseCase(
@@ -126,6 +140,21 @@ final class AppContainer {
             ),
             hapticFeedback: hapticFeedback
         )
+    }
+
+    func makeVehiclesViewModel() -> VehiclesViewModel {
+        VehiclesViewModel(
+            store: vehicleStore,
+            detector: audioRouteVehicleDetector
+        )
+    }
+
+    func makeICloudSetupViewModel() -> ICloudSetupViewModel {
+        ICloudSetupViewModel(service: cloudFriendsService)
+    }
+
+    func startVehicleDetection() {
+        audioRouteVehicleDetector.start()
     }
 
     func makeLoadMediaThumbnailUseCase(

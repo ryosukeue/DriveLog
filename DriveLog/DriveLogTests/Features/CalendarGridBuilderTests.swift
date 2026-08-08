@@ -51,4 +51,20 @@ struct CalendarGridBuilderTests {
             )
         }
     }
+
+    @Test("August 2026 exposes all six calendar rows")
+    func sixWeekAugust() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "ja_JP")
+        calendar.timeZone = try #require(TimeZone(identifier: "Asia/Tokyo"))
+        calendar.firstWeekday = 1
+
+        let layout = try CalendarGridBuilder(calendar: calendar).makeLayout(
+            month: LocalMonth(year: 2026, month: 8),
+            today: Date(timeIntervalSince1970: 0)
+        )
+
+        #expect(layout.weekRowCount == 6)
+        #expect(layout.daySlots.compactMap { $0 }.last == 31)
+    }
 }

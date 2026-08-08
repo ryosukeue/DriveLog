@@ -19,6 +19,17 @@ nonisolated struct MapScene: Sendable, Equatable {
 nonisolated struct MapPolyline: Sendable, Equatable {
     let segmentStableID: String
     let coordinates: [RouteCoordinate]
+    let colorHex: String?
+
+    init(
+        segmentStableID: String,
+        coordinates: [RouteCoordinate],
+        colorHex: String? = nil
+    ) {
+        self.segmentStableID = segmentStableID
+        self.coordinates = coordinates
+        self.colorHex = colorHex
+    }
 }
 
 nonisolated struct MapMovementLabel: Sendable, Equatable {

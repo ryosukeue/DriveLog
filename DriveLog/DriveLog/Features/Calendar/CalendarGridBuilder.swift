@@ -5,6 +5,10 @@ nonisolated struct CalendarGridLayout: Sendable, Equatable {
     let weekdaySymbols: [String]
     let daySlots: [Int?]
     let todayDay: Int?
+
+    var weekRowCount: Int {
+        max(1, Int(ceil(Double(daySlots.count) / 7)))
+    }
 }
 
 nonisolated struct CalendarGridBuilder: Sendable {

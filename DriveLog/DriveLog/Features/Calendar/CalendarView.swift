@@ -46,7 +46,7 @@ struct CalendarView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let calendarHeight = max(260, proxy.size.height * 0.4)
+            let calendarHeight = responsiveCalendarHeight(availableWidth: proxy.size.width)
             ScrollView {
                 VStack(spacing: 0) {
                     calendarPager
@@ -109,6 +109,23 @@ struct CalendarView: View {
         .overlay(alignment: .bottom) {
             calendarStatusMessage
         }
+    }
+
+    private func responsiveCalendarHeight(availableWidth: CGFloat) -> CGFloat {
+        let weekCount: Int = if let data = viewModel.months.first(where: {
+            $0.month == selectedMonth
+        }), let layout = try? gridBuilder.makeLayout(month: data.month, today: today) {
+            layout.weekRowCount
+        } else {
+            6
+        }
+        let usableWidth = max(0, availableWidth - 32)
+        let dayHeight = min(54, max(40, usableWidth / 7 * 0.82))
+        let titleAndWeekdayHeight: CGFloat = 68
+        let gridSpacing = CGFloat(max(0, weekCount - 1)) * 2
+        let verticalPadding: CGFloat = 16
+        return titleAndWeekdayHeight + CGFloat(weekCount) * dayHeight +
+            gridSpacing + verticalPadding
     }
 
     private var calendarPager: some View {

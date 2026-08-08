@@ -50,6 +50,8 @@ struct ContentView: View {
     let monthlySummaryViewModel: MonthlySummaryViewModel
     let monthlyOverviewViewModel: MonthlyOverviewViewModel
     let analyticsViewModel: AnalyticsViewModel
+    let friendsViewModel: FriendsViewModel
+    let vehiclesViewModel: VehiclesViewModel
     let today: Date
     let makeDayDetailViewModel: (String) -> DayDetailViewModel
     let loadMediaThumbnail: any LoadMediaThumbnailUseCase
@@ -89,6 +91,25 @@ struct ContentView: View {
                 Label("アナリティクス", systemImage: "chart.bar.xaxis")
             }
             .accessibilityIdentifier("tab.analytics")
+
+            NavigationStack {
+                FriendsView(viewModel: friendsViewModel)
+            }
+            .tabItem {
+                Label("友達", systemImage: "person.2.fill")
+            }
+            .accessibilityIdentifier("tab.friends")
+
+            NavigationStack {
+                VehiclesView(viewModel: vehiclesViewModel)
+            }
+            .tabItem {
+                Label("車種登録", systemImage: "car.fill")
+            }
+            .accessibilityIdentifier("tab.vehicles")
+        }
+        .onOpenURL { url in
+            Task { await friendsViewModel.acceptInvitation(url) }
         }
         .sheet(
             item: $selectedDay,

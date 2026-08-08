@@ -18,7 +18,8 @@ extension RouteMapCoordinator {
     func applyPolylineStyle(to renderer: MKPolylineRenderer, stableID: String?) {
         let isSelected = stableID == selectedSegmentID
         let isSelectionActive = selectedSegmentID != nil
-        renderer.strokeColor = UIColor.systemRed.withAlphaComponent(
+        let color = polylineColor(stableID: stableID)
+        renderer.strokeColor = color.withAlphaComponent(
             isSelectionActive && !isSelected ? 0.45 : 1
         )
         renderer.lineWidth = isSelected ? 8 : (isSelectionActive ? 3 : 4)
@@ -169,8 +170,20 @@ extension RouteMapCoordinator {
             let coordinates = value.coordinates.map(\.mapCoordinate)
             let polyline = MKPolyline(coordinates: coordinates, count: coordinates.count)
             polyline.title = value.segmentStableID
+            polyline.subtitle = value.colorHex
             mapView.addOverlay(polyline)
         }
+    }
+
+    private func polylineColor(stableID: String?) -> UIColor {
+        guard let stableID,
+              let polyline = renderedScene?.polylines.first(where: {
+                  $0.segmentStableID == stableID
+              }),
+              let colorHex = polyline.colorHex,
+              let color = UIColor(driveLogHex: colorHex)
+        else { return .systemRed }
+        return color
     }
 
     private func distance(
@@ -193,5 +206,22 @@ extension RouteMapCoordinator {
             y: start.y + projection * deltaY
         )
         return hypot(point.x - closest.x, point.y - closest.y)
+    }
+}
+
+private extension UIColor {
+    convenience init?(driveLogHex: String) {
+        let value = driveLogHex.trimmingCharacters(
+            in: CharacterSet.alphanumerics.inverted
+        )
+        guard value.count == 6, let number = UInt64(value, radix: 16) else {
+            return nil
+        }
+        self.init(
+            red: CGFloat((number >> 16) & 0xFF) / 255,
+            green: CGFloat((number >> 8) & 0xFF) / 255,
+            blue: CGFloat(number & 0xFF) / 255,
+            alpha: 1
+        )
     }
 }

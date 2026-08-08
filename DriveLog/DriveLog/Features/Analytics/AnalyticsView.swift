@@ -125,6 +125,7 @@ struct AnalyticsView: View {
                     }
                 }
                 distanceChart(series)
+                chartLegend(series)
             }
         }
     }
@@ -133,10 +134,24 @@ struct AnalyticsView: View {
         Chart(series.days) { day in
             BarMark(
                 x: .value("日", day.day),
-                y: .value("移動距離（km）", day.distanceMeters / 1000)
+                y: .value("その他の移動距離（km）", day.otherVehicleDistanceMeters / 1000)
             )
-            .foregroundStyle(day.day == selectedDay ? Color.orange : Color.accentColor)
+            .foregroundStyle(Color.red)
             .cornerRadius(3)
+            .opacity(day.day == selectedDay || selectedDay == nil ? 1 : 0.5)
+            if day.selectedVehicleDistanceMeters > 0 {
+                BarMark(
+                    x: .value("日", day.day),
+                    yStart: .value(
+                        "車両の開始距離（km）",
+                        day.otherVehicleDistanceMeters / 1000
+                    ),
+                    yEnd: .value("総移動距離（km）", day.distanceMeters / 1000)
+                )
+                .foregroundStyle(Color(hex: day.selectedVehicleColorHex ?? "#007AFF"))
+                .cornerRadius(3)
+                .opacity(day.day == selectedDay || selectedDay == nil ? 1 : 0.5)
+            }
             if day.day == selectedDay {
                 RuleMark(x: .value("選択した日", day.day))
                     .foregroundStyle(.secondary.opacity(0.5))
@@ -169,6 +184,29 @@ struct AnalyticsView: View {
         .frame(height: 300)
         .accessibilityIdentifier("analytics.distanceChart")
         .accessibilityLabel("日ごとの移動距離の棒グラフ")
+    }
+
+    @ViewBuilder
+    private func chartLegend(_ series: MonthlyDistanceSeriesData) -> some View {
+        HStack(spacing: 16) {
+            Label {
+                Text("その他")
+            } icon: {
+                Circle().fill(.red).frame(width: 8, height: 8)
+            }
+            if let vehicle = series.selectedVehicle {
+                Label {
+                    Text(vehicle.name)
+                } icon: {
+                    Circle()
+                        .fill(Color(hex: vehicle.colorHex))
+                        .frame(width: 8, height: 8)
+                }
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .accessibilityIdentifier("analytics.vehicleLegend")
     }
 
     private func summaryItem(title: String, value: String) -> some View {

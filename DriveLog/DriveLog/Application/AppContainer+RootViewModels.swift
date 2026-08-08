@@ -5,6 +5,9 @@ struct DriveLogRootViewModels {
     let monthlySummary: MonthlySummaryViewModel
     let monthlyOverview: MonthlyOverviewViewModel
     let analytics: AnalyticsViewModel
+    let friends: FriendsViewModel
+    let vehicles: VehiclesViewModel
+    let iCloudSetup: ICloudSetupViewModel
 }
 
 extension AppContainer {
@@ -26,7 +29,13 @@ extension AppContainer {
             analytics: makeAnalyticsViewModel(
                 modelContainer: modelContainer,
                 currentMonth: displayedMonth
-            )
+            ),
+            friends: makeFriendsViewModel(
+                modelContainer: modelContainer,
+                currentMonth: displayedMonth
+            ),
+            vehicles: makeVehiclesViewModel(),
+            iCloudSetup: makeICloudSetupViewModel()
         )
     }
 
@@ -37,7 +46,22 @@ extension AppContainer {
         AnalyticsViewModel(
             currentMonth: currentMonth,
             loadMonthlyDistanceSeries: DefaultLoadMonthlyDistanceSeriesUseCase(
-                repository: SwiftDataDerivedDataRepository(modelContainer: modelContainer)
+                repository: SwiftDataDerivedDataRepository(modelContainer: modelContainer),
+                vehicleAttribution: vehicleStore
+            )
+        )
+    }
+
+    func makeFriendsViewModel(
+        modelContainer: ModelContainer,
+        currentMonth: LocalMonth
+    ) -> FriendsViewModel {
+        FriendsViewModel(
+            currentMonth: currentMonth,
+            service: cloudFriendsService,
+            loadMonthlyDistance: DefaultLoadMonthlyDistanceSeriesUseCase(
+                repository: SwiftDataDerivedDataRepository(modelContainer: modelContainer),
+                vehicleAttribution: vehicleStore
             )
         )
     }

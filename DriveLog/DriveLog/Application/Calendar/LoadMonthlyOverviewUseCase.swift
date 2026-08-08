@@ -11,6 +11,7 @@ nonisolated struct DefaultLoadMonthlyOverviewUseCase: LoadMonthlyOverviewUseCase
     private let mapSceneBuilder: any MapSceneBuilding
     private let movementFilter: AutomotiveMovementFilter
     private let refreshMediaCache: (any RefreshMediaCacheUseCase)?
+    private let vehicleAttribution: any VehicleAttributionProviding
 
     init(
         repository: any DerivedDataRepository,
@@ -18,7 +19,8 @@ nonisolated struct DefaultLoadMonthlyOverviewUseCase: LoadMonthlyOverviewUseCase
         mediaPlacementCalculator: any MediaPlacementCalculating,
         mapSceneBuilder: any MapSceneBuilding,
         movementFilter: AutomotiveMovementFilter = AutomotiveMovementFilter(),
-        refreshMediaCache: (any RefreshMediaCacheUseCase)? = nil
+        refreshMediaCache: (any RefreshMediaCacheUseCase)? = nil,
+        vehicleAttribution: any VehicleAttributionProviding = EmptyVehicleAttributionProvider()
     ) {
         self.repository = repository
         self.mediaCacheRepository = mediaCacheRepository
@@ -26,6 +28,7 @@ nonisolated struct DefaultLoadMonthlyOverviewUseCase: LoadMonthlyOverviewUseCase
         self.mapSceneBuilder = mapSceneBuilder
         self.movementFilter = movementFilter
         self.refreshMediaCache = refreshMediaCache
+        self.vehicleAttribution = vehicleAttribution
     }
 
     func execute(month: LocalMonth) async throws -> MonthlyOverviewData {
@@ -57,6 +60,16 @@ nonisolated struct DefaultLoadMonthlyOverviewUseCase: LoadMonthlyOverviewUseCase
                 movements: movements,
                 stays: stays,
                 media: placements
+            ).applyingVehicleColors(
+                Dictionary(
+                    movements.compactMap { movement in
+                        vehicleAttribution.vehicle(
+                            forStartDate: movement.startDate,
+                            endDate: movement.endDate
+                        ).map { (movement.stableID, $0.colorHex) }
+                    },
+                    uniquingKeysWith: { first, _ in first }
+                )
             )
             return MonthlyOverviewData(
                 month: month,

@@ -64,6 +64,26 @@ struct MonthlySummaryView: View {
                     value: formatter.duration(seconds: summary.totalMovementDurationSeconds)
                 )
             }
+            if !summary.vehicleDistances.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(summary.vehicleDistances) { value in
+                        HStack(spacing: 10) {
+                            Circle()
+                                .fill(Color(hex: value.vehicle.colorHex))
+                                .frame(width: 10, height: 10)
+                            Text(value.vehicle.name)
+                                .font(.subheadline.weight(.semibold))
+                            Spacer()
+                            Text(distanceFormatter.kilometers(
+                                fromMeters: value.distanceMeters
+                            ) ?? "--")
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .accessibilityIdentifier("calendar.monthlySummary.vehicles")
+            }
             if summary.cityRankings.isEmpty {
                 Text("主要な都市の記録はありません")
                     .foregroundStyle(.secondary)

@@ -76,7 +76,11 @@ struct DayDetailView: View {
             if viewModel.state == .error {
                 inlineError
             }
-            DaySummaryCard(aggregate: data.aggregate, formatter: formatter)
+            DaySummaryCard(
+                aggregate: data.aggregate,
+                vehicleDistances: data.vehicleDistances,
+                formatter: formatter
+            )
             MediaGridSection(
                 media: data.media,
                 loadThumbnail: { localIdentifier, targetSize in

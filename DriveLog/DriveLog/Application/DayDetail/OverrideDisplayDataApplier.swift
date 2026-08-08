@@ -13,7 +13,16 @@ nonisolated struct OverrideDisplayDataApplier: Sendable {
             uniquingKeysWith: { first, _ in first }
         )
         return MapScene(
-            polylines: scene.polylines,
+            polylines: scene.polylines.map { polyline in
+                guard let display = movementsByID[polyline.segmentStableID] else {
+                    return polyline
+                }
+                return MapPolyline(
+                    segmentStableID: polyline.segmentStableID,
+                    coordinates: polyline.coordinates,
+                    colorHex: display.vehicle?.colorHex
+                )
+            },
             movementLabels: scene.movementLabels.map { label in
                 guard let display = movementsByID[label.segmentStableID] else { return label }
                 return label.copy(userClassification: display.userClassification)
@@ -27,6 +36,24 @@ nonisolated struct OverrideDisplayDataApplier: Sendable {
             },
             mediaAnnotations: scene.mediaAnnotations,
             initialRegion: scene.initialRegion
+        )
+    }
+}
+
+nonisolated extension MapScene {
+    func applyingVehicleColors(_ colorsByStableID: [String: String]) -> MapScene {
+        MapScene(
+            polylines: polylines.map { polyline in
+                MapPolyline(
+                    segmentStableID: polyline.segmentStableID,
+                    coordinates: polyline.coordinates,
+                    colorHex: colorsByStableID[polyline.segmentStableID]
+                )
+            },
+            movementLabels: movementLabels,
+            stayAnnotations: stayAnnotations,
+            mediaAnnotations: mediaAnnotations,
+            initialRegion: initialRegion
         )
     }
 }

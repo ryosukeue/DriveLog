@@ -8,15 +8,18 @@ nonisolated struct DefaultLoadMonthlySummaryUseCase: LoadMonthlySummaryUseCase {
     private let repository: any DerivedDataRepository
     private let cityNameProvider: any CityNameProviding
     private let movementFilter: AutomotiveMovementFilter
+    private let vehicleAttribution: any VehicleAttributionProviding
 
     init(
         repository: any DerivedDataRepository,
         cityNameProvider: any CityNameProviding,
-        movementFilter: AutomotiveMovementFilter = AutomotiveMovementFilter()
+        movementFilter: AutomotiveMovementFilter = AutomotiveMovementFilter(),
+        vehicleAttribution: any VehicleAttributionProviding = EmptyVehicleAttributionProvider()
     ) {
         self.repository = repository
         self.cityNameProvider = cityNameProvider
         self.movementFilter = movementFilter
+        self.vehicleAttribution = vehicleAttribution
     }
 
     func execute(month: LocalMonth) async throws -> MonthlySummaryData {
@@ -24,6 +27,7 @@ nonisolated struct DefaultLoadMonthlySummaryUseCase: LoadMonthlySummaryUseCase {
             let aggregates = try await repository.aggregates(in: month)
             var totalDistance = 0.0
             var totalDuration = 0.0
+            var allMovements: [MovementSegmentData] = []
             var cityCounts: [String: Int] = [:]
             let geocodeCache = CityGeocodeCache(provider: cityNameProvider)
 
@@ -35,6 +39,7 @@ nonisolated struct DefaultLoadMonthlySummaryUseCase: LoadMonthlySummaryUseCase {
                 )
                 totalDistance += contribution.distance
                 totalDuration += contribution.duration
+                allMovements.append(contentsOf: contribution.movements)
                 for city in contribution.cities {
                     cityCounts[city, default: 0] += 1
                 }
@@ -53,7 +58,8 @@ nonisolated struct DefaultLoadMonthlySummaryUseCase: LoadMonthlySummaryUseCase {
                 month: month,
                 totalDistanceMeters: totalDistance,
                 totalMovementDurationSeconds: totalDuration,
-                cityRankings: Array(rankings)
+                cityRankings: Array(rankings),
+                vehicleDistances: vehicleAttribution.distanceBreakdown(for: allMovements)
             )
         } catch let error as DriveLogError {
             throw error
@@ -81,11 +87,21 @@ nonisolated struct DefaultLoadMonthlySummaryUseCase: LoadMonthlySummaryUseCase {
         guard (usesStoredAggregate && hasValidStoredAggregate) ||
             (!usesStoredAggregate && hasUsableMovements)
         else {
-            return MonthlySummaryContribution(distance: 0, duration: 0, cities: [])
+            return MonthlySummaryContribution(
+                distance: 0,
+                duration: 0,
+                cities: [],
+                movements: []
+            )
         }
         let stays = try await repository.staySegments(for: aggregate.localDateKey)
         let cities = await collectCities(stays: stays, geocodeCache: geocodeCache)
-        return MonthlySummaryContribution(distance: distance, duration: duration, cities: cities)
+        return MonthlySummaryContribution(
+            distance: distance,
+            duration: duration,
+            cities: cities,
+            movements: retainedMovements
+        )
     }
 
     private func collectCities(
@@ -106,6 +122,7 @@ private struct MonthlySummaryContribution: Sendable {
     let distance: Double
     let duration: Double
     let cities: [String]
+    let movements: [MovementSegmentData]
 }
 
 private actor CityGeocodeCache {

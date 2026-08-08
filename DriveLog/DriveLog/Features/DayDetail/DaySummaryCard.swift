@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DaySummaryCard: View {
     let aggregate: DayAggregateData
+    let vehicleDistances: [VehicleDistanceSummary]
     let formatter: DayDetailFormatter
 
     private let columns = [GridItem(.adaptive(minimum: 130), spacing: 12)]
@@ -24,6 +25,24 @@ struct DaySummaryCard: View {
                 summaryItem(title: "開始", value: formatter.time(aggregate.startDate))
                 summaryItem(title: "終了", value: formatter.time(aggregate.endDate))
                 summaryItem(title: "写真・動画", value: "\(aggregate.mediaCountCache)件")
+            }
+            if !vehicleDistances.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(vehicleDistances) { value in
+                        HStack(spacing: 10) {
+                            Circle()
+                                .fill(Color(hex: value.vehicle.colorHex))
+                                .frame(width: 10, height: 10)
+                            Text(value.vehicle.name)
+                                .font(.subheadline.weight(.semibold))
+                            Spacer()
+                            Text(formatter.distance(meters: value.distanceMeters))
+                                .font(.subheadline.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .accessibilityIdentifier("dayDetail.summary.vehicles")
             }
         }
         .accessibilityIdentifier("dayDetail.summary")

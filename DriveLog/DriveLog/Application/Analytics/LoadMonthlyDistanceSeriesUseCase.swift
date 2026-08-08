@@ -7,13 +7,16 @@ nonisolated protocol LoadMonthlyDistanceSeriesUseCase: Sendable {
 nonisolated struct DefaultLoadMonthlyDistanceSeriesUseCase: LoadMonthlyDistanceSeriesUseCase {
     private let repository: any DerivedDataRepository
     private let movementFilter: AutomotiveMovementFilter
+    private let vehicleAttribution: any VehicleAttributionProviding
 
     init(
         repository: any DerivedDataRepository,
-        movementFilter: AutomotiveMovementFilter = AutomotiveMovementFilter()
+        movementFilter: AutomotiveMovementFilter = AutomotiveMovementFilter(),
+        vehicleAttribution: any VehicleAttributionProviding = EmptyVehicleAttributionProvider()
     ) {
         self.repository = repository
         self.movementFilter = movementFilter
+        self.vehicleAttribution = vehicleAttribution
     }
 
     func execute(month: LocalMonth) async throws -> MonthlyDistanceSeriesData {
@@ -21,6 +24,8 @@ nonisolated struct DefaultLoadMonthlyDistanceSeriesUseCase: LoadMonthlyDistanceS
             let dayCount = try numberOfDays(in: month)
             let aggregates = try await repository.aggregates(in: month)
             var distancesByDate: [String: Double] = [:]
+            var vehicleDistancesByDate: [String: Double] = [:]
+            let selectedVehicle = vehicleAttribution.registeredVehicles().first
 
             for aggregate in aggregates {
                 try Task.checkCancellation()
@@ -31,6 +36,15 @@ nonisolated struct DefaultLoadMonthlyDistanceSeriesUseCase: LoadMonthlyDistanceS
                     aggregate: aggregate,
                     movements: movements
                 )
+                vehicleDistancesByDate[aggregate.localDateKey] = selectedVehicle.map { vehicle in
+                    movementFilter.retained(movements).reduce(0) { result, movement in
+                        let detected = vehicleAttribution.vehicle(
+                            forStartDate: movement.startDate,
+                            endDate: movement.endDate
+                        )
+                        return result + (detected?.id == vehicle.id ? max(0, movement.distanceMeters) : 0)
+                    }
+                } ?? 0
             }
 
             let days = (1 ... dayCount).map { day in
@@ -38,7 +52,10 @@ nonisolated struct DefaultLoadMonthlyDistanceSeriesUseCase: LoadMonthlyDistanceS
                 return DailyDistanceData(
                     localDateKey: key,
                     day: day,
-                    distanceMeters: distancesByDate[key, default: 0]
+                    distanceMeters: distancesByDate[key, default: 0],
+                    selectedVehicleDistanceMeters: vehicleDistancesByDate[key, default: 0],
+                    selectedVehicleName: selectedVehicle?.name,
+                    selectedVehicleColorHex: selectedVehicle?.colorHex
                 )
             }
             return MonthlyDistanceSeriesData(month: month, days: days)
