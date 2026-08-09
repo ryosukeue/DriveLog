@@ -40,6 +40,15 @@ final class AudioRouteVehicleDetector {
     }
 
     func refresh() {
+        #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-ui-testing-fuel-review") {
+                let updatedVehicle = store.registeredVehicles().first
+                guard updatedVehicle != detectedVehicle else { return }
+                detectedVehicle = updatedVehicle
+                onDetectedVehicleChange?(updatedVehicle)
+                return
+            }
+        #endif
         availableDevices = session.currentRoute.outputs
             .filter(Self.isVehicleCapableAudioRoute)
             .map {

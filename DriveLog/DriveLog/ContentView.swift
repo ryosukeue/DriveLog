@@ -146,6 +146,13 @@ struct ContentView: View {
         .onOpenURL { url in
             Task { await friendsViewModel.acceptInvitation(url) }
         }
+        .task {
+            #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("-ui-testing-fuel-review") {
+                    selectedTab = .analytics
+                }
+            #endif
+        }
         .sheet(
             item: $selectedDay,
             onDismiss: {

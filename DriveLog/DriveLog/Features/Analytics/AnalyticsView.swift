@@ -23,35 +23,45 @@ struct AnalyticsView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                monthSelector
-                content
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    monthSelector
+                    content
+                }
+                .padding()
             }
-            .padding()
-        }
-        .navigationTitle("アナリティクス")
-        .task {
-            guard viewModel.state == .idle else { return }
-            await viewModel.load()
-        }
-        .onAppear {
-            viewModel.refreshVehicleData()
-        }
-        .onChange(of: viewModel.selectedMonth) { _, _ in
-            selectedDay = nil
-        }
-        .accessibilityIdentifier("analytics.root")
-        .alert(
-            "燃費記録",
-            isPresented: Binding(
-                get: { viewModel.fuelRecordNotice != nil },
-                set: { if !$0 { viewModel.dismissFuelRecordNotice() } }
+            .navigationTitle("アナリティクス")
+            .task {
+                if viewModel.state == .idle {
+                    await viewModel.load()
+                }
+                guard runsFuelReviewScreenshot else { return }
+                try? await Task.sleep(for: .milliseconds(500))
+                proxy.scrollTo("analytics.fuelEconomySection", anchor: .top)
+            }
+            .onAppear {
+                viewModel.refreshVehicleData()
+            }
+            .onChange(of: viewModel.selectedMonth) { _, _ in
+                selectedDay = nil
+            }
+            .accessibilityIdentifier("analytics.root")
+            .alert(
+                "燃費記録",
+                isPresented: Binding(
+                    get: { viewModel.fuelRecordNotice != nil },
+                    set: { if !$0 { viewModel.dismissFuelRecordNotice() } }
+                )
+            ) {
+                Button("OK") { viewModel.dismissFuelRecordNotice() }
+            } message: {
+                Text(viewModel.fuelRecordNotice ?? "")
+            }
+            .environment(
+                \.locale,
+                runsFuelReviewScreenshot ? Locale(identifier: "ja_JP") : .autoupdatingCurrent
             )
-        ) {
-            Button("OK") { viewModel.dismissFuelRecordNotice() }
-        } message: {
-            Text(viewModel.fuelRecordNotice ?? "")
         }
     }
 
@@ -252,6 +262,7 @@ struct AnalyticsView: View {
         }
         .padding()
         .background(.background.secondary, in: RoundedRectangle(cornerRadius: 16))
+        .id("analytics.fuelEconomySection")
         .accessibilityIdentifier("analytics.fuelEconomySection")
     }
 
@@ -469,6 +480,14 @@ struct AnalyticsView: View {
             .replacingOccurrences(of: ",", with: ".")
         guard let value = Double(normalized), value.isFinite, value > 0 else { return nil }
         return value
+    }
+
+    private var runsFuelReviewScreenshot: Bool {
+        #if DEBUG
+            ProcessInfo.processInfo.arguments.contains("-ui-testing-fuel-review")
+        #else
+            false
+        #endif
     }
 
     private var displayedFuelRecords: [VehicleFuelRecord] {

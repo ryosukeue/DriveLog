@@ -255,6 +255,66 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
         }
     }
 
+    #if DEBUG
+        func seedFuelReviewScreenshotData(now: Date, calendar: Calendar) {
+            let components = calendar.dateComponents([.year, .month], from: now)
+            guard let monthStart = calendar.date(from: DateComponents(
+                year: components.year,
+                month: components.month,
+                day: 1,
+                hour: 12
+            )) else { return }
+
+            let vehicleID = UUID(uuidString: "34000000-0000-0000-0000-000000000034") ?? UUID()
+            let vehicle = VehicleProfile(
+                id: vehicleID,
+                name: "34",
+                audioRouteUID: "fuel-review-34",
+                audioRouteName: "34 Bluetooth",
+                colorHex: "#007AFF",
+                createdAt: monthStart,
+                odometerKilometers: 34_820,
+                oilChangeIntervalKilometers: 5_000,
+                lastOilChangeOdometerKilometers: 32_000,
+                usesHighAccuracyTracking: true
+            )
+            let entries: [(dayOffset: Int, liters: Double, fullTank: Bool, distance: Double)] = [
+                (0, 38.0, true, 0),
+                (2, 23.5, true, 310),
+                (4, 16.0, false, 540),
+                (6, 22.5, true, 825),
+                (8, 28.0, true, 1_194)
+            ]
+            let records = entries.compactMap { entry -> VehicleFuelRecord? in
+                guard let date = calendar.date(
+                    byAdding: .day,
+                    value: entry.dayOffset,
+                    to: monthStart
+                ) else { return nil }
+                return VehicleFuelRecord(
+                    id: UUID(),
+                    vehicleID: vehicleID,
+                    date: date,
+                    liters: entry.liters,
+                    isFullTank: entry.fullTank,
+                    trackedDistanceKilometers: entry.distance
+                )
+            }
+
+            _ = try? mutate { state in
+                state = StoredState()
+                state.vehicles = [vehicle]
+                state.fuelRecords = records
+                state.fuelTrackingDistanceKilometersByVehicleID[vehicleID] = 1_194
+                state.intervals = [DetectionInterval(
+                    vehicleID: vehicleID,
+                    startDate: now.addingTimeInterval(-3_600),
+                    endDate: nil
+                )]
+            }
+        }
+    #endif
+
     func updateDetectedAudioRoute(uid: String?, at date: Date = Date()) {
         _ = try? mutate { state in
             let detectedVehicleID = state.vehicles.first { $0.audioRouteUID == uid }?.id

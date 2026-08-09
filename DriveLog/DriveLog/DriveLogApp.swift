@@ -25,6 +25,11 @@ struct DriveLogApp: App {
         today = now
         #if DEBUG
             let uiTest = Self.makeUITestConfiguration(now: now, timeZone: container.timeZoneProvider.current)
+            if uiTest.usesFuelReviewFixture {
+                var calendar = Calendar(identifier: .gregorian)
+                calendar.timeZone = container.timeZoneProvider.current
+                container.vehicleStore.seedFuelReviewScreenshotData(now: now, calendar: calendar)
+            }
             runsOnboardingFlowUITest = uiTest.runsOnboardingFlow
             permissionManager = uiTest.permissionManager
             photoLibrary = uiTest.photoLibrary
@@ -164,10 +169,14 @@ struct DriveLogApp: App {
             let arguments = ProcessInfo.processInfo.arguments
             let runsOnboardingFlow = arguments.contains("-ui-testing-onboarding-flow")
             let usesDenseMapFixture = arguments.contains("-ui-testing-july-17-map")
-            let isMedia = arguments.contains("-ui-testing-media") || usesDenseMapFixture
+            let usesFuelReviewFixture = arguments.contains("-ui-testing-fuel-review")
+            let isMedia = arguments.contains("-ui-testing-media")
+                || usesDenseMapFixture
+                || usesFuelReviewFixture
             let isSeeded = isMedia
                 || arguments.contains("-ui-testing-day-detail")
                 || usesDenseMapFixture
+                || usesFuelReviewFixture
             let isEnabled = isSeeded
                 || arguments.contains("-ui-testing-calendar")
                 || runsOnboardingFlow
@@ -182,7 +191,8 @@ struct DriveLogApp: App {
                 runsOnboardingFlow: runsOnboardingFlow,
                 isSeeded: isSeeded,
                 isEnabled: isEnabled,
-                usesDenseMapFixture: usesDenseMapFixture
+                usesDenseMapFixture: usesDenseMapFixture,
+                usesFuelReviewFixture: usesFuelReviewFixture
             )
         }
 
@@ -267,6 +277,7 @@ struct DriveLogApp: App {
         let isSeeded: Bool
         let isEnabled: Bool
         let usesDenseMapFixture: Bool
+        let usesFuelReviewFixture: Bool
     }
 #endif
 
@@ -297,6 +308,7 @@ private extension DriveLogApp {
                 || arguments.contains("-ui-testing-media")
                 || arguments.contains("-ui-testing-calendar")
                 || arguments.contains("-ui-testing-july-17-map")
+                || arguments.contains("-ui-testing-fuel-review")
             if bypassesOnboarding {
                 return false
             }
