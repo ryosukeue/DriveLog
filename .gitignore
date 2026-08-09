@@ -4,6 +4,7 @@ DerivedData/
 xcuserdata/
 *.xcuserstate
 *.xcresult
+*.xcarchive
 *.log
 *.tmp
 Thumbs.db
