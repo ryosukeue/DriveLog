@@ -14,8 +14,12 @@
 2. DriveLogの「サブスクリプション」で`DriveLog Plus`グループを作成する。
 3. 上の商品IDで1か月の自動更新サブスクリプションを作成する。
 4. 日本の価格設定で「すべての価格を表示」から選択可能な最安価格を選ぶ。
-5. 日本語の表示名と説明を登録し、審査用スクリーンショットを追加する。
-6. Appの新しいバージョンにサブスクリプションを紐づけて審査へ提出する。
+5. 「お試し価格」で初回利用者向けオファーを追加する。
+   - 種類: 無料トライアル
+   - 期間: 1週間（7日間）
+   - 対象地域: 商品を販売するすべての地域
+6. 日本語の表示名と説明を登録し、審査用スクリーンショットを追加する。
+7. Appの新しいバージョンにサブスクリプションを紐づけて審査へ提出する。
 
 価格はアプリへ直書きしていない。StoreKitが返す`displayPrice`を表示するため、App Store
 Connectの価格変更や国別価格へ自動で追従する。
@@ -31,3 +35,4 @@ Apple公式:
 
 - https://developer.apple.com/help/app-store-connect/manage-subscriptions/offer-auto-renewable-subscriptions/
 - https://developer.apple.com/help/app-store-connect/manage-subscriptions/manage-pricing-for-auto-renewable-subscriptions/
+- https://developer.apple.com/help/app-store-connect/manage-subscriptions/set-up-introductory-offers-for-auto-renewable-subscriptions/

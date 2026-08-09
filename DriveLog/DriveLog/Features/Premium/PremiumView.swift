@@ -45,7 +45,9 @@ struct PremiumView: View {
             Text(
                 plusPlanStore.isPlus
                     ? "Plusプランをご利用中です"
-                    : "車との毎日を、もっと詳しく記録"
+                    : plusPlanStore.isEligibleForSevenDayTrial
+                        ? "最初の7日間は無料です"
+                        : "車との毎日を、もっと詳しく記録"
             )
             .font(.headline)
             .foregroundStyle(.secondary)
@@ -114,6 +116,8 @@ struct PremiumView: View {
                     Group {
                         if plusPlanStore.state == .purchasing {
                             ProgressView()
+                        } else if plusPlanStore.isEligibleForSevenDayTrial {
+                            Text("7日間無料で試す")
                         } else if let price = plusPlanStore.displayPrice {
                             Text("Plusを始める  \(price)/月")
                         } else {
@@ -150,8 +154,18 @@ struct PremiumView: View {
                     )!
                 )
 
+                if plusPlanStore.isEligibleForSevenDayTrial,
+                   let price = plusPlanStore.displayPrice
+                {
+                    Text("7日間無料、その後は\(price)/月")
+                        .font(.subheadline.weight(.semibold))
+                }
+
                 Text(
-                    "月額の自動更新サブスクリプションです。解約するまで毎月更新されます。" +
+                    (plusPlanStore.isEligibleForSevenDayTrial
+                        ? "無料期間終了後は月額の自動更新サブスクリプションとして、"
+                        : "月額の自動更新サブスクリプションとして、") +
+                        "解約するまで毎月更新されます。" +
                         "購入後はApple Accountのサブスクリプション設定からいつでも解約できます。"
                 )
                 .font(.caption)

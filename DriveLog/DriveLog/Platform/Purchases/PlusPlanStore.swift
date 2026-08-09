@@ -39,6 +39,7 @@ final class PlusPlanStore {
     private(set) var isPlus: Bool
     private(set) var state: PlusPlanPurchaseState = .idle
     private(set) var hasResolvedEntitlement = false
+    private(set) var isEligibleForSevenDayTrial = false
 
     var displayPrice: String? {
         product?.displayPrice
@@ -64,6 +65,7 @@ final class PlusPlanStore {
         hasResolvedEntitlement = true
         do {
             product = try await Product.products(for: [Self.productID]).first
+            isEligibleForSevenDayTrial = await eligibleForSevenDayTrial(product)
             hasLoaded = true
             state = product == nil && !isPlus ? .unavailable : .idle
         } catch {
@@ -141,6 +143,25 @@ final class PlusPlanStore {
                 await transaction.finish()
                 await self?.refreshEntitlement()
             }
+        }
+    }
+
+    private func eligibleForSevenDayTrial(_ product: Product?) async -> Bool {
+        guard let subscription = product?.subscription,
+              let offer = subscription.introductoryOffer,
+              offer.paymentMode == .freeTrial,
+              await subscription.isEligibleForIntroOffer
+        else { return false }
+        let periodCount = max(1, offer.periodCount)
+        switch offer.period.unit {
+        case .day:
+            return offer.period.value * periodCount == 7
+        case .week:
+            return offer.period.value * periodCount == 1
+        case .month, .year:
+            return false
+        @unknown default:
+            return false
         }
     }
 
