@@ -5,6 +5,14 @@ import StoreKit
 nonisolated final class PlusEntitlementCache: @unchecked Sendable {
     static let storageKey = "plus.plan.entitled.v1"
 
+    static var grantsPlusForTesting: Bool {
+        #if DEBUG
+            true
+        #else
+            false
+        #endif
+    }
+
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -12,7 +20,7 @@ nonisolated final class PlusEntitlementCache: @unchecked Sendable {
     }
 
     var isPlus: Bool {
-        defaults.bool(forKey: Self.storageKey)
+        Self.grantsPlusForTesting || defaults.bool(forKey: Self.storageKey)
     }
 
     func setIsPlus(_ value: Bool) {
@@ -121,6 +129,10 @@ final class PlusPlanStore {
     }
 
     private func refreshEntitlement() async {
+        if PlusEntitlementCache.grantsPlusForTesting {
+            isPlus = true
+            return
+        }
         var hasActiveEntitlement = false
         for await result in Transaction.currentEntitlements {
             guard let transaction = try? verified(result),
