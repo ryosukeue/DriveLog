@@ -1,6 +1,5 @@
 import Foundation
 import Observation
-import StoreKit
 
 @MainActor
 @Observable
@@ -9,14 +8,12 @@ final class VehiclesViewModel {
     private(set) var availableDevices: [AudioRouteDevice] = []
     private(set) var detectedVehicle: VehicleProfile?
     private(set) var errorMessage: String?
-    private let slotStore: VehicleSlotStore
+
+    private static let vehicleLimit = 1
 
     var canAddVehicle: Bool {
-        vehicles.count < slotStore.vehicleLimit
+        vehicles.count < Self.vehicleLimit
     }
-
-    var extraSlotProduct: Product? { slotStore.product }
-    var isPurchasingSlot: Bool { slotStore.isPurchasing }
 
     private let store: UserDefaultsVehicleStore
     private let detector: AudioRouteVehicleDetector
@@ -25,13 +22,11 @@ final class VehiclesViewModel {
     init(
         store: UserDefaultsVehicleStore,
         detector: AudioRouteVehicleDetector,
-        oilChangeNotifier: any VehicleOilChangeNotifying = EmptyVehicleOilChangeNotifier(),
-        slotStore: VehicleSlotStore? = nil
+        oilChangeNotifier: any VehicleOilChangeNotifying = EmptyVehicleOilChangeNotifier()
     ) {
         self.store = store
         self.detector = detector
         self.oilChangeNotifier = oilChangeNotifier
-        self.slotStore = slotStore ?? VehicleSlotStore()
         reload()
     }
 
@@ -56,7 +51,7 @@ final class VehiclesViewModel {
                 odometerKilometers: odometerKilometers,
                 oilChangeIntervalKilometers: oilChangeIntervalKilometers,
                 lastOilChangeOdometerKilometers: lastOilChangeOdometerKilometers,
-                userVisibleLimit: slotStore.vehicleLimit
+                userVisibleLimit: Self.vehicleLimit
             )
             detector.refresh()
             reload()
@@ -110,14 +105,6 @@ final class VehiclesViewModel {
 
     func dismissError() {
         errorMessage = nil
-    }
-
-    func loadPurchaseProduct() async { await slotStore.loadProduct() }
-
-    func purchaseExtraSlot() async -> Bool {
-        let completed = await slotStore.purchaseSlot()
-        if let message = slotStore.errorMessage { errorMessage = message }
-        return completed
     }
 
     private func reload() {

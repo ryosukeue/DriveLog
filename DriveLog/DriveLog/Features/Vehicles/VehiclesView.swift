@@ -1,5 +1,4 @@
 import SwiftUI
-import StoreKit
 
 struct VehiclesView: View {
     @State private var viewModel: VehiclesViewModel
@@ -33,7 +32,6 @@ struct VehiclesView: View {
                         "走行中の車を判定します。"
                 )
             }
-            addAnotherVehicleSection
         }
         .navigationTitle("車種登録")
         .toolbar {
@@ -50,7 +48,6 @@ struct VehiclesView: View {
         }
         .task {
             viewModel.refresh()
-            await viewModel.loadPurchaseProduct()
         }
         .sheet(isPresented: $isShowingRegistration) {
             VehicleRegistrationView(viewModel: viewModel)
@@ -86,33 +83,6 @@ struct VehiclesView: View {
             Text(viewModel.errorMessage ?? "")
         }
         .accessibilityIdentifier("vehicles.root")
-    }
-
-    @ViewBuilder
-    private var addAnotherVehicleSection: some View {
-        if !viewModel.canAddVehicle {
-            Section {
-                Button {
-                    Task { _ = await viewModel.purchaseExtraSlot() }
-                } label: {
-                    HStack {
-                        Label("登録枠を1台増やす", systemImage: "plus.circle")
-                        Spacer()
-                        if viewModel.isPurchasingSlot {
-                            ProgressView()
-                        } else {
-                            Text(viewModel.extraSlotProduct?.displayPrice ?? "240円")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                .disabled(viewModel.isPurchasingSlot || viewModel.extraSlotProduct == nil)
-            } header: {
-                Text("車両を追加")
-            } footer: {
-                Text("購入すると、さらに1台の車を登録できます。")
-            }
-        }
     }
 
     private func vehicleRow(_ vehicle: VehicleProfile) -> some View {
