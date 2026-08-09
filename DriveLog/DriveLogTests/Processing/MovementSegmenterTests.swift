@@ -23,10 +23,10 @@ struct MovementSegmenterTests {
         #expect(single.discardedSegments.map(\.locations) == [[point]])
     }
 
-    @Test("keeps continuous movement below 90 minutes")
+    @Test("keeps continuous movement below 15 minutes")
     func continuousMovement() {
         let first = location(distance: 0, seconds: 0)
-        let second = location(distance: 200, seconds: 5399)
+        let second = location(distance: 200, seconds: 899)
 
         let result = segment([first, second])
 
@@ -35,8 +35,8 @@ struct MovementSegmenterTests {
         #expect(abs(result.segments[0].distanceMeters - 200) < 0.001)
     }
 
-    @Test(arguments: [5400.0, 5401.0])
-    func splitsAtAndAboveNinetyMinutes(gap: TimeInterval) {
+    @Test(arguments: [900.0, 901.0])
+    func splitsAtAndAboveFifteenMinutes(gap: TimeInterval) {
         let points = boundaryPoints(gap: gap)
 
         let result = segment(points)
@@ -157,9 +157,9 @@ struct MovementSegmenterTests {
         let points = [
             location(distance: 0, seconds: 0),
             location(distance: 200, seconds: 60),
-            location(distance: 250, seconds: 5460),
-            location(distance: 500, seconds: 10860),
-            location(distance: 700, seconds: 10920)
+            location(distance: 250, seconds: 960),
+            location(distance: 500, seconds: 1860),
+            location(distance: 700, seconds: 1920)
         ]
 
         let result = segment(points)

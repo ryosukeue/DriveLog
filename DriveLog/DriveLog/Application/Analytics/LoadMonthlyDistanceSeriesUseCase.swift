@@ -38,11 +38,11 @@ nonisolated struct DefaultLoadMonthlyDistanceSeriesUseCase: LoadMonthlyDistanceS
                 )
                 vehicleDistancesByDate[aggregate.localDateKey] = selectedVehicle.map { vehicle in
                     movementFilter.retained(movements).reduce(0) { result, movement in
-                        let detected = vehicleAttribution.vehicle(
+                        let share = vehicleAttribution.distanceShares(
                             forStartDate: movement.startDate,
                             endDate: movement.endDate
-                        )
-                        return result + (detected?.id == vehicle.id ? max(0, movement.distanceMeters) : 0)
+                        ).first { $0.vehicleID == vehicle.id }?.fraction ?? 0
+                        return result + max(0, movement.distanceMeters) * share
                     }
                 } ?? 0
             }

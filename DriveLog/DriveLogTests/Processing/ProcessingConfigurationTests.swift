@@ -12,7 +12,7 @@ struct ProcessingConfigurationTests {
         #expect(configuration.location.duplicateDistance == 10)
         #expect(configuration.location.maximumHorizontalAccuracy == 500)
         #expect(configuration.location.maximumPlausibleSpeed == 250 / 3.6)
-        #expect(configuration.segmentation.maximumContinuousGap == 5400)
+        #expect(configuration.segmentation.maximumContinuousGap == 900)
         #expect(configuration.segmentation.minimumSegmentDistance == 100)
         #expect(configuration.segmentation.minimumSegmentPointCount == 2)
         #expect(configuration.segmentation.minimumSpeedDisplayDuration == 120)

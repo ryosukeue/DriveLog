@@ -338,14 +338,27 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
     }
 
     func vehicle(forStartDate startDate: Date, endDate: Date) -> VehicleProfile? {
-        guard endDate >= startDate else { return nil }
+        let dominantShare = distanceShares(forStartDate: startDate, endDate: endDate)
+            .max { first, second in first.fraction < second.fraction }
+        guard let dominantShare, dominantShare.fraction >= 0.5 else { return nil }
         return lock.withLock { state in
-            guard let vehicleID = Self.vehicleID(
+            state.vehicles.first { $0.id == dominantShare.vehicleID }
+        }
+    }
+
+    func distanceShares(
+        forStartDate startDate: Date,
+        endDate: Date
+    ) -> [VehicleDistanceShare] {
+        let duration = endDate.timeIntervalSince(startDate)
+        guard duration > 0, duration.isFinite else { return [] }
+        return lock.withLock { state in
+            Self.distanceShares(
                 forStartDate: startDate,
                 endDate: endDate,
-                intervals: state.intervals
-            ) else { return nil }
-            return state.vehicles.first { $0.id == vehicleID }
+                intervals: state.intervals,
+                registeredVehicleIDs: Set(state.vehicles.map(\.id))
+            )
         }
     }
 
@@ -356,12 +369,16 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
         (try? mutate { state in
             let registeredVehicleIDs = Set(state.vehicles.map(\.id))
             let newDistances = movements.reduce(into: [UUID: Double]()) { result, movement in
-                guard let vehicleID = Self.vehicleID(
+                let shares = Self.distanceShares(
                     forStartDate: movement.startDate,
                     endDate: movement.endDate,
-                    intervals: state.intervals
-                ), registeredVehicleIDs.contains(vehicleID) else { return }
-                result[vehicleID, default: 0] += max(0, movement.distanceMeters) / 1_000
+                    intervals: state.intervals,
+                    registeredVehicleIDs: registeredVehicleIDs
+                )
+                for share in shares where registeredVehicleIDs.contains(share.vehicleID) {
+                    result[share.vehicleID, default: 0] += max(0, movement.distanceMeters)
+                        * share.fraction / 1_000
+                }
             }
             let existingIndex = state.dayDistanceCredits.firstIndex {
                 $0.localDateKey == localDateKey
@@ -433,20 +450,34 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
         }) ?? []
     }
 
-    private static func vehicleID(
+    private static func distanceShares(
         forStartDate startDate: Date,
         endDate: Date,
-        intervals: [DetectionInterval]
-    ) -> UUID? {
-        intervals.compactMap { interval -> (UUID, TimeInterval)? in
+        intervals: [DetectionInterval],
+        registeredVehicleIDs: Set<UUID>
+    ) -> [VehicleDistanceShare] {
+        let duration = endDate.timeIntervalSince(startDate)
+        guard duration > 0, duration.isFinite else { return [] }
+        let overlaps = intervals.reduce(into: [UUID: TimeInterval]()) { result, interval in
+            guard registeredVehicleIDs.contains(interval.vehicleID) else { return }
             let intervalEnd = interval.endDate ?? .distantFuture
             let overlapStart = max(startDate, interval.startDate)
             let overlapEnd = min(endDate, intervalEnd)
             let overlap = overlapEnd.timeIntervalSince(overlapStart)
-            return overlap > 0 ? (interval.vehicleID, overlap) : nil
-        }.max { first, second in
-            first.1 < second.1
-        }?.0
+            guard overlap > 0 else { return }
+            result[interval.vehicleID, default: 0] += overlap
+        }
+        return overlaps.map { vehicleID, overlap in
+            VehicleDistanceShare(
+                vehicleID: vehicleID,
+                fraction: min(max(overlap / duration, 0), 1)
+            )
+        }.sorted { first, second in
+            if first.fraction == second.fraction {
+                return first.vehicleID.uuidString < second.vehicleID.uuidString
+            }
+            return first.fraction > second.fraction
+        }
     }
 
     private static func hasValidMaintenanceValues(

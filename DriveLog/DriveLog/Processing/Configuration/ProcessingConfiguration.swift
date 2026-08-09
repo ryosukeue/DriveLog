@@ -19,7 +19,7 @@ nonisolated struct ProcessingConfiguration: Sendable, Equatable {
             maximumPlausibleSpeed: 250 / 3.6
         ),
         segmentation: SegmentationRules(
-            maximumContinuousGap: 90 * 60,
+            maximumContinuousGap: 15 * 60,
             minimumSegmentDistance: 100,
             minimumSegmentPointCount: 2,
             minimumSpeedDisplayDuration: 2 * 60,

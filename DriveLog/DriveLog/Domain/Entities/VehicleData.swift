@@ -117,6 +117,11 @@ nonisolated struct VehicleDistanceSummary: Identifiable, Sendable, Equatable {
     }
 }
 
+nonisolated struct VehicleDistanceShare: Sendable, Equatable {
+    let vehicleID: UUID
+    let fraction: Double
+}
+
 nonisolated struct AudioRouteDevice: Identifiable, Sendable, Equatable {
     let uid: String
     let name: String
@@ -204,6 +209,7 @@ nonisolated enum FuelEconomyCalculator {
 nonisolated protocol VehicleAttributionProviding: Sendable {
     func registeredVehicles() -> [VehicleProfile]
     func vehicle(forStartDate startDate: Date, endDate: Date) -> VehicleProfile?
+    func distanceShares(forStartDate startDate: Date, endDate: Date) -> [VehicleDistanceShare]
 }
 
 nonisolated struct EmptyVehicleAttributionProvider: VehicleAttributionProviding {
@@ -217,6 +223,11 @@ nonisolated struct EmptyVehicleAttributionProvider: VehicleAttributionProviding 
 }
 
 nonisolated extension VehicleAttributionProviding {
+    func distanceShares(forStartDate startDate: Date, endDate: Date) -> [VehicleDistanceShare] {
+        guard let vehicle = vehicle(forStartDate: startDate, endDate: endDate) else { return [] }
+        return [VehicleDistanceShare(vehicleID: vehicle.id, fraction: 1)]
+    }
+
     func distanceBreakdown(
         for movements: [MovementSegmentData]
     ) -> [VehicleDistanceSummary] {
@@ -225,11 +236,14 @@ nonisolated extension VehicleAttributionProviding {
             uniquingKeysWith: { first, _ in first }
         )
         let distanceByVehicle = movements.reduce(into: [UUID: Double]()) { result, movement in
-            guard let vehicle = vehicle(
+            let shares = distanceShares(
                 forStartDate: movement.startDate,
                 endDate: movement.endDate
-            ) else { return }
-            result[vehicle.id, default: 0] += max(0, movement.distanceMeters)
+            )
+            for share in shares {
+                result[share.vehicleID, default: 0] += max(0, movement.distanceMeters)
+                    * min(max(share.fraction, 0), 1)
+            }
         }
         return distanceByVehicle.compactMap { id, distance in
             guard let vehicle = vehiclesByID[id], distance > 0 else { return nil }
