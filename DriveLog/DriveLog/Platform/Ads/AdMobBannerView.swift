@@ -25,6 +25,7 @@ struct AdMobBannerView: UIViewRepresentable {
     func makeUIView(context _: Context) -> BannerView {
         let banner = BannerView(adSize: AdSizeBanner)
         banner.adUnitID = AdMobConfiguration.bannerUnitID
+        banner.backgroundColor = .secondarySystemBackground
         banner.load(Request())
         return banner
     }
@@ -38,6 +39,7 @@ struct CalendarBannerAd: View {
             AdMobBannerView()
                 .frame(height: 50)
                 .frame(maxWidth: .infinity)
+                .background(Color(uiColor: .secondarySystemBackground))
                 .accessibilityIdentifier("calendar.bannerAd")
         }
     }

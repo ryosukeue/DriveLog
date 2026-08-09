@@ -237,7 +237,7 @@ class RouteMapStayAnnotationView: MKAnnotationView {
         let width = max(52, label.intrinsicContentSize.width + 16)
         frame.size = CGSize(width: width, height: 44)
         label.frame = bounds
-        label.layer.borderColor = UIColor.label.cgColor
+        updateBorderColor()
         label.layer.borderWidth = isSelected ? 4 : 1
         accessibilityLabel = text.hasPrefix("滞在") ? text : "滞在 \(text)"
         accessibilityIdentifier = "map.stayAnnotation"
@@ -246,6 +246,18 @@ class RouteMapStayAnnotationView: MKAnnotationView {
     func setStayEmphasized(_ isEmphasized: Bool) {
         isStayEmphasized = isEmphasized
         alpha = isEmphasized ? 1 : 0.22
+    }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        guard traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) else {
+            return
+        }
+        updateBorderColor()
+    }
+
+    private func updateBorderColor() {
+        label.layer.borderColor = UIColor.label.resolvedColor(with: traitCollection).cgColor
     }
 }
 

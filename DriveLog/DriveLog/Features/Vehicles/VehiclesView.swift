@@ -501,31 +501,3 @@ private struct VehicleMaintenanceValues {
         return value
     }
 }
-
-extension Color {
-    init(hex: String) {
-        let value = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var number: UInt64 = 0
-        Scanner(string: value).scanHexInt64(&number)
-        let red: UInt64
-        let green: UInt64
-        let blue: UInt64
-        switch value.count {
-        case 6:
-            red = (number >> 16) & 0xFF
-            green = (number >> 8) & 0xFF
-            blue = number & 0xFF
-        default:
-            red = 0
-            green = 122
-            blue = 255
-        }
-        self.init(
-            .sRGB,
-            red: Double(red) / 255,
-            green: Double(green) / 255,
-            blue: Double(blue) / 255,
-            opacity: 1
-        )
-    }
-}

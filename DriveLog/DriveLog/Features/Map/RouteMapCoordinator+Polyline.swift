@@ -208,20 +208,3 @@ extension RouteMapCoordinator {
         return hypot(point.x - closest.x, point.y - closest.y)
     }
 }
-
-private extension UIColor {
-    convenience init?(driveLogHex: String) {
-        let value = driveLogHex.trimmingCharacters(
-            in: CharacterSet.alphanumerics.inverted
-        )
-        guard value.count == 6, let number = UInt64(value, radix: 16) else {
-            return nil
-        }
-        self.init(
-            red: CGFloat((number >> 16) & 0xFF) / 255,
-            green: CGFloat((number >> 8) & 0xFF) / 255,
-            blue: CGFloat(number & 0xFF) / 255,
-            alpha: 1
-        )
-    }
-}

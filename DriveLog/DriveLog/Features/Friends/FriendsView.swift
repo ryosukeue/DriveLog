@@ -212,6 +212,8 @@ private struct FriendInvitationView: View {
                         .resizable()
                         .scaledToFit()
                         .frame(maxWidth: 260, maxHeight: 260)
+                        .padding(16)
+                        .background(.white, in: RoundedRectangle(cornerRadius: 16))
                         .accessibilityLabel("友達追加用QRコード")
                 }
                 ShareLink(
