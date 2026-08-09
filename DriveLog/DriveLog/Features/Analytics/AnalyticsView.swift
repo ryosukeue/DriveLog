@@ -7,13 +7,19 @@ struct AnalyticsView: View {
     @State private var fuelAmount = ""
     @State private var isFullTank = false
     private let distanceFormatter: DistanceFormatter
+    private let isPlusEnabled: Bool
+    private let onShowPremium: () -> Void
 
     init(
         viewModel: AnalyticsViewModel,
-        distanceFormatter: DistanceFormatter = DistanceFormatter()
+        distanceFormatter: DistanceFormatter = DistanceFormatter(),
+        isPlusEnabled: Bool = true,
+        onShowPremium: @escaping () -> Void = {}
     ) {
         _viewModel = State(initialValue: viewModel)
         self.distanceFormatter = distanceFormatter
+        self.isPlusEnabled = isPlusEnabled
+        self.onShowPremium = onShowPremium
     }
 
     var body: some View {
@@ -143,8 +149,38 @@ struct AnalyticsView: View {
                 distanceChart(series)
                 chartLegend(series)
             }
-            fuelEconomySection
-            oilChangeSection
+            plusLockedContent {
+                fuelEconomySection
+            }
+            plusLockedContent {
+                oilChangeSection
+            }
+        }
+    }
+
+    private func plusLockedContent<Content: View>(
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        ZStack {
+            content()
+                .opacity(isPlusEnabled ? 1 : 0.35)
+                .allowsHitTesting(isPlusEnabled)
+            if !isPlusEnabled {
+                Button {
+                    onShowPremium()
+                } label: {
+                    VStack(spacing: 8) {
+                        Image(systemName: "lock.fill")
+                            .font(.title2)
+                        Text("Plusプランでご利用いただけます")
+                            .font(.headline)
+                    }
+                    .foregroundStyle(.primary)
+                    .padding()
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 

@@ -24,12 +24,18 @@ final class MapKitNearbyGasStationProvider: NearbyGasStationProviding {
 
 final class FuelStopNotificationService: @unchecked Sendable {
     private let notificationCenter: UNUserNotificationCenter
+    private let entitlementCache: PlusEntitlementCache
 
-    init(notificationCenter: UNUserNotificationCenter = .current()) {
+    init(
+        notificationCenter: UNUserNotificationCenter = .current(),
+        entitlementCache: PlusEntitlementCache = PlusEntitlementCache()
+    ) {
         self.notificationCenter = notificationCenter
+        self.entitlementCache = entitlementCache
     }
 
     func send(vehicleName: String, vehicleID: UUID) async {
+        guard entitlementCache.isPlus else { return }
         let settings = await notificationCenter.notificationSettings()
         guard settings.authorizationStatus == .authorized ||
             settings.authorizationStatus == .provisional

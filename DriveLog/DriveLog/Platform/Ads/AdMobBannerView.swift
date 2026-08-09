@@ -2,11 +2,13 @@ import GoogleMobileAds
 import SwiftUI
 
 enum AdMobConfiguration {
+    private static var hasStarted = false
     static var appID: String? { configuredValue(for: "GADApplicationIdentifier") }
     static var bannerUnitID: String? { configuredValue(for: "AdMobBannerUnitID") }
 
     static func startIfConfigured() {
-        guard appID != nil, bannerUnitID != nil else { return }
+        guard !hasStarted, appID != nil, bannerUnitID != nil else { return }
+        hasStarted = true
         MobileAds.shared.start()
     }
 

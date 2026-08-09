@@ -5,9 +5,14 @@ struct VehiclesView: View {
     @State private var isShowingRegistration = false
     @State private var editingVehicle: VehicleProfile?
     @State private var deletionCandidate: VehicleProfile?
+    private let onShowPremium: () -> Void
 
-    init(viewModel: VehiclesViewModel) {
+    init(
+        viewModel: VehiclesViewModel,
+        onShowPremium: @escaping () -> Void = {}
+    ) {
         _viewModel = State(initialValue: viewModel)
+        self.onShowPremium = onShowPremium
     }
 
     var body: some View {
@@ -27,22 +32,36 @@ struct VehiclesView: View {
             } header: {
                 Text("登録済みの車")
             } footer: {
-                Text(
-                    "BluetoothまたはCarPlayのオーディオ接続状況から、" +
-                        "走行中の車を判定します。"
-                )
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(
+                        "BluetoothまたはCarPlayのオーディオ接続状況から、" +
+                            "走行中の車を判定します。"
+                    )
+                    if !viewModel.isPlus && !viewModel.canAddVehicle {
+                        Button("2台目以降の登録はPlusプランでご利用いただけます") {
+                            onShowPremium()
+                        }
+                    }
+                }
             }
         }
         .navigationTitle("車種登録")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    viewModel.refresh()
-                    isShowingRegistration = true
+                    if viewModel.canAddVehicle {
+                        viewModel.refresh()
+                        isShowingRegistration = true
+                    } else {
+                        onShowPremium()
+                    }
                 } label: {
                     Label("車を追加", systemImage: "plus")
                 }
-                .disabled(!viewModel.canAddVehicle)
+                .foregroundStyle(viewModel.canAddVehicle ? Color.accentColor : .secondary)
+                .accessibilityHint(
+                    viewModel.canAddVehicle ? "" : "Plusプランでご利用いただけます"
+                )
                 .accessibilityIdentifier("vehicles.add")
             }
         }
@@ -50,10 +69,23 @@ struct VehiclesView: View {
             viewModel.refresh()
         }
         .sheet(isPresented: $isShowingRegistration) {
-            VehicleRegistrationView(viewModel: viewModel)
+            VehicleRegistrationView(
+                viewModel: viewModel,
+                onShowPremium: {
+                    isShowingRegistration = false
+                    onShowPremium()
+                }
+            )
         }
         .sheet(item: $editingVehicle) { vehicle in
-            VehicleEditView(viewModel: viewModel, vehicle: vehicle)
+            VehicleEditView(
+                viewModel: viewModel,
+                vehicle: vehicle,
+                onShowPremium: {
+                    editingVehicle = nil
+                    onShowPremium()
+                }
+            )
         }
         .alert(
             "本当に削除しますか？",
@@ -98,7 +130,18 @@ struct VehiclesView: View {
                     .foregroundStyle(.secondary)
                 Text("総走行距離 \(formattedKilometers(vehicle.odometerKilometers)) km")
                     .font(.subheadline.weight(.semibold))
-                oilChangeStatus(for: vehicle)
+                if viewModel.isPlus {
+                    oilChangeStatus(for: vehicle)
+                } else {
+                    Button {
+                        onShowPremium()
+                    } label: {
+                        Label("オイル交換はPlusプランでご利用いただけます", systemImage: "lock.fill")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.borderless)
+                }
             }
             Spacer()
             if viewModel.detectedVehicle?.id == vehicle.id {
@@ -150,9 +193,11 @@ private struct VehicleRegistrationView: View {
     @State private var oilChangeInterval = "5000"
     @State private var lastOilChangeOdometer = "0"
     @State private var currentOdometer = "0"
+    private let onShowPremium: () -> Void
 
-    init(viewModel: VehiclesViewModel) {
+    init(viewModel: VehiclesViewModel, onShowPremium: @escaping () -> Void) {
         _viewModel = State(initialValue: viewModel)
+        self.onShowPremium = onShowPremium
     }
 
     var body: some View {
@@ -204,7 +249,9 @@ private struct VehicleRegistrationView: View {
                 VehicleMaintenanceFields(
                     oilChangeInterval: $oilChangeInterval,
                     lastOilChangeOdometer: $lastOilChangeOdometer,
-                    currentOdometer: $currentOdometer
+                    currentOdometer: $currentOdometer,
+                    isUnlocked: viewModel.isPlus,
+                    onShowPremium: onShowPremium
                 )
             }
             .navigationTitle("車を追加")
@@ -265,8 +312,13 @@ private struct VehicleEditView: View {
     @State private var lastOilChangeOdometer: String
     @State private var currentOdometer: String
     @State private var usesHighAccuracyTracking: Bool
+    private let onShowPremium: () -> Void
 
-    init(viewModel: VehiclesViewModel, vehicle: VehicleProfile) {
+    init(
+        viewModel: VehiclesViewModel,
+        vehicle: VehicleProfile,
+        onShowPremium: @escaping () -> Void
+    ) {
         _viewModel = State(initialValue: viewModel)
         self.vehicle = vehicle
         _vehicleName = State(initialValue: vehicle.name)
@@ -280,6 +332,7 @@ private struct VehicleEditView: View {
             vehicle.odometerKilometers
         ))
         _usesHighAccuracyTracking = State(initialValue: vehicle.usesHighAccuracyTracking)
+        self.onShowPremium = onShowPremium
     }
 
     var body: some View {
@@ -292,7 +345,9 @@ private struct VehicleEditView: View {
                 VehicleMaintenanceFields(
                     oilChangeInterval: $oilChangeInterval,
                     lastOilChangeOdometer: $lastOilChangeOdometer,
-                    currentOdometer: $currentOdometer
+                    currentOdometer: $currentOdometer,
+                    isUnlocked: viewModel.isPlus,
+                    onShowPremium: onShowPremium
                 )
                 Section {
                     Toggle(
@@ -362,22 +417,46 @@ private struct VehicleMaintenanceFields: View {
     @Binding var oilChangeInterval: String
     @Binding var lastOilChangeOdometer: String
     @Binding var currentOdometer: String
+    let isUnlocked: Bool
+    let onShowPremium: () -> Void
 
     var body: some View {
         Section {
-            LabeledContent("オイル交換サイクル") {
-                kilometerField("5000", text: $oilChangeInterval)
-            }
-            LabeledContent("前回交換時の走行距離") {
-                kilometerField("0", text: $lastOilChangeOdometer)
-            }
-            LabeledContent("現在の総走行距離") {
-                kilometerField("0", text: $currentOdometer)
+            if isUnlocked {
+                LabeledContent("オイル交換サイクル") {
+                    kilometerField("5000", text: $oilChangeInterval)
+                }
+                LabeledContent("前回交換時の走行距離") {
+                    kilometerField("0", text: $lastOilChangeOdometer)
+                }
+                LabeledContent("現在の総走行距離") {
+                    kilometerField("0", text: $currentOdometer)
+                }
+            } else {
+                Button {
+                    onShowPremium()
+                } label: {
+                    VStack(alignment: .leading, spacing: 10) {
+                        LabeledContent("オイル交換サイクル", value: "—")
+                        LabeledContent("前回交換時の走行距離", value: "—")
+                        LabeledContent("現在の総走行距離", value: "—")
+                        Label(
+                            "Plusプランでご利用いただけます",
+                            systemImage: "lock.fill"
+                        )
+                        .font(.subheadline.weight(.semibold))
+                    }
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
             }
         } header: {
             Text("オイル交換")
         } footer: {
-            Text("前回交換時の走行距離は、現在の総走行距離以下で入力してください。")
+            if isUnlocked {
+                Text("前回交換時の走行距離は、現在の総走行距離以下で入力してください。")
+            }
         }
     }
 

@@ -15,6 +15,7 @@ struct CalendarView: View {
     private let updateStayOverride: any UpdateStayOverrideUseCase
     private let hapticFeedback: any HapticFeedbackProviding
     private let makeMediaPreviewViewModel: (MediaAssetReference) -> MediaPreviewViewModel
+    private let showsAds: Bool
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 7)
 
     init(
@@ -28,7 +29,8 @@ struct CalendarView: View {
         thumbnailLoader: any LoadMediaThumbnailUseCase,
         updateStayOverride: any UpdateStayOverrideUseCase,
         hapticFeedback: any HapticFeedbackProviding,
-        makeMediaPreviewViewModel: @escaping (MediaAssetReference) -> MediaPreviewViewModel
+        makeMediaPreviewViewModel: @escaping (MediaAssetReference) -> MediaPreviewViewModel,
+        showsAds: Bool = true
     ) {
         _viewModel = State(initialValue: viewModel)
         _monthlySummaryViewModel = State(initialValue: monthlySummaryViewModel)
@@ -42,6 +44,7 @@ struct CalendarView: View {
         self.updateStayOverride = updateStayOverride
         self.hapticFeedback = hapticFeedback
         self.makeMediaPreviewViewModel = makeMediaPreviewViewModel
+        self.showsAds = showsAds
     }
 
     var body: some View {
@@ -52,7 +55,9 @@ struct CalendarView: View {
                     calendarPager
                         .frame(height: calendarHeight)
                     Divider()
-                    CalendarBannerAd()
+                    if showsAds {
+                        CalendarBannerAd()
+                    }
                     MonthlySummaryView(
                         viewModel: monthlySummaryViewModel,
                         onRetry: reloadSummary

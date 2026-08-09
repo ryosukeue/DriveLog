@@ -91,6 +91,7 @@ struct DriveLogApp: App {
                             friendsViewModel: viewModels.friends,
                             iCloudSetupViewModel: viewModels.iCloudSetup,
                             vehiclesViewModel: viewModels.vehicles,
+                            plusPlanStore: appContainer.plusPlanStore,
                             today: today,
                             makeDayDetailViewModel: { localDateKey in
                                 appContainer.makeDayDetailViewModel(
@@ -125,13 +126,20 @@ struct DriveLogApp: App {
             }
             .task {
                 appContainer.startVehicleDetection()
-                AdMobConfiguration.startIfConfigured()
                 await lifecycleCoordinator?.handleLaunch()
+                await appContainer.plusPlanStore.load()
+                if !appContainer.plusPlanStore.isPlus {
+                    AdMobConfiguration.startIfConfigured()
+                }
             }
             .onChange(of: scenePhase) { _, phase in
                 Task { @MainActor in
                     switch phase {
                     case .active:
+                        await appContainer.plusPlanStore.load()
+                        if !appContainer.plusPlanStore.isPlus {
+                            AdMobConfiguration.startIfConfigured()
+                        }
                         await lifecycleCoordinator?.handleForeground()
                     case .background:
                         await lifecycleCoordinator?.handleBackground()

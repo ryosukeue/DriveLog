@@ -3,16 +3,23 @@ import UserNotifications
 
 final class OilChangeNotificationService: VehicleOilChangeNotifying, @unchecked Sendable {
     private let notificationCenter: UNUserNotificationCenter
+    private let entitlementCache: PlusEntitlementCache
 
-    init(notificationCenter: UNUserNotificationCenter = .current()) {
+    init(
+        notificationCenter: UNUserNotificationCenter = .current(),
+        entitlementCache: PlusEntitlementCache = PlusEntitlementCache()
+    ) {
         self.notificationCenter = notificationCenter
+        self.entitlementCache = entitlementCache
     }
 
     func requestAuthorization() async {
+        guard entitlementCache.isPlus else { return }
         _ = try? await notificationCenter.requestAuthorization(options: [.alert, .sound])
     }
 
     func send(_ notification: VehicleOilChangeNotification) async {
+        guard entitlementCache.isPlus else { return }
         let content = UNMutableNotificationContent()
         content.sound = .default
 

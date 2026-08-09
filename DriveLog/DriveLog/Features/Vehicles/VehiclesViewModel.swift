@@ -12,21 +12,28 @@ final class VehiclesViewModel {
     private static let vehicleLimit = 1
 
     var canAddVehicle: Bool {
-        vehicles.count < Self.vehicleLimit
+        isPlus || vehicles.count < Self.vehicleLimit
+    }
+
+    var isPlus: Bool {
+        plusPlanStore.isPlus
     }
 
     private let store: UserDefaultsVehicleStore
     private let detector: AudioRouteVehicleDetector
     private let oilChangeNotifier: any VehicleOilChangeNotifying
+    private let plusPlanStore: PlusPlanStore
 
     init(
         store: UserDefaultsVehicleStore,
         detector: AudioRouteVehicleDetector,
-        oilChangeNotifier: any VehicleOilChangeNotifying = EmptyVehicleOilChangeNotifier()
+        oilChangeNotifier: any VehicleOilChangeNotifying = EmptyVehicleOilChangeNotifier(),
+        plusPlanStore: PlusPlanStore? = nil
     ) {
         self.store = store
         self.detector = detector
         self.oilChangeNotifier = oilChangeNotifier
+        self.plusPlanStore = plusPlanStore ?? PlusPlanStore()
         reload()
     }
 
@@ -53,7 +60,7 @@ final class VehiclesViewModel {
                 oilChangeIntervalKilometers: oilChangeIntervalKilometers,
                 lastOilChangeOdometerKilometers: lastOilChangeOdometerKilometers,
                 usesHighAccuracyTracking: usesHighAccuracyTracking,
-                userVisibleLimit: Self.vehicleLimit
+                userVisibleLimit: isPlus ? nil : Self.vehicleLimit
             )
             detector.refresh()
             reload()
@@ -99,6 +106,7 @@ final class VehiclesViewModel {
     }
 
     func requestOilChangeNotificationAuthorization() async {
+        guard isPlus else { return }
         await oilChangeNotifier.requestAuthorization()
     }
 

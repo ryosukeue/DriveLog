@@ -45,6 +45,14 @@ private enum ContentRoute: Hashable {
     }
 }
 
+private enum RootTab: Hashable {
+    case calendar
+    case analytics
+    case friends
+    case vehicles
+    case premium
+}
+
 struct ContentView: View {
     let calendarViewModel: CalendarViewModel
     let monthlySummaryViewModel: MonthlySummaryViewModel
@@ -53,6 +61,7 @@ struct ContentView: View {
     let friendsViewModel: FriendsViewModel
     let iCloudSetupViewModel: ICloudSetupViewModel
     let vehiclesViewModel: VehiclesViewModel
+    let plusPlanStore: PlusPlanStore
     let today: Date
     let makeDayDetailViewModel: (String) -> DayDetailViewModel
     let loadMediaThumbnail: any LoadMediaThumbnailUseCase
@@ -61,9 +70,10 @@ struct ContentView: View {
     let makeMediaPreviewViewModel: (MediaAssetReference) -> MediaPreviewViewModel
     @State private var selectedDay: SelectedDay?
     @State private var detailPath: [ContentRoute] = []
+    @State private var selectedTab: RootTab = .calendar
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             NavigationStack {
                 CalendarView(
                     viewModel: calendarViewModel,
@@ -77,21 +87,28 @@ struct ContentView: View {
                     thumbnailLoader: loadMediaThumbnail,
                     updateStayOverride: updateStayOverride,
                     hapticFeedback: hapticFeedback,
-                    makeMediaPreviewViewModel: makeMediaPreviewViewModel
+                    makeMediaPreviewViewModel: makeMediaPreviewViewModel,
+                    showsAds: plusPlanStore.hasResolvedEntitlement && !plusPlanStore.isPlus
                 )
             }
             .tabItem {
                 Label("カレンダー", systemImage: "calendar")
             }
             .accessibilityIdentifier("tab.calendar")
+            .tag(RootTab.calendar)
 
             NavigationStack {
-                AnalyticsView(viewModel: analyticsViewModel)
+                AnalyticsView(
+                    viewModel: analyticsViewModel,
+                    isPlusEnabled: plusPlanStore.isPlus,
+                    onShowPremium: { selectedTab = .premium }
+                )
             }
             .tabItem {
                 Label("アナリティクス", systemImage: "chart.bar.xaxis")
             }
             .accessibilityIdentifier("tab.analytics")
+            .tag(RootTab.analytics)
 
             NavigationStack {
                 FriendsView(
@@ -103,14 +120,28 @@ struct ContentView: View {
                 Label("友達", systemImage: "person.2.fill")
             }
             .accessibilityIdentifier("tab.friends")
+            .tag(RootTab.friends)
 
             NavigationStack {
-                VehiclesView(viewModel: vehiclesViewModel)
+                VehiclesView(
+                    viewModel: vehiclesViewModel,
+                    onShowPremium: { selectedTab = .premium }
+                )
             }
             .tabItem {
                 Label("車種登録", systemImage: "car.fill")
             }
             .accessibilityIdentifier("tab.vehicles")
+            .tag(RootTab.vehicles)
+
+            NavigationStack {
+                PremiumView(plusPlanStore: plusPlanStore)
+            }
+            .tabItem {
+                Label("Premium", systemImage: "crown.fill")
+            }
+            .accessibilityIdentifier("tab.premium")
+            .tag(RootTab.premium)
         }
         .onOpenURL { url in
             Task { await friendsViewModel.acceptInvitation(url) }

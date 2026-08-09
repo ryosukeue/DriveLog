@@ -11,6 +11,7 @@ final class AppContainer {
     let audioRouteVehicleDetector: AudioRouteVehicleDetector
     let oilChangeNotificationService: OilChangeNotificationService
     let cloudFriendsService: CloudFriendsService
+    let plusPlanStore: PlusPlanStore
 
     convenience init() {
         let timeZoneProvider = SystemTimeZoneProvider()
@@ -36,7 +37,8 @@ final class AppContainer {
         vehicleStore: UserDefaultsVehicleStore = UserDefaultsVehicleStore(),
         oilChangeNotificationService: OilChangeNotificationService =
             OilChangeNotificationService(),
-        cloudFriendsService: CloudFriendsService = CloudFriendsService()
+        cloudFriendsService: CloudFriendsService = CloudFriendsService(),
+        plusPlanStore: PlusPlanStore? = nil
     ) {
         self.logger = logger
         self.clock = clock
@@ -46,6 +48,7 @@ final class AppContainer {
         self.vehicleStore = vehicleStore
         self.oilChangeNotificationService = oilChangeNotificationService
         self.cloudFriendsService = cloudFriendsService
+        self.plusPlanStore = plusPlanStore ?? PlusPlanStore()
         audioRouteVehicleDetector = AudioRouteVehicleDetector(store: vehicleStore)
     }
 
@@ -150,7 +153,8 @@ final class AppContainer {
         VehiclesViewModel(
             store: vehicleStore,
             detector: audioRouteVehicleDetector,
-            oilChangeNotifier: oilChangeNotificationService
+            oilChangeNotifier: oilChangeNotificationService,
+            plusPlanStore: plusPlanStore
         )
     }
 
