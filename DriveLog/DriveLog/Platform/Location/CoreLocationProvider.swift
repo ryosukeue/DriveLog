@@ -13,6 +13,7 @@ final class CoreLocationProvider: NSObject, LocationProviding {
     private let locationContinuation: AsyncStream<LocationEventData>.Continuation
     private var state: LocationMonitoringState = .stopped
     private var recordingMode: LocationRecordingMode = .lowPower
+    private var lastEmittedLocation: CLLocation?
 
     init(
         manager: CLLocationManager = CLLocationManager(),
@@ -76,9 +77,9 @@ final class CoreLocationProvider: NSObject, LocationProviding {
             continuation.yield(.error(error))
             throw error
         }
-        manager.stopMonitoringSignificantLocationChanges()
         manager.stopUpdatingLocation()
         recordingMode = mode
+        lastEmittedLocation = nil
         setState(.starting)
         switch mode {
         case .lowPower:
@@ -88,6 +89,14 @@ final class CoreLocationProvider: NSObject, LocationProviding {
             manager.pausesLocationUpdatesAutomatically = true
             manager.allowsBackgroundLocationUpdates = false
             manager.startMonitoringSignificantLocationChanges()
+        case .vehicleConnected:
+            manager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+            manager.distanceFilter = 25
+            manager.activityType = .automotiveNavigation
+            manager.pausesLocationUpdatesAutomatically = false
+            manager.allowsBackgroundLocationUpdates = true
+            manager.startMonitoringSignificantLocationChanges()
+            manager.startUpdatingLocation()
         }
         setState(.running)
     }
@@ -114,6 +123,10 @@ final class CoreLocationProvider: NSObject, LocationProviding {
     }
 
     private func validateAuthorizationAndAvailability(for mode: LocationRecordingMode) throws {
+        guard CLLocationManager.locationServicesEnabled() else {
+            setState(.unavailable)
+            throw DriveLogError.monitoringUnavailable
+        }
         if mode == .lowPower, !CLLocationManager.significantLocationChangeMonitoringAvailable() {
             setState(.unavailable)
             throw DriveLogError.monitoringUnavailable
@@ -150,9 +163,16 @@ extension CoreLocationProvider: CLLocationManagerDelegate {
     ) {
         var emittedCount = 0
         for location in locations {
+            if recordingMode == .vehicleConnected,
+               let lastEmittedLocation,
+               location.timestamp.timeIntervalSince(lastEmittedLocation.timestamp) < 30
+            {
+                continue
+            }
             guard let event = convert(location) else { continue }
             continuation.yield(.location(event))
             locationContinuation.yield(event)
+            lastEmittedLocation = location
             emittedCount += 1
         }
         continuation.yield(.acquisitionDiagnostic(LocationAcquisitionDiagnostic(

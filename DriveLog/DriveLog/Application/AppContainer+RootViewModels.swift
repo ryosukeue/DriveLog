@@ -48,7 +48,9 @@ extension AppContainer {
             loadMonthlyDistanceSeries: DefaultLoadMonthlyDistanceSeriesUseCase(
                 repository: SwiftDataDerivedDataRepository(modelContainer: modelContainer),
                 vehicleAttribution: vehicleStore
-            )
+            ),
+            vehicleStore: vehicleStore,
+            detector: audioRouteVehicleDetector
         )
     }
 

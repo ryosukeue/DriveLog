@@ -4,6 +4,8 @@ import SwiftUI
 struct AnalyticsView: View {
     @State private var viewModel: AnalyticsViewModel
     @State private var selectedDay: Int?
+    @State private var fuelAmount = ""
+    @State private var isFullTank = false
     private let distanceFormatter: DistanceFormatter
 
     init(
@@ -27,10 +29,24 @@ struct AnalyticsView: View {
             guard viewModel.state == .idle else { return }
             await viewModel.load()
         }
+        .onAppear {
+            viewModel.refreshVehicleData()
+        }
         .onChange(of: viewModel.selectedMonth) { _, _ in
             selectedDay = nil
         }
         .accessibilityIdentifier("analytics.root")
+        .alert(
+            "燃費記録",
+            isPresented: Binding(
+                get: { viewModel.fuelRecordNotice != nil },
+                set: { if !$0 { viewModel.dismissFuelRecordNotice() } }
+            )
+        ) {
+            Button("OK") { viewModel.dismissFuelRecordNotice() }
+        } message: {
+            Text(viewModel.fuelRecordNotice ?? "")
+        }
     }
 
     private var monthSelector: some View {
@@ -127,7 +143,182 @@ struct AnalyticsView: View {
                 distanceChart(series)
                 chartLegend(series)
             }
+            fuelEconomySection
+            oilChangeSection
         }
+    }
+
+    private var fuelEconomySection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("燃費")
+                    .font(.title3.bold())
+                Spacer()
+                if let vehicle = viewModel.detectedVehicle {
+                    Label("\(vehicle.name) 接続中", systemImage: "checkmark.circle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.green)
+                }
+            }
+
+            if viewModel.selectedVehicle == nil {
+                ContentUnavailableView(
+                    "車が登録されていません",
+                    systemImage: "fuelpump",
+                    description: Text("先に車種登録を行ってください")
+                )
+            } else {
+                fuelEntryForm
+                if let overall = viewModel.overallFuelEconomy {
+                    summaryItem(
+                        title: "総合燃費",
+                        value: formattedFuelEconomy(overall)
+                    )
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("給油ごとの燃費")
+                        .font(.headline)
+                    if viewModel.fuelEconomyIntervals.isEmpty {
+                        Text("満タン給油を2回記録すると燃費が表示されます")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, minHeight: 100, alignment: .center)
+                    } else {
+                        fuelEconomyChart
+                    }
+                    Text("非満タンの給油量は、次の満タン給油まで合算して計算します。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if !displayedFuelRecords.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("給油履歴")
+                            .font(.headline)
+                        ForEach(displayedFuelRecords.reversed()) { record in
+                            HStack {
+                                Text(record.date, format: .dateTime.month().day().hour().minute())
+                                Spacer()
+                                Text(
+                                    record.liters,
+                                    format: .number.precision(.fractionLength(1...2))
+                                )
+                                + Text(" L")
+                                Text(record.isFullTank ? "満タン" : "非満タン")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(record.isFullTank ? .green : .secondary)
+                            }
+                            .font(.subheadline)
+                        }
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 16))
+        .accessibilityIdentifier("analytics.fuelEconomySection")
+    }
+
+    private var fuelEntryForm: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("給油量を記録")
+                .font(.headline)
+            HStack(spacing: 8) {
+                TextField("0.0", text: $fuelAmount)
+                    .keyboardType(.decimalPad)
+                    .textFieldStyle(.roundedBorder)
+                Text("L")
+                    .foregroundStyle(.secondary)
+                Toggle("満タン", isOn: $isFullTank)
+                    .fixedSize()
+            }
+            Button {
+                guard let liters = fuelAmountValue else { return }
+                if viewModel.recordFuel(liters: liters, isFullTank: isFullTank) {
+                    fuelAmount = ""
+                    isFullTank = false
+                }
+            } label: {
+                Label("給油を記録", systemImage: "fuelpump.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(viewModel.detectedVehicle == nil || fuelAmountValue == nil)
+
+            if viewModel.detectedVehicle == nil {
+                Text("登録した車のBluetoothまたはCarPlay接続中のみ記録できます。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var fuelEconomyChart: some View {
+        Chart(viewModel.fuelEconomyIntervals) { interval in
+            BarMark(
+                x: .value("給油日", interval.endDate, unit: .day),
+                y: .value("燃費（km/L）", interval.kilometersPerLiter)
+            )
+            .foregroundStyle(Color(hex: viewModel.selectedVehicle?.colorHex ?? "#007AFF"))
+            .cornerRadius(4)
+            .annotation(position: .top) {
+                Text(interval.kilometersPerLiter, format: .number.precision(.fractionLength(1)))
+                    .font(.caption2.monospacedDigit())
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .leading) { value in
+                AxisGridLine()
+                AxisValueLabel {
+                    if let value = value.as(Double.self) {
+                        Text("\(value.formatted(.number.precision(.fractionLength(0...1))))")
+                    }
+                }
+            }
+        }
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 5)) { value in
+                AxisGridLine()
+                AxisValueLabel(format: .dateTime.month(.defaultDigits).day())
+            }
+        }
+        .frame(height: 220)
+        .accessibilityLabel("給油ごとの燃費の棒グラフ")
+    }
+
+    private var oilChangeSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("オイル交換")
+                .font(.title3.bold())
+            if viewModel.vehicles.isEmpty {
+                Text("車を登録するとオイル交換までの距離が表示されます")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(viewModel.vehicles) { vehicle in
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Label {
+                                Text(vehicle.name)
+                            } icon: {
+                                Circle()
+                                    .fill(Color(hex: vehicle.colorHex))
+                                    .frame(width: 9, height: 9)
+                            }
+                            Spacer()
+                            Text(oilRemainingText(vehicle))
+                                .font(.subheadline.weight(.semibold).monospacedDigit())
+                                .foregroundStyle(oilStatusColor(vehicle))
+                        }
+                        ProgressView(value: oilProgress(vehicle))
+                            .tint(oilStatusColor(vehicle))
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 16))
+        .accessibilityIdentifier("analytics.oilChangeSection")
     }
 
     private func distanceChart(_ series: MonthlyDistanceSeriesData) -> some View {
@@ -234,5 +425,49 @@ struct AnalyticsView: View {
 
     private func formattedDistance(_ meters: Double) -> String {
         distanceFormatter.kilometers(fromMeters: meters) ?? "0 km"
+    }
+
+    private var fuelAmountValue: Double? {
+        let normalized = fuelAmount
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: ",", with: ".")
+        guard let value = Double(normalized), value.isFinite, value > 0 else { return nil }
+        return value
+    }
+
+    private var displayedFuelRecords: [VehicleFuelRecord] {
+        viewModel.fuelRecords.filter { record in
+            let components = Calendar.current.dateComponents([.year, .month], from: record.date)
+            return components.year == viewModel.selectedMonth.year
+                && components.month == viewModel.selectedMonth.month
+        }
+    }
+
+    private func formattedFuelEconomy(_ value: Double) -> String {
+        "\(value.formatted(.number.precision(.fractionLength(1)))) km/L"
+    }
+
+    private func oilProgress(_ vehicle: VehicleProfile) -> Double {
+        let traveled = vehicle.odometerKilometers
+            - vehicle.lastOilChangeOdometerKilometers
+        return min(max(traveled / vehicle.oilChangeIntervalKilometers, 0), 1)
+    }
+
+    private func oilRemainingText(_ vehicle: VehicleProfile) -> String {
+        let remaining = vehicle.oilChangeRemainingKilometers
+        if remaining < 0 {
+            return "\(abs(remaining).formatted(.number.precision(.fractionLength(0)))) km超過"
+        }
+        return "あと \(remaining.formatted(.number.precision(.fractionLength(0)))) km"
+    }
+
+    private func oilStatusColor(_ vehicle: VehicleProfile) -> Color {
+        if vehicle.oilChangeRemainingKilometers < 0 {
+            return .red
+        }
+        if vehicle.oilChangeRemainingKilometers <= 500 {
+            return .orange
+        }
+        return Color(hex: vehicle.colorHex)
     }
 }

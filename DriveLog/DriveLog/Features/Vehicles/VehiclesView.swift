@@ -264,6 +264,7 @@ private struct VehicleEditView: View {
     @State private var oilChangeInterval: String
     @State private var lastOilChangeOdometer: String
     @State private var currentOdometer: String
+    @State private var usesHighAccuracyTracking: Bool
 
     init(viewModel: VehiclesViewModel, vehicle: VehicleProfile) {
         _viewModel = State(initialValue: viewModel)
@@ -278,6 +279,7 @@ private struct VehicleEditView: View {
         _currentOdometer = State(initialValue: Self.editableNumber(
             vehicle.odometerKilometers
         ))
+        _usesHighAccuracyTracking = State(initialValue: vehicle.usesHighAccuracyTracking)
     }
 
     var body: some View {
@@ -292,6 +294,17 @@ private struct VehicleEditView: View {
                     lastOilChangeOdometer: $lastOilChangeOdometer,
                     currentOdometer: $currentOdometer
                 )
+                Section {
+                    Toggle(
+                        "接続中の高精度な位置記録",
+                        isOn: $usesHighAccuracyTracking
+                    )
+                } footer: {
+                    Text(
+                        "オンにすると、この車のBluetoothまたはCarPlay接続中だけ" +
+                            "位置情報を細かく記録します。電池消費量が増加します。"
+                    )
+                }
             }
             .navigationTitle("車の情報を編集")
             .navigationBarTitleDisplayMode(.inline)
@@ -307,7 +320,8 @@ private struct VehicleEditView: View {
                             name: vehicleName,
                             odometerKilometers: values.currentOdometer,
                             oilChangeIntervalKilometers: values.interval,
-                            lastOilChangeOdometerKilometers: values.lastOilChangeOdometer
+                            lastOilChangeOdometerKilometers: values.lastOilChangeOdometer,
+                            usesHighAccuracyTracking: usesHighAccuracyTracking
                         ) {
                             Task {
                                 await viewModel.requestOilChangeNotificationAuthorization()

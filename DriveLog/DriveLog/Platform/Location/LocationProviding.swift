@@ -11,6 +11,7 @@ protocol LocationProviding: Sendable {
 
 nonisolated enum LocationRecordingMode: String, Sendable, Equatable {
     case lowPower
+    case vehicleConnected
 }
 
 nonisolated enum LocationMonitoringState: Sendable, Equatable {

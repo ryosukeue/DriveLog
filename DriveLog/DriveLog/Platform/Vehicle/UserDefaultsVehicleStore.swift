@@ -16,12 +16,16 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
         var intervals: [DetectionInterval] = []
         var dayDistanceCredits: [VehicleDayDistanceCredit] = []
         var oilNotificationStates: [UUID: OilNotificationState] = [:]
+        var fuelRecords: [VehicleFuelRecord] = []
+        var fuelTrackingDistanceKilometersByVehicleID: [UUID: Double] = [:]
 
         private enum CodingKeys: String, CodingKey {
             case vehicles
             case intervals
             case dayDistanceCredits
             case oilNotificationStates
+            case fuelRecords
+            case fuelTrackingDistanceKilometersByVehicleID
         }
 
         init() {}
@@ -44,6 +48,14 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
                 [UUID: OilNotificationState].self,
                 forKey: .oilNotificationStates
             ) ?? [:]
+            fuelRecords = try container.decodeIfPresent(
+                [VehicleFuelRecord].self,
+                forKey: .fuelRecords
+            ) ?? []
+            fuelTrackingDistanceKilometersByVehicleID = try container.decodeIfPresent(
+                [UUID: Double].self,
+                forKey: .fuelTrackingDistanceKilometersByVehicleID
+            ) ?? [:]
         }
     }
 
@@ -62,6 +74,7 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
         case duplicateAudioRoute
         case vehicleNotFound
         case invalidMaintenanceValues
+        case invalidFuelAmount
     }
 
     private static let storageKey = "vehicle.store.v1"
@@ -93,6 +106,7 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
         odometerKilometers: Double = 0,
         oilChangeIntervalKilometers: Double = 5_000,
         lastOilChangeOdometerKilometers: Double = 0,
+        usesHighAccuracyTracking: Bool = true,
         userVisibleLimit: Int? = nil,
         now: Date = Date()
     ) throws -> VehicleProfile {
@@ -120,7 +134,8 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
                 createdAt: now,
                 odometerKilometers: odometerKilometers,
                 oilChangeIntervalKilometers: oilChangeIntervalKilometers,
-                lastOilChangeOdometerKilometers: lastOilChangeOdometerKilometers
+                lastOilChangeOdometerKilometers: lastOilChangeOdometerKilometers,
+                usesHighAccuracyTracking: usesHighAccuracyTracking
             )
             state.vehicles.append(vehicle)
             return vehicle
@@ -133,7 +148,8 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
         name: String,
         odometerKilometers: Double,
         oilChangeIntervalKilometers: Double,
-        lastOilChangeOdometerKilometers: Double
+        lastOilChangeOdometerKilometers: Double,
+        usesHighAccuracyTracking: Bool = true
     ) throws -> VehicleProfile {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard Self.hasValidMaintenanceValues(
@@ -157,7 +173,8 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
                 createdAt: existing.createdAt,
                 odometerKilometers: odometerKilometers,
                 oilChangeIntervalKilometers: oilChangeIntervalKilometers,
-                lastOilChangeOdometerKilometers: lastOilChangeOdometerKilometers
+                lastOilChangeOdometerKilometers: lastOilChangeOdometerKilometers,
+                usesHighAccuracyTracking: usesHighAccuracyTracking
             )
             state.vehicles[index] = updated
             state.oilNotificationStates[id] = nil
@@ -169,6 +186,8 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
         _ = try? mutate { state in
             state.vehicles.removeAll { $0.id == id }
             state.oilNotificationStates[id] = nil
+            state.fuelRecords.removeAll { $0.vehicleID == id }
+            state.fuelTrackingDistanceKilometersByVehicleID[id] = nil
             for index in state.dayDistanceCredits.indices {
                 state.dayDistanceCredits[index].distanceKilometersByVehicleID[id] = nil
             }
@@ -177,6 +196,62 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
             {
                 state.intervals[index].endDate = now
             }
+        }
+    }
+
+    func fuelRecords(for vehicleID: UUID) -> [VehicleFuelRecord] {
+        lock.withLock { state in
+            state.fuelRecords
+                .filter { $0.vehicleID == vehicleID }
+                .sorted { $0.date < $1.date }
+        }
+    }
+
+    func fuelTrackingDistanceKilometers(for vehicleID: UUID) -> Double {
+        lock.withLock {
+            max(0, $0.fuelTrackingDistanceKilometersByVehicleID[vehicleID, default: 0])
+        }
+    }
+
+    func addFuelTrackingDistance(
+        _ distanceKilometers: Double,
+        for vehicleID: UUID
+    ) {
+        guard distanceKilometers.isFinite, distanceKilometers > 0 else { return }
+        _ = try? mutate { state in
+            guard state.vehicles.contains(where: { $0.id == vehicleID }) else { return }
+            state.fuelTrackingDistanceKilometersByVehicleID[vehicleID, default: 0]
+                += distanceKilometers
+        }
+    }
+
+    @discardableResult
+    func addFuelRecord(
+        vehicleID: UUID,
+        liters: Double,
+        isFullTank: Bool,
+        date: Date = Date()
+    ) throws -> VehicleFuelRecord {
+        guard liters.isFinite, liters > 0 else {
+            throw StoreError.invalidFuelAmount
+        }
+        return try mutate { state in
+            guard state.vehicles.contains(where: { $0.id == vehicleID }) else {
+                throw StoreError.vehicleNotFound
+            }
+            let record = VehicleFuelRecord(
+                id: UUID(),
+                vehicleID: vehicleID,
+                date: date,
+                liters: liters,
+                isFullTank: isFullTank,
+                trackedDistanceKilometers: max(
+                    0,
+                    state.fuelTrackingDistanceKilometersByVehicleID[vehicleID, default: 0]
+                )
+            )
+            state.fuelRecords.append(record)
+            return record
         }
     }
 
@@ -264,7 +339,8 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
                     createdAt: existing.createdAt,
                     odometerKilometers: max(0, existing.odometerKilometers + delta),
                     oilChangeIntervalKilometers: existing.oilChangeIntervalKilometers,
-                    lastOilChangeOdometerKilometers: existing.lastOilChangeOdometerKilometers
+                    lastOilChangeOdometerKilometers: existing.lastOilChangeOdometerKilometers,
+                    usesHighAccuracyTracking: existing.usesHighAccuracyTracking
                 )
                 state.vehicles[vehicleIndex] = updated
 

@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 
 nonisolated enum AnalyticsViewState: Sendable, Equatable {
@@ -13,22 +14,43 @@ final class AnalyticsViewModel {
     private(set) var state: AnalyticsViewState = .idle
     private(set) var selectedMonth: LocalMonth
     private(set) var series: MonthlyDistanceSeriesData?
+    private(set) var vehicles: [VehicleProfile] = []
+    private(set) var fuelRecords: [VehicleFuelRecord] = []
+    private(set) var fuelEconomyIntervals: [FuelEconomyInterval] = []
+    private(set) var overallFuelEconomy: Double?
+    private(set) var fuelRecordNotice: String?
     let currentMonth: LocalMonth
+
+    var detectedVehicle: VehicleProfile? {
+        detector.detectedVehicle
+    }
+
+    var selectedVehicle: VehicleProfile? {
+        vehicles.first
+    }
 
     var canMoveToNextMonth: Bool {
         selectedMonth < currentMonth
     }
 
     private let loadMonthlyDistanceSeries: any LoadMonthlyDistanceSeriesUseCase
+    private let vehicleStore: UserDefaultsVehicleStore
+    private let detector: AudioRouteVehicleDetector
     private var requestID = 0
 
     init(
         currentMonth: LocalMonth,
-        loadMonthlyDistanceSeries: any LoadMonthlyDistanceSeriesUseCase
+        loadMonthlyDistanceSeries: any LoadMonthlyDistanceSeriesUseCase,
+        vehicleStore: UserDefaultsVehicleStore? = nil,
+        detector: AudioRouteVehicleDetector? = nil
     ) {
+        let resolvedStore = vehicleStore ?? UserDefaultsVehicleStore()
         self.currentMonth = currentMonth
         selectedMonth = currentMonth
         self.loadMonthlyDistanceSeries = loadMonthlyDistanceSeries
+        self.vehicleStore = resolvedStore
+        self.detector = detector ?? AudioRouteVehicleDetector(store: resolvedStore)
+        reloadVehicleAnalytics()
     }
 
     func load() async {
@@ -49,6 +71,40 @@ final class AnalyticsViewModel {
         await load(month: month)
     }
 
+    func refreshVehicleData() {
+        detector.start()
+        detector.refresh()
+        reloadVehicleAnalytics()
+    }
+
+    @discardableResult
+    func recordFuel(liters: Double, isFullTank: Bool) -> Bool {
+        refreshVehicleData()
+        guard let vehicle = detector.detectedVehicle else {
+            fuelRecordNotice = "登録した車のBluetooth接続中のみ給油を記録できます"
+            return false
+        }
+        do {
+            try vehicleStore.addFuelRecord(
+                vehicleID: vehicle.id,
+                liters: liters,
+                isFullTank: isFullTank
+            )
+            reloadVehicleAnalytics()
+            fuelRecordNotice = isFullTank
+                ? "満タン給油を記録しました"
+                : "給油を記録しました。次の満タン時に燃費へ反映します"
+            return true
+        } catch {
+            fuelRecordNotice = "給油量を確認してください"
+            return false
+        }
+    }
+
+    func dismissFuelRecordNotice() {
+        fuelRecordNotice = nil
+    }
+
     private func load(month: LocalMonth) async {
         selectedMonth = month
         requestID += 1
@@ -58,6 +114,7 @@ final class AnalyticsViewModel {
             let result = try await loadMonthlyDistanceSeries.execute(month: month)
             guard currentRequestID == requestID else { return }
             series = result
+            reloadVehicleAnalytics()
             state = .loaded
         } catch is CancellationError {
             guard currentRequestID == requestID else { return }
@@ -66,5 +123,29 @@ final class AnalyticsViewModel {
             series = nil
             state = .error
         }
+    }
+
+    private func reloadVehicleAnalytics() {
+        vehicles = vehicleStore.registeredVehicles()
+        guard let vehicle = vehicles.first else {
+            fuelRecords = []
+            fuelEconomyIntervals = []
+            overallFuelEconomy = nil
+            return
+        }
+        let records = vehicleStore.fuelRecords(for: vehicle.id)
+        let allIntervals = FuelEconomyCalculator.intervals(from: records)
+        fuelRecords = records
+        fuelEconomyIntervals = allIntervals.filter { interval in
+            let components = Calendar.current.dateComponents(
+                [.year, .month],
+                from: interval.endDate
+            )
+            return components.year == selectedMonth.year
+                && components.month == selectedMonth.month
+        }
+        overallFuelEconomy = FuelEconomyCalculator.overallKilometersPerLiter(
+            from: allIntervals
+        )
     }
 }

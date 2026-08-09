@@ -10,6 +10,7 @@ nonisolated struct VehicleProfile: Codable, Identifiable, Sendable, Equatable {
     let odometerKilometers: Double
     let oilChangeIntervalKilometers: Double
     let lastOilChangeOdometerKilometers: Double
+    let usesHighAccuracyTracking: Bool
 
     var oilChangeDueOdometerKilometers: Double {
         lastOilChangeOdometerKilometers + oilChangeIntervalKilometers
@@ -28,7 +29,8 @@ nonisolated struct VehicleProfile: Codable, Identifiable, Sendable, Equatable {
         createdAt: Date,
         odometerKilometers: Double = 0,
         oilChangeIntervalKilometers: Double = 5_000,
-        lastOilChangeOdometerKilometers: Double = 0
+        lastOilChangeOdometerKilometers: Double = 0,
+        usesHighAccuracyTracking: Bool = true
     ) {
         self.id = id
         self.name = name
@@ -39,6 +41,7 @@ nonisolated struct VehicleProfile: Codable, Identifiable, Sendable, Equatable {
         self.odometerKilometers = max(0, odometerKilometers)
         self.oilChangeIntervalKilometers = max(1, oilChangeIntervalKilometers)
         self.lastOilChangeOdometerKilometers = max(0, lastOilChangeOdometerKilometers)
+        self.usesHighAccuracyTracking = usesHighAccuracyTracking
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -51,6 +54,7 @@ nonisolated struct VehicleProfile: Codable, Identifiable, Sendable, Equatable {
         case odometerKilometers
         case oilChangeIntervalKilometers
         case lastOilChangeOdometerKilometers
+        case usesHighAccuracyTracking
     }
 
     init(from decoder: Decoder) throws {
@@ -73,7 +77,11 @@ nonisolated struct VehicleProfile: Codable, Identifiable, Sendable, Equatable {
             lastOilChangeOdometerKilometers: try container.decodeIfPresent(
                 Double.self,
                 forKey: .lastOilChangeOdometerKilometers
-            ) ?? 0
+            ) ?? 0,
+            usesHighAccuracyTracking: try container.decodeIfPresent(
+                Bool.self,
+                forKey: .usesHighAccuracyTracking
+            ) ?? true
         )
     }
 }
@@ -116,6 +124,80 @@ nonisolated struct AudioRouteDevice: Identifiable, Sendable, Equatable {
 
     var id: String {
         uid
+    }
+}
+
+nonisolated struct VehicleFuelRecord: Codable, Identifiable, Sendable, Equatable {
+    let id: UUID
+    let vehicleID: UUID
+    let date: Date
+    let liters: Double
+    let isFullTank: Bool
+    let trackedDistanceKilometers: Double
+}
+
+nonisolated struct FuelEconomyInterval: Identifiable, Sendable, Equatable {
+    let id: UUID
+    let vehicleID: UUID
+    let startDate: Date
+    let endDate: Date
+    let distanceKilometers: Double
+    let fuelLiters: Double
+
+    var kilometersPerLiter: Double {
+        distanceKilometers / fuelLiters
+    }
+}
+
+nonisolated enum FuelEconomyCalculator {
+    static func intervals(from records: [VehicleFuelRecord]) -> [FuelEconomyInterval] {
+        let sorted = records.sorted { first, second in
+            if first.date == second.date {
+                return first.id.uuidString < second.id.uuidString
+            }
+            return first.date < second.date
+        }
+        var previousFullTank: VehicleFuelRecord?
+        var accumulatedLiters = 0.0
+        var result: [FuelEconomyInterval] = []
+
+        for record in sorted {
+            guard record.liters > 0, record.liters.isFinite else { continue }
+            guard let intervalStart = previousFullTank else {
+                if record.isFullTank {
+                    previousFullTank = record
+                    accumulatedLiters = 0
+                }
+                continue
+            }
+
+            accumulatedLiters += record.liters
+            guard record.isFullTank else { continue }
+            let distance = record.trackedDistanceKilometers
+                - intervalStart.trackedDistanceKilometers
+            if distance > 0, distance.isFinite, accumulatedLiters > 0 {
+                result.append(FuelEconomyInterval(
+                    id: record.id,
+                    vehicleID: record.vehicleID,
+                    startDate: intervalStart.date,
+                    endDate: record.date,
+                    distanceKilometers: distance,
+                    fuelLiters: accumulatedLiters
+                ))
+            }
+            previousFullTank = record
+            accumulatedLiters = 0
+        }
+        return result
+    }
+
+    static func overallKilometersPerLiter(
+        from intervals: [FuelEconomyInterval]
+    ) -> Double? {
+        let totalDistance = intervals.reduce(0) { $0 + $1.distanceKilometers }
+        let totalFuel = intervals.reduce(0) { $0 + $1.fuelLiters }
+        guard totalDistance > 0, totalFuel > 0 else { return nil }
+        return totalDistance / totalFuel
     }
 }
 

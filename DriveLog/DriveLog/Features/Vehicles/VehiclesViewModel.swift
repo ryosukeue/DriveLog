@@ -41,7 +41,8 @@ final class VehiclesViewModel {
         device: AudioRouteDevice,
         odometerKilometers: Double,
         oilChangeIntervalKilometers: Double,
-        lastOilChangeOdometerKilometers: Double
+        lastOilChangeOdometerKilometers: Double,
+        usesHighAccuracyTracking: Bool = true
     ) -> Bool {
         do {
             try store.addVehicle(
@@ -51,6 +52,7 @@ final class VehiclesViewModel {
                 odometerKilometers: odometerKilometers,
                 oilChangeIntervalKilometers: oilChangeIntervalKilometers,
                 lastOilChangeOdometerKilometers: lastOilChangeOdometerKilometers,
+                usesHighAccuracyTracking: usesHighAccuracyTracking,
                 userVisibleLimit: Self.vehicleLimit
             )
             detector.refresh()
@@ -73,7 +75,8 @@ final class VehiclesViewModel {
         name: String,
         odometerKilometers: Double,
         oilChangeIntervalKilometers: Double,
-        lastOilChangeOdometerKilometers: Double
+        lastOilChangeOdometerKilometers: Double,
+        usesHighAccuracyTracking: Bool
     ) -> Bool {
         do {
             try store.updateVehicle(
@@ -81,8 +84,10 @@ final class VehiclesViewModel {
                 name: name,
                 odometerKilometers: odometerKilometers,
                 oilChangeIntervalKilometers: oilChangeIntervalKilometers,
-                lastOilChangeOdometerKilometers: lastOilChangeOdometerKilometers
+                lastOilChangeOdometerKilometers: lastOilChangeOdometerKilometers,
+                usesHighAccuracyTracking: usesHighAccuracyTracking
             )
+            detector.refresh()
             reload()
             return true
         } catch UserDefaultsVehicleStore.StoreError.invalidMaintenanceValues {

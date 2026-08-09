@@ -14,12 +14,14 @@ final class AppLifecycleCoordinator: AppLifecycleCoordinating {
     private let dayProcessingCoordinator: any DayProcessingCoordinating
     private let backgroundTaskScheduler: any BackgroundTaskScheduling
     private let processingAlgorithmMigrator: any ProcessingAlgorithmMigrating
+    private let vehicleDriveSessionCoordinator: VehicleDriveSessionCoordinator?
 
     init(
         permissionManager: any PermissionManaging,
         startMonitoringUseCase: StartMonitoringUseCase,
         dayProcessingCoordinator: any DayProcessingCoordinating,
         backgroundTaskScheduler: any BackgroundTaskScheduling,
+        vehicleDriveSessionCoordinator: VehicleDriveSessionCoordinator? = nil,
         processingAlgorithmMigrator: any ProcessingAlgorithmMigrating =
             NoOpProcessingAlgorithmMigrator()
     ) {
@@ -27,10 +29,12 @@ final class AppLifecycleCoordinator: AppLifecycleCoordinating {
         self.startMonitoringUseCase = startMonitoringUseCase
         self.dayProcessingCoordinator = dayProcessingCoordinator
         self.backgroundTaskScheduler = backgroundTaskScheduler
+        self.vehicleDriveSessionCoordinator = vehicleDriveSessionCoordinator
         self.processingAlgorithmMigrator = processingAlgorithmMigrator
     }
 
     func handleLaunch() async {
+        await vehicleDriveSessionCoordinator?.start()
         await processingAlgorithmMigrator.migrateIfNeeded()
         try? backgroundTaskScheduler.registerProcessingTask()
         await refreshPermissionsAndMonitoring()

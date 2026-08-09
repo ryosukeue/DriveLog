@@ -6,6 +6,7 @@ import Observation
 final class AudioRouteVehicleDetector {
     private(set) var availableDevices: [AudioRouteDevice] = []
     private(set) var detectedVehicle: VehicleProfile?
+    var onDetectedVehicleChange: ((VehicleProfile?) -> Void)?
     private var routeObserver: NSObjectProtocol?
     private let store: UserDefaultsVehicleStore
     private let notificationCenter: NotificationCenter
@@ -56,9 +57,12 @@ final class AudioRouteVehicleDetector {
             store.registeredVehicles().contains { $0.audioRouteUID == device.uid }
         }
         store.updateDetectedAudioRoute(uid: detected?.uid)
-        detectedVehicle = detected.flatMap { device in
+        let updatedVehicle = detected.flatMap { device in
             store.registeredVehicles().first { $0.audioRouteUID == device.uid }
         }
+        guard updatedVehicle != detectedVehicle else { return }
+        detectedVehicle = updatedVehicle
+        onDetectedVehicleChange?(updatedVehicle)
     }
 
     private static func isVehicleCapableAudioRoute(

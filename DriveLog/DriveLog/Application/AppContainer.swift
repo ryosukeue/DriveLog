@@ -224,6 +224,18 @@ final class AppContainer {
             storageCoordinator: storageCoordinator,
             logger: logger
         )
+        let vehicleDriveSessionCoordinator = VehicleDriveSessionCoordinator(
+            locationChanges: providers.location.locationChanges,
+            monitoringUseCase: startMonitoring,
+            vehicleStore: vehicleStore,
+            gasStationProvider: MapKitNearbyGasStationProvider(),
+            notificationService: FuelStopNotificationService()
+        )
+        audioRouteVehicleDetector.onDetectedVehicleChange = { vehicle in
+            Task {
+                await vehicleDriveSessionCoordinator.updateDetectedVehicle(vehicle)
+            }
+        }
         let processDay = makeProcessDayUseCase(
             stateRepository: stateRepository,
             rawRepository: rawRepository,
@@ -250,6 +262,7 @@ final class AppContainer {
             startMonitoringUseCase: startMonitoring,
             dayProcessingCoordinator: dayProcessing,
             backgroundTaskScheduler: backgroundScheduler,
+            vehicleDriveSessionCoordinator: vehicleDriveSessionCoordinator,
             processingAlgorithmMigrator: processingAlgorithmMigrator
         )
     }

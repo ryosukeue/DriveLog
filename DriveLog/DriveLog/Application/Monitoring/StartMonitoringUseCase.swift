@@ -6,6 +6,8 @@ actor StartMonitoringUseCase {
     private let logger: any Logging
     private var isExecuting = false
     private var appliedLocationMode: LocationRecordingMode?
+    private var desiredLocationMode: LocationRecordingMode = .lowPower
+    private var hasStarted = false
 
     init(
         locationProvider: any LocationProviding,
@@ -35,10 +37,22 @@ actor StartMonitoringUseCase {
         }
         await startMotionIfNeeded()
         await startVisitIfNeeded()
+        hasStarted = true
+        try? await applyDesiredLocationModeIfNeeded()
+    }
+
+    func setVehicleConnected(_ isConnected: Bool) async {
+        desiredLocationMode = isConnected ? .vehicleConnected : .lowPower
+        guard hasStarted else { return }
+        try? await applyDesiredLocationModeIfNeeded()
     }
 
     private func startSignificantLocationMonitoringIfNeeded() async throws {
-        let mode = LocationRecordingMode.lowPower
+        try await applyDesiredLocationModeIfNeeded()
+    }
+
+    private func applyDesiredLocationModeIfNeeded() async throws {
+        let mode = desiredLocationMode
         let monitoringState = await locationProvider.monitoringState
         if appliedLocationMode == nil, monitoringState == .running {
             appliedLocationMode = mode
