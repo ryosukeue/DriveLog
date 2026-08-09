@@ -24,7 +24,12 @@ final class FriendsViewModel {
     }
 
     var isConnected: Bool {
-        defaults.bool(forKey: "hasConnectedCloudFriends") ||
+        #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-ui-testing-friends-review") {
+                return true
+            }
+        #endif
+        return defaults.bool(forKey: "hasConnectedCloudFriends") ||
             defaults.string(forKey: "iCloudDisplayName") != nil
     }
 
@@ -46,6 +51,43 @@ final class FriendsViewModel {
     }
 
     func load() async {
+        #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-ui-testing-friends-review") {
+                entries = [
+                    FriendRankingEntry(
+                        userRecordName: "review-friend-1",
+                        displayName: "たくみ",
+                        distanceMeters: 428_600,
+                        isCurrentUser: false,
+                        rank: 1
+                    ),
+                    FriendRankingEntry(
+                        userRecordName: "review-current-user",
+                        displayName: "34",
+                        distanceMeters: 356_400,
+                        isCurrentUser: true,
+                        rank: 2
+                    ),
+                    FriendRankingEntry(
+                        userRecordName: "review-friend-2",
+                        displayName: "ゆうき",
+                        distanceMeters: 291_800,
+                        isCurrentUser: false,
+                        rank: 3
+                    ),
+                    FriendRankingEntry(
+                        userRecordName: "review-friend-3",
+                        displayName: "まさ",
+                        distanceMeters: 184_300,
+                        isCurrentUser: false,
+                        rank: 4
+                    )
+                ]
+                invitationURL = URL(string: "drivelog://friend/review-invitation")
+                state = .loaded
+                return
+            }
+        #endif
         guard isConnected else {
             state = .idle
             entries = []

@@ -170,9 +170,11 @@ struct DriveLogApp: App {
             let runsOnboardingFlow = arguments.contains("-ui-testing-onboarding-flow")
             let usesDenseMapFixture = arguments.contains("-ui-testing-july-17-map")
             let usesFuelReviewFixture = arguments.contains("-ui-testing-fuel-review")
+            let usesFriendsReviewFixture = arguments.contains("-ui-testing-friends-review")
             let isMedia = arguments.contains("-ui-testing-media")
                 || usesDenseMapFixture
                 || usesFuelReviewFixture
+                || usesFriendsReviewFixture
             let isSeeded = isMedia
                 || arguments.contains("-ui-testing-day-detail")
                 || usesDenseMapFixture
@@ -180,6 +182,7 @@ struct DriveLogApp: App {
             let isEnabled = isSeeded
                 || arguments.contains("-ui-testing-calendar")
                 || runsOnboardingFlow
+                || usesFriendsReviewFixture
             let permissionManager: any PermissionManaging = runsOnboardingFlow
                 ? UITestPermissionManager() : PermissionCoordinator()
             let photoLibrary: any PhotoLibraryProviding = isMedia
@@ -192,7 +195,8 @@ struct DriveLogApp: App {
                 isSeeded: isSeeded,
                 isEnabled: isEnabled,
                 usesDenseMapFixture: usesDenseMapFixture,
-                usesFuelReviewFixture: usesFuelReviewFixture
+                usesFuelReviewFixture: usesFuelReviewFixture,
+                usesFriendsReviewFixture: usesFriendsReviewFixture
             )
         }
 
@@ -278,6 +282,7 @@ struct DriveLogApp: App {
         let isEnabled: Bool
         let usesDenseMapFixture: Bool
         let usesFuelReviewFixture: Bool
+        let usesFriendsReviewFixture: Bool
     }
 #endif
 
@@ -309,6 +314,7 @@ private extension DriveLogApp {
                 || arguments.contains("-ui-testing-calendar")
                 || arguments.contains("-ui-testing-july-17-map")
                 || arguments.contains("-ui-testing-fuel-review")
+                || arguments.contains("-ui-testing-friends-review")
             if bypassesOnboarding {
                 return false
             }

@@ -150,6 +150,8 @@ struct ContentView: View {
             #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("-ui-testing-fuel-review") {
                     selectedTab = .analytics
+                } else if ProcessInfo.processInfo.arguments.contains("-ui-testing-friends-review") {
+                    selectedTab = .friends
                 }
             #endif
         }

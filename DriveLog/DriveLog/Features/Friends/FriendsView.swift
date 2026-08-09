@@ -38,7 +38,7 @@ struct FriendsView: View {
             }
         }
         .task {
-            if !hasSeenICloudIntro {
+            if !hasSeenICloudIntro, !runsFriendsReviewScreenshot {
                 hasSeenICloudIntro = true
                 isShowingICloudSetup = true
             }
@@ -77,6 +77,14 @@ struct FriendsView: View {
             Text(viewModel.errorMessage ?? viewModel.invitationMessage ?? "")
         }
         .accessibilityIdentifier("friends.root")
+    }
+
+    private var runsFriendsReviewScreenshot: Bool {
+        #if DEBUG
+            ProcessInfo.processInfo.arguments.contains("-ui-testing-friends-review")
+        #else
+            false
+        #endif
     }
 
     private var addFriendButton: some View {
