@@ -11,21 +11,11 @@ struct DaySummaryCard: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("移動")
                 .font(.headline)
-            LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
-                summaryItem(
-                    title: "総移動距離",
-                    value: formatter.distance(meters: aggregate.totalDistanceMeters),
-                    emphasized: true
-                )
-                summaryItem(
-                    title: "総移動時間",
-                    value: formatter.duration(seconds: aggregate.totalMovementDurationSeconds),
-                    emphasized: true
-                )
-                summaryItem(title: "開始", value: formatter.time(aggregate.startDate))
-                summaryItem(title: "終了", value: formatter.time(aggregate.endDate))
-                summaryItem(title: "写真・動画", value: "\(aggregate.mediaCountCache)件")
-            }
+            summaryItem(
+                title: "総移動距離",
+                value: formatter.distance(meters: aggregate.totalDistanceMeters),
+                emphasized: true
+            )
             if !vehicleDistances.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
                     ForEach(vehicleDistances) { value in
@@ -46,6 +36,16 @@ struct DaySummaryCard: View {
                     }
                 }
                 .accessibilityIdentifier("dayDetail.summary.vehicles")
+            }
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
+                summaryItem(
+                    title: "総移動時間",
+                    value: formatter.duration(seconds: aggregate.totalMovementDurationSeconds),
+                    emphasized: true
+                )
+                summaryItem(title: "開始", value: formatter.time(aggregate.startDate))
+                summaryItem(title: "終了", value: formatter.time(aggregate.endDate))
+                summaryItem(title: "写真・動画", value: "\(aggregate.mediaCountCache)件")
             }
         }
         .accessibilityIdentifier("dayDetail.summary")

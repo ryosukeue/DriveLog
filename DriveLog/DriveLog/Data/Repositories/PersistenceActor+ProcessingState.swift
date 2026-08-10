@@ -10,7 +10,7 @@ extension PersistenceActor {
 
     func pendingProcessingDateKeys() throws -> [String] {
         let descriptor = FetchDescriptor<DayProcessingStateModel>(
-            sortBy: [SortDescriptor(\DayProcessingStateModel.localDateKey)]
+            sortBy: [SortDescriptor(\DayProcessingStateModel.localDateKey, order: .reverse)]
         )
         return try modelContext.fetch(descriptor).filter { state in
             state.rawRevision > state.processedRevision &&

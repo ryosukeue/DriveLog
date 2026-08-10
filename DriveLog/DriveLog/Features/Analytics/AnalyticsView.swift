@@ -6,6 +6,7 @@ struct AnalyticsView: View {
     @State private var selectedDay: Int?
     @State private var fuelAmount = ""
     @State private var isFullTank = false
+    @State private var oilChangeVehicle: VehicleProfile?
     private let distanceFormatter: DistanceFormatter
     private let isPlusEnabled: Bool
     private let onShowPremium: () -> Void
@@ -57,6 +58,14 @@ struct AnalyticsView: View {
                 Button("OK") { viewModel.dismissFuelRecordNotice() }
             } message: {
                 Text(viewModel.fuelRecordNotice ?? "")
+            }
+            .sheet(item: $oilChangeVehicle) { vehicle in
+                OilChangeRecordView(vehicle: vehicle) { odometer in
+                    viewModel.recordOilChange(
+                        vehicleID: vehicle.id,
+                        odometerKilometers: odometer
+                    )
+                }
             }
             .environment(
                 \.locale,
@@ -359,6 +368,11 @@ struct AnalyticsView: View {
                         }
                         ProgressView(value: oilProgress(vehicle))
                             .tint(oilStatusColor(vehicle))
+                        Button("オイル交換を記録", systemImage: "arrow.counterclockwise") {
+                            oilChangeVehicle = vehicle
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .buttonStyle(.bordered)
                     }
                 }
             }
@@ -524,5 +538,67 @@ struct AnalyticsView: View {
             return .orange
         }
         return Color(hex: vehicle.colorHex)
+    }
+}
+
+private struct OilChangeRecordView: View {
+    @Environment(\.dismiss) private var dismiss
+    let vehicle: VehicleProfile
+    let onRecord: (Double) -> Bool
+    @State private var odometerKilometers: String
+
+    init(vehicle: VehicleProfile, onRecord: @escaping (Double) -> Bool) {
+        self.vehicle = vehicle
+        self.onRecord = onRecord
+        _odometerKilometers = State(initialValue: vehicle.odometerKilometers.formatted(
+            .number.locale(Locale(identifier: "en_US_POSIX"))
+                .grouping(.never)
+                .precision(.fractionLength(0...1))
+        ))
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    HStack {
+                        TextField("例：50000", text: $odometerKilometers)
+                            .keyboardType(.decimalPad)
+                        Text("km")
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text("オイル交換時の走行距離")
+                } footer: {
+                    Text(
+                        "入力した距離を現在の総走行距離として保存し、" +
+                            "ここから次回のオイル交換距離を計算します。"
+                    )
+                }
+            }
+            .navigationTitle("\(vehicle.name)のオイル交換")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("キャンセル") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("記録") {
+                        guard let odometer, onRecord(odometer) else { return }
+                        dismiss()
+                    }
+                    .disabled(odometer == nil)
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    private var odometer: Double? {
+        let normalized = odometerKilometers
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: ",", with: ".")
+        guard let value = Double(normalized), value.isFinite, value >= 0 else { return nil }
+        return value
     }
 }

@@ -99,7 +99,7 @@ struct ProcessingStateRepositoryTests {
         _ = try await repository.markProcessing(localDateKey: "2024-01-04", attemptedAt: now)
 
         #expect(try await repository.pendingDateKeys() == [
-            "2024-01-01", "2024-01-02", "2024-01-03"
+            "2024-01-03", "2024-01-02", "2024-01-01"
         ])
     }
 
@@ -142,7 +142,7 @@ struct ProcessingStateRepositoryTests {
         #expect(invalidated.status == .pending)
         #expect(alreadyIncomplete.rawRevision == 2)
         #expect(alreadyIncomplete.processedRevision == 0)
-        #expect(try await repository.pendingDateKeys() == ["2024-01-01", "2024-01-02"])
+        #expect(try await repository.pendingDateKeys() == ["2024-01-02", "2024-01-01"])
     }
 
     private func makeRepository() throws -> SwiftDataProcessingStateRepository {

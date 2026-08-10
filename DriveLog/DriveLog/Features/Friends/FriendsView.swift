@@ -222,7 +222,7 @@ private struct FriendInvitationView: View {
     @State private var isAddingFriend = false
     @State private var resultMessage: String?
 
-    private let appDownloadURL = "https://apps.apple.com/app/id6795418978"
+    private let appDownloadURL = URL(string: "https://apps.apple.com/app/id6795418978")!
 
     var body: some View {
         NavigationStack {
@@ -256,8 +256,9 @@ private struct FriendInvitationView: View {
                     }
 
                     ShareLink(
-                        item: shareText,
-                        subject: Text("ドライブログで友達になろう")
+                        item: appDownloadURL,
+                        subject: Text("ドライブログで友達になろう"),
+                        message: Text(friendShareMessage)
                     ) {
                         Label(
                             "IDとダウンロードリンクを共有",
@@ -326,14 +327,11 @@ private struct FriendInvitationView: View {
         }
     }
 
-    private var shareText: String {
+    private var friendShareMessage: String {
         """
         ドライブログで友達になろう！
 
         友達ID：\(friendID)
-
-        アプリのダウンロードはこちら
-        \(appDownloadURL)
         """
     }
 

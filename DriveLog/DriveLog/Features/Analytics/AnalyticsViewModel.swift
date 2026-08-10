@@ -37,6 +37,7 @@ final class AnalyticsViewModel {
     private let vehicleStore: UserDefaultsVehicleStore
     private let detector: AudioRouteVehicleDetector
     private var requestID = 0
+    private var cachedSeries: [LocalMonth: MonthlyDistanceSeriesData] = [:]
 
     init(
         currentMonth: LocalMonth,
@@ -105,14 +106,42 @@ final class AnalyticsViewModel {
         fuelRecordNotice = nil
     }
 
+    @discardableResult
+    func recordOilChange(vehicleID: UUID, odometerKilometers: Double) -> Bool {
+        guard let vehicle = vehicles.first(where: { $0.id == vehicleID }) else {
+            return false
+        }
+        do {
+            try vehicleStore.updateVehicle(
+                id: vehicle.id,
+                name: vehicle.name,
+                odometerKilometers: odometerKilometers,
+                oilChangeIntervalKilometers: vehicle.oilChangeIntervalKilometers,
+                lastOilChangeOdometerKilometers: odometerKilometers,
+                usesHighAccuracyTracking: vehicle.usesHighAccuracyTracking
+            )
+            reloadVehicleAnalytics()
+            return true
+        } catch {
+            return false
+        }
+    }
+
     private func load(month: LocalMonth) async {
         selectedMonth = month
+        if let cached = cachedSeries[month] {
+            series = cached
+            reloadVehicleAnalytics()
+            state = .loaded
+            return
+        }
         requestID += 1
         let currentRequestID = requestID
         state = .loading
         do {
             let result = try await loadMonthlyDistanceSeries.execute(month: month)
             guard currentRequestID == requestID else { return }
+            cachedSeries[month] = result
             series = result
             reloadVehicleAnalytics()
             state = .loaded
