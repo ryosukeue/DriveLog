@@ -9,7 +9,7 @@ nonisolated final class PlusEntitlementCache: @unchecked Sendable {
         #if DEBUG
             true
         #else
-            false
+            Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
         #endif
     }
 
