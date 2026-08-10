@@ -223,8 +223,6 @@ private struct FriendInvitationView: View {
     @State private var resultMessage: String?
     @State private var sharePayload: FriendInvitationSharePayload?
 
-    private let appDownloadURL = URL(string: "https://apps.apple.com/app/id6795418978")!
-
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -258,12 +256,11 @@ private struct FriendInvitationView: View {
 
                     Button {
                         sharePayload = FriendInvitationSharePayload(
-                            friendID: friendID,
-                            downloadURL: appDownloadURL
+                            friendID: friendID
                         )
                     } label: {
                         Label(
-                            "IDとダウンロードリンクを共有",
+                            "友達IDを共有",
                             systemImage: "square.and.arrow.up"
                         )
                         .frame(maxWidth: .infinity)
@@ -329,7 +326,7 @@ private struct FriendInvitationView: View {
         }
         .sheet(item: $sharePayload) { payload in
             FriendInvitationActivityView(
-                activityItems: [payload.image, payload.downloadURL]
+                activityItems: [payload.image]
             )
             .ignoresSafeArea()
         }
@@ -351,17 +348,12 @@ private struct FriendInvitationView: View {
 
 private struct FriendInvitationSharePayload: Identifiable {
     let id = UUID()
-    let downloadURL: URL
     let image: UIImage
 
     @MainActor
-    init(friendID: String, downloadURL: URL) {
-        self.downloadURL = downloadURL
+    init(friendID: String) {
         let renderer = ImageRenderer(
-            content: FriendInvitationShareCard(
-                friendID: friendID,
-                downloadURL: downloadURL
-            )
+            content: FriendInvitationShareCard(friendID: friendID)
             .frame(width: 1080, height: 1080)
         )
         renderer.scale = 1
@@ -371,7 +363,6 @@ private struct FriendInvitationSharePayload: Identifiable {
 
 private struct FriendInvitationShareCard: View {
     let friendID: String
-    let downloadURL: URL
 
     var body: some View {
         ZStack {
@@ -401,14 +392,6 @@ private struct FriendInvitationShareCard: View {
                 .padding(.vertical, 46)
                 .padding(.horizontal, 40)
                 .background(.white, in: RoundedRectangle(cornerRadius: 34))
-                Text("アプリのダウンロードはこちら")
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(.white)
-                Text(downloadURL.absoluteString)
-                    .font(.system(size: 28))
-                    .foregroundStyle(.white.opacity(0.75))
-                    .minimumScaleFactor(0.7)
-                    .lineLimit(1)
             }
             .padding(80)
         }
