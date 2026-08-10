@@ -8,6 +8,7 @@ struct DriveLogApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var onboardingFlowUITestCompleted = false
+    @State private var isStarting = true
     private let rootViewModels: DriveLogRootViewModels?
     private let appContainer: AppContainer
     private let today: Date
@@ -77,7 +78,9 @@ struct DriveLogApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if shouldShowOnboarding {
+                if isStarting {
+                    LaunchLoadingView()
+                } else if shouldShowOnboarding {
                     OnboardingView(
                         viewModel: OnboardingViewModel(permissionManager: permissionManager),
                         onCompleted: {
@@ -130,11 +133,17 @@ struct DriveLogApp: App {
                 }
             }
             .task {
+                guard isStarting else { return }
+                async let minimumDisplayTime: Void = Task.sleep(for: .milliseconds(650))
                 appContainer.startVehicleDetection()
                 await lifecycleCoordinator?.handleLaunch()
                 await appContainer.plusPlanStore.load()
                 if !appContainer.plusPlanStore.isPlus {
                     AdMobConfiguration.startIfConfigured()
+                }
+                _ = try? await minimumDisplayTime
+                withAnimation(.easeOut(duration: 0.2)) {
+                    isStarting = false
                 }
             }
             .onChange(of: scenePhase) { _, phase in
@@ -156,6 +165,28 @@ struct DriveLogApp: App {
                 }
             }
         }
+    }
+}
+
+private struct LaunchLoadingView: View {
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            VStack(spacing: 24) {
+                Image(systemName: "point.topleft.down.to.point.bottomright.curvepath")
+                    .font(.system(size: 82, weight: .bold))
+                    .foregroundStyle(.white)
+                    .accessibilityHidden(true)
+                Text("ドライブログ")
+                    .font(.title.bold())
+                    .foregroundStyle(.white)
+                ProgressView()
+                    .tint(.white)
+                    .controlSize(.large)
+                    .accessibilityLabel("起動中")
+            }
+        }
+        .accessibilityIdentifier("app.startup.loading")
     }
 }
 
