@@ -221,7 +221,6 @@ private struct FriendInvitationView: View {
     @State private var enteredFriendID = ""
     @State private var isAddingFriend = false
     @State private var resultMessage: String?
-    @State private var sharePayload: FriendInvitationSharePayload?
 
     var body: some View {
         NavigationStack {
@@ -254,11 +253,7 @@ private struct FriendInvitationView: View {
                         .font(.caption)
                     }
 
-                    Button {
-                        sharePayload = FriendInvitationSharePayload(
-                            friendID: friendID
-                        )
-                    } label: {
+                    ShareLink(item: friendShareText) {
                         Label(
                             "友達IDを共有",
                             systemImage: "square.and.arrow.up"
@@ -324,12 +319,13 @@ private struct FriendInvitationView: View {
         } message: {
             Text(resultMessage ?? "")
         }
-        .sheet(item: $sharePayload) { payload in
-            FriendInvitationActivityView(
-                activityItems: [payload.image]
-            )
-            .ignoresSafeArea()
-        }
+    }
+
+    private var friendShareText: String {
+        """
+        ドライブログで友達になろう！
+        友達ID：\(friendID)
+        """
     }
 
     private var qrImage: UIImage? {
@@ -344,72 +340,4 @@ private struct FriendInvitationView: View {
         }
         return UIImage(cgImage: image)
     }
-}
-
-private struct FriendInvitationSharePayload: Identifiable {
-    let id = UUID()
-    let image: UIImage
-
-    @MainActor
-    init(friendID: String) {
-        let renderer = ImageRenderer(
-            content: FriendInvitationShareCard(friendID: friendID)
-            .frame(width: 1080, height: 1080)
-        )
-        renderer.scale = 1
-        image = renderer.uiImage ?? UIImage()
-    }
-}
-
-private struct FriendInvitationShareCard: View {
-    let friendID: String
-
-    var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [Color.black, Color(white: 0.12)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            VStack(spacing: 52) {
-                Image(systemName: "point.topleft.down.to.point.bottomright.curvepath")
-                    .font(.system(size: 120, weight: .bold))
-                    .foregroundStyle(.white)
-                Text("ドライブログで友達になろう！")
-                    .font(.system(size: 62, weight: .bold))
-                    .foregroundStyle(.white)
-                VStack(spacing: 18) {
-                    Text("友達ID")
-                        .font(.system(size: 34, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                    Text(friendID)
-                        .font(.system(size: 64, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.black)
-                        .minimumScaleFactor(0.6)
-                        .lineLimit(1)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 46)
-                .padding(.horizontal, 40)
-                .background(.white, in: RoundedRectangle(cornerRadius: 34))
-            }
-            .padding(80)
-        }
-    }
-}
-
-private struct FriendInvitationActivityView: UIViewControllerRepresentable {
-    let activityItems: [Any]
-
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(
-            activityItems: activityItems,
-            applicationActivities: nil
-        )
-    }
-
-    func updateUIViewController(
-        _ uiViewController: UIActivityViewController,
-        context: Context
-    ) {}
 }
