@@ -27,19 +27,22 @@ struct DaySummaryCard: View {
                 summaryItem(title: "写真・動画", value: "\(aggregate.mediaCountCache)件")
             }
             if !vehicleDistances.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 12) {
                     ForEach(vehicleDistances) { value in
-                        HStack(spacing: 10) {
-                            Circle()
-                                .fill(Color(hex: value.vehicle.colorHex))
-                                .frame(width: 10, height: 10)
-                            Text(value.vehicle.name)
-                                .font(.subheadline.weight(.semibold))
-                            Spacer()
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 6) {
+                                Circle()
+                                    .fill(Color(hex: value.vehicle.colorHex))
+                                    .frame(width: 12, height: 12)
+                                Text(value.vehicle.name)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                             Text(formatter.distance(meters: value.distanceMeters))
-                                .font(.subheadline.monospacedDigit())
-                                .foregroundStyle(.secondary)
+                                .font(.title2.bold().monospacedDigit())
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityElement(children: .combine)
                     }
                 }
                 .accessibilityIdentifier("dayDetail.summary.vehicles")

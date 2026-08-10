@@ -1,5 +1,6 @@
 import CoreImage.CIFilterBuiltins
 import SwiftUI
+import UIKit
 
 struct FriendsView: View {
     @State private var viewModel: FriendsViewModel
@@ -46,8 +47,16 @@ struct FriendsView: View {
             await viewModel.load()
         }
         .sheet(isPresented: $isShowingInvitation) {
-            if let invitationURL = viewModel.invitationURL {
-                FriendInvitationView(url: invitationURL)
+            if let invitationURL = viewModel.invitationURL,
+               let friendID = viewModel.friendID
+            {
+                FriendInvitationView(
+                    url: invitationURL,
+                    friendID: friendID,
+                    onAddFriendID: { friendID in
+                        await viewModel.acceptFriendID(friendID)
+                    }
+                )
             } else {
                 ProgressView("招待を準備中")
                     .task { await viewModel.prepareInvitation() }
@@ -207,33 +216,92 @@ struct FriendsView: View {
 private struct FriendInvitationView: View {
     @Environment(\.dismiss) private var dismiss
     let url: URL
+    let friendID: String
+    let onAddFriendID: (String) async -> String?
+    @State private var enteredFriendID = ""
+    @State private var isAddingFriend = false
+    @State private var resultMessage: String?
+
+    private let appDownloadURL = "https://apps.apple.com/app/id6795418978"
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 24) {
-                Text("このQRコードを友達に読み取ってもらうか、リンクを送ってください。")
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
-                if let qrImage {
-                    Image(uiImage: qrImage)
-                        .interpolation(.none)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: 260, maxHeight: 260)
-                        .padding(16)
-                        .background(.white, in: RoundedRectangle(cornerRadius: 16))
-                        .accessibilityLabel("友達追加用QRコード")
-                }
-                ShareLink(
-                    item: url,
-                    subject: Text("ドライブログで友達になろう"),
-                    message: Text("このリンクからドライブログの友達に追加できます")
-                ) {
-                    Label("LINEなどでリンクを共有", systemImage: "square.and.arrow.up")
+            ScrollView {
+                VStack(spacing: 20) {
+                    Text("QRコードを読み取るか、友達IDを入力して追加できます。")
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.secondary)
+                    if let qrImage {
+                        Image(uiImage: qrImage)
+                            .interpolation(.none)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxWidth: 260, maxHeight: 260)
+                            .padding(16)
+                            .background(.white, in: RoundedRectangle(cornerRadius: 16))
+                            .accessibilityLabel("友達追加用QRコード")
+                    }
+
+                    VStack(spacing: 8) {
+                        Text("あなたの友達ID")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(friendID)
+                            .font(.title3.bold().monospaced())
+                            .textSelection(.enabled)
+                        Button("IDをコピー", systemImage: "doc.on.doc") {
+                            UIPasteboard.general.string = friendID
+                        }
+                        .font(.caption)
+                    }
+
+                    ShareLink(
+                        item: shareText,
+                        subject: Text("ドライブログで友達になろう")
+                    ) {
+                        Label(
+                            "IDとダウンロードリンクを共有",
+                            systemImage: "square.and.arrow.up"
+                        )
                         .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+
+                    Divider()
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("友達IDで追加")
+                            .font(.headline)
+                        TextField("例：AB12-CD34-EF56", text: $enteredFriendID)
+                            .textInputAutocapitalization(.characters)
+                            .autocorrectionDisabled()
+                            .textFieldStyle(.roundedBorder)
+                        Button {
+                            isAddingFriend = true
+                            Task {
+                                let error = await onAddFriendID(enteredFriendID)
+                                resultMessage = error ?? "友達を追加しました"
+                                isAddingFriend = false
+                                if error == nil {
+                                    enteredFriendID = ""
+                                }
+                            }
+                        } label: {
+                            if isAddingFriend {
+                                ProgressView().frame(maxWidth: .infinity)
+                            } else {
+                                Text("IDで友達追加").frame(maxWidth: .infinity)
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(
+                            enteredFriendID.trimmingCharacters(
+                                in: .whitespacesAndNewlines
+                            ).isEmpty || isAddingFriend
+                        )
+                    }
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
             }
             .padding(24)
             .navigationTitle("友達追加")
@@ -245,6 +313,28 @@ private struct FriendInvitationView: View {
             }
         }
         .presentationDetents([.large])
+        .alert(
+            "友達追加",
+            isPresented: Binding(
+                get: { resultMessage != nil },
+                set: { if !$0 { resultMessage = nil } }
+            )
+        ) {
+            Button("OK") { resultMessage = nil }
+        } message: {
+            Text(resultMessage ?? "")
+        }
+    }
+
+    private var shareText: String {
+        """
+        ドライブログで友達になろう！
+
+        友達ID：\(friendID)
+
+        アプリのダウンロードはこちら
+        \(appDownloadURL)
+        """
     }
 
     private var qrImage: UIImage? {

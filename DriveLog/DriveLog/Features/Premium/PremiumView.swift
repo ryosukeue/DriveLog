@@ -147,13 +147,6 @@ struct PremiumView: View {
                 }
                 .disabled(plusPlanStore.state == .loading)
 
-                Link(
-                    "利用規約",
-                    destination: URL(
-                        string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
-                    )!
-                )
-
                 if plusPlanStore.isEligibleForSevenDayTrial,
                    let price = plusPlanStore.displayPrice
                 {
@@ -171,6 +164,20 @@ struct PremiumView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
+
+                HStack(spacing: 12) {
+                    Link(
+                        "利用規約",
+                        destination: URL(
+                            string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+                        )!
+                    )
+                    NavigationLink("プライバシーポリシー") {
+                        PrivacyPolicyView()
+                    }
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
             }
         }
     }

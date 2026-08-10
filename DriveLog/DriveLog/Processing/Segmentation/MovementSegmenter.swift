@@ -69,7 +69,7 @@ nonisolated struct MovementSegmenter: MovementSegmenting {
             return .localDayBoundary
         }
         let interval = end.timestamp.timeIntervalSince(start.timestamp)
-        if interval >= segmentationRules.maximumContinuousGap {
+        if interval >= segmentationRules.absoluteMaximumContinuousGap {
             return .continuousGap
         }
         let overlappingVisits = visits.filter {
@@ -92,7 +92,54 @@ nonisolated struct MovementSegmenter: MovementSegmenting {
         if hasSupportedMotionTransition {
             return .motionTransition
         }
+        if interval >= segmentationRules.softContinuousGap,
+           !hasMovementContinuity(
+               from: start,
+               to: end,
+               interval: interval,
+               motions: motions
+           )
+        {
+            return .continuousGap
+        }
         return nil
+    }
+
+    private func hasMovementContinuity(
+        from start: LocationEventData,
+        to end: LocationEventData,
+        interval: TimeInterval,
+        motions: [MotionEventData]
+    ) -> Bool {
+        guard interval > 0 else { return false }
+        let distance = distanceCalculator.meters(
+            fromLatitude: start.latitude,
+            longitude: start.longitude,
+            toLatitude: end.latitude,
+            longitude: end.longitude
+        )
+        let averageSpeed = distance / interval
+        guard averageSpeed <= segmentationRules.maximumBridgeAverageSpeed else {
+            return false
+        }
+        if hasTravelMotionEvidence(motions, from: start.timestamp, to: end.timestamp) {
+            return true
+        }
+        return distance >= segmentationRules.minimumBridgeDistance &&
+            averageSpeed >= segmentationRules.minimumBridgeAverageSpeed
+    }
+
+    private func hasTravelMotionEvidence(
+        _ motions: [MotionEventData],
+        from start: Date,
+        to end: Date
+    ) -> Bool {
+        motions.contains { motion in
+            guard motion.isAutomotive || motion.isWalking ||
+                    motion.isRunning || motion.isCycling
+            else { return false }
+            return motion.startDate < end && (motion.endDate ?? end) > start
+        }
     }
 
     private func endpointsAreWithinStayRadius(
@@ -221,7 +268,9 @@ private extension MovementSegmenter {
             return .localDayBoundary
         }
         let interval = end.timestamp.timeIntervalSince(start.timestamp)
-        return interval >= segmentationRules.maximumContinuousGap ? .continuousGap : nil
+        return interval >= segmentationRules.absoluteMaximumContinuousGap
+            ? .continuousGap
+            : nil
     }
 
     func appendUsingStandardRules(

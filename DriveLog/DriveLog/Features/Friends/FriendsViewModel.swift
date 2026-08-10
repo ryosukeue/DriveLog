@@ -15,6 +15,7 @@ final class FriendsViewModel {
     private(set) var selectedMonth: LocalMonth
     private(set) var entries: [FriendRankingEntry] = []
     private(set) var invitationURL: URL?
+    private(set) var friendID: String?
     private(set) var errorMessage: String?
     private(set) var invitationMessage: String?
     let currentMonth: LocalMonth
@@ -84,6 +85,7 @@ final class FriendsViewModel {
                     )
                 ]
                 invitationURL = URL(string: "drivelog://friend/review-invitation")
+                friendID = "34AB-56CD-78EF"
                 state = .loaded
                 return
             }
@@ -111,7 +113,9 @@ final class FriendsViewModel {
             return
         }
         do {
-            invitationURL = try await service.invitationURL(displayName: displayName)
+            let invitation = try await service.invitation(displayName: displayName)
+            invitationURL = invitation.qrURL
+            friendID = invitation.friendID
         } catch {
             errorMessage = "招待リンクを作成できませんでした"
         }
@@ -130,6 +134,19 @@ final class FriendsViewModel {
         }
     }
 
+    func acceptFriendID(_ friendID: String) async -> String? {
+        guard isConnected else { return "友達追加にはiCloud連携が必要です" }
+        do {
+            try await service.acceptFriendID(friendID, displayName: displayName)
+            await load()
+            return nil
+        } catch CloudFriendsService.ServiceError.cannotAddSelf {
+            return "自分自身は友達に追加できません"
+        } catch {
+            return "友達IDを確認してください"
+        }
+    }
+
     func dismissMessages() {
         errorMessage = nil
         invitationMessage = nil
@@ -145,7 +162,10 @@ final class FriendsViewModel {
                 ownDistanceMeters: series.totalDistanceMeters,
                 displayName: displayName
             )
-            invitationURL = try? await service.invitationURL(displayName: displayName)
+            if let invitation = try? await service.invitation(displayName: displayName) {
+                invitationURL = invitation.qrURL
+                friendID = invitation.friendID
+            }
             state = .loaded
         } catch {
             entries = []

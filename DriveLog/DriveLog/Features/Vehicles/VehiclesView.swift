@@ -4,6 +4,7 @@ struct VehiclesView: View {
     @State private var viewModel: VehiclesViewModel
     @State private var isShowingRegistration = false
     @State private var editingVehicle: VehicleProfile?
+    @State private var oilChangeVehicle: VehicleProfile?
     @State private var deletionCandidate: VehicleProfile?
     private let onShowPremium: () -> Void
 
@@ -87,6 +88,9 @@ struct VehiclesView: View {
                 }
             )
         }
+        .sheet(item: $oilChangeVehicle) { vehicle in
+            OilChangeResetView(viewModel: viewModel, vehicle: vehicle)
+        }
         .alert(
             "本当に削除しますか？",
             isPresented: Binding(
@@ -132,6 +136,11 @@ struct VehiclesView: View {
                     .font(.subheadline.weight(.semibold))
                 if viewModel.isPlus {
                     oilChangeStatus(for: vehicle)
+                    Button("オイル交換を記録", systemImage: "arrow.counterclockwise") {
+                        oilChangeVehicle = vehicle
+                    }
+                    .font(.caption.weight(.semibold))
+                    .buttonStyle(.borderless)
                 } else {
                     Button {
                         onShowPremium()
@@ -185,6 +194,73 @@ struct VehiclesView: View {
     }
 }
 
+private struct OilChangeResetView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var viewModel: VehiclesViewModel
+    let vehicle: VehicleProfile
+    @State private var odometerKilometers: String
+
+    init(viewModel: VehiclesViewModel, vehicle: VehicleProfile) {
+        _viewModel = State(initialValue: viewModel)
+        self.vehicle = vehicle
+        _odometerKilometers = State(initialValue: vehicle.odometerKilometers.formatted(
+            .number.locale(Locale(identifier: "en_US_POSIX"))
+                .grouping(.never)
+                .precision(.fractionLength(0...1))
+        ))
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    HStack {
+                        TextField("例：50000", text: $odometerKilometers)
+                            .keyboardType(.decimalPad)
+                        Text("km")
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text("オイル交換時の走行距離")
+                } footer: {
+                    Text(
+                        "入力した距離を現在の総走行距離として保存し、" +
+                            "ここから次回のオイル交換距離を計算します。"
+                    )
+                }
+            }
+            .navigationTitle("オイル交換を記録")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("キャンセル") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("記録") {
+                        guard let odometer else { return }
+                        if viewModel.recordOilChange(
+                            vehicleID: vehicle.id,
+                            odometerKilometers: odometer
+                        ) {
+                            dismiss()
+                        }
+                    }
+                    .disabled(odometer == nil)
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    private var odometer: Double? {
+        guard let value = Double(odometerKilometers.replacingOccurrences(of: ",", with: ".")),
+              value.isFinite,
+              value >= 0
+        else { return nil }
+        return value
+    }
+}
+
 private struct VehicleRegistrationView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: VehiclesViewModel
@@ -193,6 +269,7 @@ private struct VehicleRegistrationView: View {
     @State private var oilChangeInterval = "5000"
     @State private var lastOilChangeOdometer = "0"
     @State private var currentOdometer = "0"
+    @State private var usesHighAccuracyTracking = true
     private let onShowPremium: () -> Void
 
     init(viewModel: VehiclesViewModel, onShowPremium: @escaping () -> Void) {
@@ -253,7 +330,9 @@ private struct VehicleRegistrationView: View {
                     isUnlocked: viewModel.isPlus,
                     onShowPremium: onShowPremium
                 )
+                highAccuracyTrackingSection(isOn: $usesHighAccuracyTracking)
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("車を追加")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -269,7 +348,8 @@ private struct VehicleRegistrationView: View {
                             device: device,
                             odometerKilometers: values.currentOdometer,
                             oilChangeIntervalKilometers: values.interval,
-                            lastOilChangeOdometerKilometers: values.lastOilChangeOdometer
+                            lastOilChangeOdometerKilometers: values.lastOilChangeOdometer,
+                            usesHighAccuracyTracking: usesHighAccuracyTracking
                         ) {
                             Task {
                                 await viewModel.requestOilChangeNotificationAuthorization()
@@ -281,7 +361,7 @@ private struct VehicleRegistrationView: View {
                 }
             }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.large])
     }
 
     private var selectedDevice: AudioRouteDevice? {
@@ -349,18 +429,9 @@ private struct VehicleEditView: View {
                     isUnlocked: viewModel.isPlus,
                     onShowPremium: onShowPremium
                 )
-                Section {
-                    Toggle(
-                        "接続中の高精度な位置記録",
-                        isOn: $usesHighAccuracyTracking
-                    )
-                } footer: {
-                    Text(
-                        "オンにすると、この車のBluetoothまたはCarPlay接続中だけ" +
-                            "位置情報を細かく記録します。電池消費量が増加します。"
-                    )
-                }
+                highAccuracyTrackingSection(isOn: $usesHighAccuracyTracking)
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("車の情報を編集")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -388,7 +459,7 @@ private struct VehicleEditView: View {
                 }
             }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.large])
     }
 
     private var maintenanceValues: VehicleMaintenanceValues? {
@@ -409,6 +480,20 @@ private struct VehicleEditView: View {
             .number.locale(Locale(identifier: "en_US_POSIX"))
                 .grouping(.never)
                 .precision(.fractionLength(0...1))
+        )
+    }
+}
+
+private func highAccuracyTrackingSection(isOn: Binding<Bool>) -> some View {
+    Section {
+        Toggle(
+            "接続中の高精度な位置記録",
+            isOn: isOn
+        )
+    } footer: {
+        Text(
+            "オンにすると、この車のBluetoothまたはCarPlay接続中だけ" +
+                "位置情報を細かく記録します。電池消費量が増加します。"
         )
     }
 }

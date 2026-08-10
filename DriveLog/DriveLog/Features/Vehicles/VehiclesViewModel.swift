@@ -110,6 +110,30 @@ final class VehiclesViewModel {
         await oilChangeNotifier.requestAuthorization()
     }
 
+    func recordOilChange(vehicleID: UUID, odometerKilometers: Double) -> Bool {
+        guard isPlus,
+              let vehicle = vehicles.first(where: { $0.id == vehicleID })
+        else { return false }
+        do {
+            try store.updateVehicle(
+                id: vehicle.id,
+                name: vehicle.name,
+                odometerKilometers: odometerKilometers,
+                oilChangeIntervalKilometers: vehicle.oilChangeIntervalKilometers,
+                lastOilChangeOdometerKilometers: odometerKilometers,
+                usesHighAccuracyTracking: vehicle.usesHighAccuracyTracking
+            )
+            detector.refresh()
+            reload()
+            return true
+        } catch UserDefaultsVehicleStore.StoreError.invalidMaintenanceValues {
+            errorMessage = "走行距離を確認してください"
+        } catch {
+            errorMessage = "オイル交換を記録できませんでした"
+        }
+        return false
+    }
+
     func removeVehicle(id: UUID) {
         store.removeVehicle(id: id)
         detector.refresh()

@@ -14,6 +14,11 @@ nonisolated struct FriendRankingEntry: Identifiable, Sendable, Equatable {
     }
 }
 
+nonisolated struct FriendInvitation: Sendable, Equatable {
+    let friendID: String
+    let qrURL: URL
+}
+
 nonisolated enum ICloudSetupStatus: Sendable, Equatable {
     case idle
     case checking
@@ -90,25 +95,49 @@ actor CloudFriendsService {
         return ownerRecordName
     }
 
-    func invitationURL(displayName: String) async throws -> URL {
+    func invitation(displayName: String) async throws -> FriendInvitation {
         let ownerRecordName = try await bootstrap(displayName: displayName)
+        let friendID = try await ensureFriendID(
+            ownerRecordName: ownerRecordName,
+            displayName: displayName
+        )
         var components = URLComponents()
         components.scheme = "drivelog"
         components.host = "friend"
-        components.queryItems = [URLQueryItem(name: "user", value: ownerRecordName)]
+        components.queryItems = [URLQueryItem(name: "id", value: friendID)]
         guard let url = components.url else {
             throw ServiceError.invalidInvitation
         }
-        return url
+        return FriendInvitation(friendID: friendID, qrURL: url)
     }
 
     func acceptInvitation(_ url: URL, displayName: String) async throws {
         guard url.scheme?.lowercased() == "drivelog",
-              url.host?.lowercased() == "friend",
-              let invitedUser = URLComponents(url: url, resolvingAgainstBaseURL: false)?
-              .queryItems?.first(where: { $0.name == "user" })?.value,
+              url.host?.lowercased() == "friend"
+        else { throw ServiceError.invalidInvitation }
+        let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+        if let friendID = queryItems?.first(where: { $0.name == "id" })?.value {
+            try await acceptFriendID(friendID, displayName: displayName)
+            return
+        }
+        // Keep previously issued QR codes usable after switching to public friend IDs.
+        guard let invitedUser = queryItems?.first(where: { $0.name == "user" })?.value,
               !invitedUser.isEmpty
         else { throw ServiceError.invalidInvitation }
+        try await addFriend(ownerRecordName: invitedUser, displayName: displayName)
+    }
+
+    func acceptFriendID(_ friendID: String, displayName: String) async throws {
+        let normalizedID = try normalizedFriendID(friendID)
+        let aliasID = CKRecord.ID(recordName: friendAliasRecordName(normalizedID))
+        guard let alias = try await recordIfPresent(id: aliasID),
+              let invitedUser = alias["ownerRecordName"] as? String,
+              !invitedUser.isEmpty
+        else { throw ServiceError.invalidInvitation }
+        try await addFriend(ownerRecordName: invitedUser, displayName: displayName)
+    }
+
+    private func addFriend(ownerRecordName invitedUser: String, displayName: String) async throws {
         let ownUser = try await bootstrap(displayName: displayName)
         guard ownUser != invitedUser else { throw ServiceError.cannotAddSelf }
         guard try await profile(ownerRecordName: invitedUser) != nil else {
@@ -125,6 +154,40 @@ actor CloudFriendsService {
         record["updatedAt"] = Date() as CKRecordValue
         _ = try await database.save(record)
         storeLocalFriend(invitedUser, currentUser: ownUser)
+    }
+
+    private func ensureFriendID(
+        ownerRecordName: String,
+        displayName: String
+    ) async throws -> String {
+        let digest = hash(ownerRecordName).uppercased()
+        for offset in stride(from: 0, through: 48, by: 12) {
+            let start = digest.index(digest.startIndex, offsetBy: offset)
+            let end = digest.index(start, offsetBy: 12)
+            let rawID = String(digest[start ..< end])
+            let recordID = CKRecord.ID(recordName: friendAliasRecordName(rawID))
+            if let existing = try await recordIfPresent(id: recordID) {
+                if existing["ownerRecordName"] as? String == ownerRecordName {
+                    return formattedFriendID(rawID)
+                }
+                continue
+            }
+            let alias = CKRecord(recordType: RecordType.profile, recordID: recordID)
+            alias["ownerRecordName"] = ownerRecordName as CKRecordValue
+            alias["displayName"] = normalizedDisplayName(displayName) as CKRecordValue
+            alias["updatedAt"] = Date() as CKRecordValue
+            do {
+                _ = try await database.save(alias)
+                return formattedFriendID(rawID)
+            } catch let error as CKError where error.code == .serverRecordChanged {
+                if let existing = try await recordIfPresent(id: recordID),
+                   existing["ownerRecordName"] as? String == ownerRecordName
+                {
+                    return formattedFriendID(rawID)
+                }
+            }
+        }
+        throw ServiceError.invalidInvitation
     }
 
     func rankings(
@@ -270,6 +333,30 @@ actor CloudFriendsService {
 
     private func profileRecordName(_ ownerRecordName: String) -> String {
         "profile_" + hash(ownerRecordName)
+    }
+
+    private func friendAliasRecordName(_ normalizedFriendID: String) -> String {
+        "friend_id_" + normalizedFriendID
+    }
+
+    private func normalizedFriendID(_ value: String) throws -> String {
+        let compact = value.uppercased().filter { !$0.isWhitespace && $0 != "-" }
+        let allowed = CharacterSet(charactersIn: "0123456789ABCDEF")
+        guard compact.count == 12,
+              compact.unicodeScalars.allSatisfy(allowed.contains)
+        else { throw ServiceError.invalidInvitation }
+        return compact
+    }
+
+    private func formattedFriendID(_ value: String) -> String {
+        let normalized = value.uppercased()
+        let firstEnd = normalized.index(normalized.startIndex, offsetBy: 4)
+        let secondEnd = normalized.index(firstEnd, offsetBy: 4)
+        return [
+            String(normalized[..<firstEnd]),
+            String(normalized[firstEnd ..< secondEnd]),
+            String(normalized[secondEnd...])
+        ].joined(separator: "-")
     }
 
     private func monthlyRecordName(ownerRecordName: String, monthKey: String) -> String {

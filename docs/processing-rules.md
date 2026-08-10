@@ -29,7 +29,7 @@
 - 5分以上かつ前後位置が150m以内、またはCLVisitが重なる区間はStay境界としてMovement routeを分割する。
 - 到着・出発が確定した5分以上のCLVisitでは、Visitへ入る最初の位置点を直前Movementの終点として保持し、Visit内の2点目以降はMovementから除外する。Visit後の最初の位置点から次Movementを開始する。
 - 到着のみまたは5分未満のVisitはStay候補のsoft gapには使用できるが、それだけを理由にMovement routeをhard splitしない。
-- 現地日付境界と90分以上の観測欠損もhard splitとする。大きな欠損は直線接続しない。
+- 現地日付境界と90分以上の観測欠損はhard splitとする。15分以上90分未満は、移動継続の根拠がある場合だけ接続する。
 - 30m route simplificationは維持し、各routeの始点/終点を保持する。簡略化前後の点数を診断する。
 - Mediaの500m閾値は関連Movement選択にだけ使用し、位置情報付きMedia Annotation自体の表示除外には使用しない。
 - 診断は件数、時間間隔bucket、精度bucket、除外/gap理由だけを扱い、座標やIdentifierを記録しない。
@@ -245,6 +245,7 @@ Bを除外した場合にAからCが自然になるなら、Bを除外する。
 次のいずれかを満たす場合、別の移動区間候補とする。
 
 - 位置点間の時間差が90分以上
+- 位置点間の時間差が15分以上90分未満で、移動継続の根拠がない
 - 現地日付キーが変わる
 - CLVisitによる明確な滞在が存在する
 - StayDetectorが表示対象の滞在を確定する
@@ -253,7 +254,11 @@ Bを除外した場合にAからCが自然になるなら、Bを除外する。
 初期値：
 
 ```text
-maximumContinuousGap = 90分
+softContinuousGap = 15分
+absoluteMaximumContinuousGap = 90分
+minimumBridgeDistance = 100m
+minimumBridgeAverageSpeed = 0.5km/h
+maximumBridgeAverageSpeed = 250km/h
 ```
 
 ### 10.2 時間差90分以上
@@ -261,6 +266,13 @@ maximumContinuousGap = 90分
 位置点間が90分以上空いている場合、前後を直接つないで距離を計算しない。
 
 前側の区間を終了し、後側から新しい区間を開始する。
+
+15分以上90分未満では、確定した滞在、現地日付境界、異常な位置ジャンプがなく、次のいずれかを満たす場合に同一区間として接続する。
+
+- 空白時間にautomotive、walking、running、cyclingのMotion Evidenceがある
+- 前後地点が100m以上離れ、平均速度が0.5km/h以上250km/h以下である
+
+前後地点がStay半径内にあり5分以上空く場合は、移動根拠より滞在判定を優先する。
 
 ### 10.3 モーション状態変化
 
@@ -1000,7 +1012,11 @@ minimumPointCountForSimplification = 10
 | `duplicateDistance` | 10m |
 | `maximumHorizontalAccuracy` | 500m |
 | `maximumPlausibleSpeed` | 250km/h |
-| `maximumContinuousGap` | 90分 |
+| `softContinuousGap` | 15分 |
+| `absoluteMaximumContinuousGap` | 90分 |
+| `minimumBridgeDistance` | 100m |
+| `minimumBridgeAverageSpeed` | 0.5km/h |
+| `maximumBridgeAverageSpeed` | 250km/h |
 | `minimumSegmentDistance` | 100m |
 | `minimumSegmentPointCount` | 2 |
 | `minimumSpeedDisplayDuration` | 2分 |
@@ -1049,7 +1065,9 @@ minimumPointCountForSimplification = 10
 
 ### MovementSegmenter
 
-- 90分未満の空白
+- 15分未満の空白
+- 15分以上90分未満で移動継続根拠がある空白
+- 15分以上90分未満で移動継続根拠がない空白
 - 90分以上の空白
 - 日付境界
 - CLVisitによる分割

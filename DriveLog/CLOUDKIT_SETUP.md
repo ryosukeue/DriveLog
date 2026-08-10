@@ -13,5 +13,10 @@ Add a queryable index for `DriveLogFriendship.participants`. Friend invitations 
 fallback on the accepting device, but this index is required for the inviter to discover the new
 friendship. Deploy the development schema to production before TestFlight or App Store release.
 
+Public friend IDs use additional `DriveLogProfile` records whose record name starts with
+`friend_id_`. They reuse the existing profile fields, so no additional record type or query index is
+required. QR codes contain the app-only `drivelog://friend?id=...` URL. Shared text contains only the
+friend ID and App Store download URL.
+
 The public database contains only the display name, friend relationship, month key, and total
 monthly distance. Routes, location events, vehicle audio identifiers, and photos remain local.

@@ -36,8 +36,93 @@ struct MovementSegmenterTests {
     }
 
     @Test(arguments: [900.0, 901.0])
-    func splitsAtAndAboveFifteenMinutes(gap: TimeInterval) {
+    func doesNotBridgeStationaryEndpointsAtFifteenMinutes(gap: TimeInterval) {
         let points = boundaryPoints(gap: gap)
+
+        let result = segment(points)
+
+        #expect(result.segments.map(\.locations) == [
+            Array(points[0 ... 1]), Array(points[2 ... 3])
+        ])
+        #expect(result.gaps.map(\.reason) == [.stationaryStay])
+    }
+
+    @Test("connects a plausible route across a gap longer than fifteen minutes")
+    func connectsPlausibleLongGap() {
+        let points = [
+            location(distance: 0, seconds: 0),
+            location(distance: 200, seconds: 60),
+            location(distance: 2200, seconds: 16 * 60),
+            location(distance: 2400, seconds: 17 * 60)
+        ]
+
+        let result = segment(points)
+
+        #expect(result.segments.map(\.locations) == [points])
+        #expect(result.gaps.isEmpty)
+    }
+
+    @Test("connects a long sparse route when travel motion overlaps the gap")
+    func connectsLongGapUsingMotionEvidence() {
+        let points = [
+            location(distance: 0, seconds: 0),
+            location(distance: 200, seconds: 60),
+            location(distance: 2200, seconds: 60 + 45 * 60),
+            location(distance: 2400, seconds: 120 + 45 * 60)
+        ]
+        let motions = [motion(start: 30, end: 45 * 60 + 90, automotive: true)]
+
+        let result = segment(points, motions: motions)
+
+        #expect(result.segments.map(\.locations) == [points])
+        #expect(result.gaps.isEmpty)
+    }
+
+    @Test("splits a soft gap when distance speed and motion provide no continuity evidence")
+    func splitsSoftGapWithoutContinuityEvidence() {
+        let points = [
+            location(distance: 0, seconds: 0),
+            location(distance: 200, seconds: 60),
+            location(distance: 400, seconds: 60 + 45 * 60),
+            location(distance: 600, seconds: 120 + 45 * 60)
+        ]
+
+        let result = segment(points)
+
+        #expect(result.segments.map(\.locations) == [
+            Array(points[0 ... 1]), Array(points[2 ... 3])
+        ])
+        #expect(result.gaps.map(\.reason) == [.continuousGap])
+    }
+
+    @Test("splits at the absolute ninety minute gap")
+    func splitsAtAbsoluteGap() {
+        let points = [
+            location(distance: 0, seconds: 0),
+            location(distance: 200, seconds: 60),
+            location(distance: 30_200, seconds: 60 + 90 * 60),
+            location(distance: 30_400, seconds: 120 + 90 * 60)
+        ]
+
+        let result = segment(
+            points,
+            motions: [motion(start: 30, end: 90 * 60 + 90, automotive: true)]
+        )
+
+        #expect(result.segments.map(\.locations) == [
+            Array(points[0 ... 1]), Array(points[2 ... 3])
+        ])
+        #expect(result.gaps.map(\.reason) == [.continuousGap])
+    }
+
+    @Test("does not bridge an implausible location jump")
+    func rejectsImplausibleLongGapBridge() {
+        let points = [
+            location(distance: 0, seconds: 0),
+            location(distance: 200, seconds: 60),
+            location(distance: 100_200, seconds: 20 * 60),
+            location(distance: 100_400, seconds: 21 * 60)
+        ]
 
         let result = segment(points)
 
@@ -152,14 +237,14 @@ struct MovementSegmenterTests {
         #expect(result.gaps.count == 2)
     }
 
-    @Test("does not merge a short chunk across hard gaps")
+    @Test("does not merge a short chunk across absolute gaps")
     func doesNotMergeAcrossHardGap() {
         let points = [
             location(distance: 0, seconds: 0),
             location(distance: 200, seconds: 60),
-            location(distance: 250, seconds: 960),
-            location(distance: 500, seconds: 1860),
-            location(distance: 700, seconds: 1920)
+            location(distance: 250, seconds: 5460),
+            location(distance: 500, seconds: 10_860),
+            location(distance: 700, seconds: 10_920)
         ]
 
         let result = segment(points)

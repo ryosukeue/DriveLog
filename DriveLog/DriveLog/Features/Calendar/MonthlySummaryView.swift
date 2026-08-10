@@ -62,21 +62,22 @@ struct MonthlySummaryView: View {
                 if !summary.vehicleDistances.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(summary.vehicleDistances) { value in
-                            HStack(alignment: .top, spacing: 10) {
-                                Circle()
-                                    .fill(Color(hex: value.vehicle.colorHex))
-                                    .frame(width: 12, height: 12)
-                                    .padding(.top, 5)
-                                VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(spacing: 6) {
+                                    Circle()
+                                        .fill(Color(hex: value.vehicle.colorHex))
+                                        .frame(width: 12, height: 12)
                                     Text(value.vehicle.name)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
-                                    Text(distanceFormatter.kilometers(
-                                        fromMeters: value.distanceMeters
-                                    ) ?? "--")
-                                    .font(.title3.bold().monospacedDigit())
                                 }
+                                Text(distanceFormatter.kilometers(
+                                    fromMeters: value.distanceMeters
+                                ) ?? "--")
+                                .font(.title3.bold().monospacedDigit())
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .accessibilityElement(children: .combine)
                         }
                     }
                     .accessibilityIdentifier("calendar.monthlySummary.vehicles")

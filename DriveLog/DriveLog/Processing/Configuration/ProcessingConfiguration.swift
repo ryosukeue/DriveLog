@@ -19,7 +19,11 @@ nonisolated struct ProcessingConfiguration: Sendable, Equatable {
             maximumPlausibleSpeed: 250 / 3.6
         ),
         segmentation: SegmentationRules(
-            maximumContinuousGap: 15 * 60,
+            softContinuousGap: 15 * 60,
+            absoluteMaximumContinuousGap: 90 * 60,
+            minimumBridgeDistance: 100,
+            minimumBridgeAverageSpeed: 0.5 / 3.6,
+            maximumBridgeAverageSpeed: 250 / 3.6,
             minimumSegmentDistance: 100,
             minimumSegmentPointCount: 2,
             minimumSpeedDisplayDuration: 2 * 60,
@@ -84,7 +88,11 @@ nonisolated struct LocationRules: Sendable, Equatable {
 }
 
 nonisolated struct SegmentationRules: Sendable, Equatable {
-    let maximumContinuousGap: TimeInterval
+    let softContinuousGap: TimeInterval
+    let absoluteMaximumContinuousGap: TimeInterval
+    let minimumBridgeDistance: Double
+    let minimumBridgeAverageSpeed: Double
+    let maximumBridgeAverageSpeed: Double
     let minimumSegmentDistance: Double
     let minimumSegmentPointCount: Int
     let minimumSpeedDisplayDuration: TimeInterval
