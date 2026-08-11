@@ -136,6 +136,22 @@ struct PremiumView: View {
                         plusPlanStore.state == .purchasing
                 )
 
+                if plusPlanStore.canUnlockForTestFlight {
+                    Button {
+                        plusPlanStore.unlockForTestFlight()
+                    } label: {
+                        Label("テスト用にPlusを解放", systemImage: "hammer.fill")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+
+                    Text("TestFlightでPlus機能を確認するためのボタンです。料金は発生しません。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+
                 if plusPlanStore.state == .unavailable {
                     Text("現在Plusプランの価格情報を取得できません")
                         .font(.caption)

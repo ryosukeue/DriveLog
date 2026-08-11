@@ -4,6 +4,7 @@ import StoreKit
 
 nonisolated final class PlusEntitlementCache: @unchecked Sendable {
     static let storageKey = "plus.plan.entitled.v1"
+    private static let testFlightStorageKey = "plus.plan.testflight.unlocked.v1"
 
     static var grantsPlusForTesting: Bool {
         #if DEBUG
@@ -20,11 +21,25 @@ nonisolated final class PlusEntitlementCache: @unchecked Sendable {
     }
 
     var isPlus: Bool {
-        Self.grantsPlusForTesting || defaults.bool(forKey: Self.storageKey)
+        Self.grantsPlusForTesting || isUnlockedForTestFlight || defaults.bool(forKey: Self.storageKey)
     }
 
     func setIsPlus(_ value: Bool) {
         defaults.set(value, forKey: Self.storageKey)
+    }
+
+    var isUnlockedForTestFlight: Bool {
+        #if TESTFLIGHT_BETA
+            defaults.bool(forKey: Self.testFlightStorageKey)
+        #else
+            false
+        #endif
+    }
+
+    func unlockForTestFlight() {
+        #if TESTFLIGHT_BETA
+            defaults.set(true, forKey: Self.testFlightStorageKey)
+        #endif
     }
 }
 
@@ -51,6 +66,14 @@ final class PlusPlanStore {
 
     var displayPrice: String? {
         product?.displayPrice
+    }
+
+    var canUnlockForTestFlight: Bool {
+        #if TESTFLIGHT_BETA
+            !isPlus
+        #else
+            false
+        #endif
     }
 
     private let entitlementCache: PlusEntitlementCache
@@ -119,6 +142,14 @@ final class PlusPlanStore {
         }
     }
 
+    func unlockForTestFlight() {
+        #if TESTFLIGHT_BETA
+            entitlementCache.unlockForTestFlight()
+            isPlus = true
+            state = .purchased
+        #endif
+    }
+
     func dismissMessage() {
         switch state {
         case .failed, .pending, .purchased:
@@ -129,7 +160,7 @@ final class PlusPlanStore {
     }
 
     private func refreshEntitlement() async {
-        if PlusEntitlementCache.grantsPlusForTesting {
+        if PlusEntitlementCache.grantsPlusForTesting || entitlementCache.isUnlockedForTestFlight {
             isPlus = true
             return
         }
