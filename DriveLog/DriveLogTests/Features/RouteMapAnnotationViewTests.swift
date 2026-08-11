@@ -159,6 +159,38 @@ struct RouteMapAnnotationViewTests {
         #expect(view.displayPriority == .required)
     }
 
+    @Test("temporally related media uses a wider stay grouping radius")
+    func temporallyRelatedMediaGrouping() {
+        let coordinator = RouteMapCoordinator()
+        let date = Date(timeIntervalSince1970: 30)
+        coordinator.mediaByIdentifier = [
+            "media": MediaAssetReference(
+                localIdentifier: "media",
+                mediaType: .photo,
+                creationDate: date,
+                location: RouteCoordinate(latitude: 35.0018, longitude: 139),
+                durationSeconds: nil,
+                isScreenshot: false,
+                isScreenRecording: false
+            )
+        ]
+        let scene = MapScene(
+            polylines: [],
+            movementLabels: [],
+            stayAnnotations: [stay()],
+            mediaAnnotations: [MapMediaAnnotation(
+                localIdentifier: "media",
+                mediaType: .photo,
+                coordinate: RouteCoordinate(latitude: 35.0018, longitude: 139)
+            )],
+            initialRegion: nil
+        )
+
+        let assignments = coordinator.assignStaysToMedia(scene: scene)
+
+        #expect(assignments["media"]?.map(\.stayStableID) == ["stay"])
+    }
+
     @Test("repeated stays without media share one marker")
     func repeatedStayGrouping() throws {
         let mapView = MKMapView()

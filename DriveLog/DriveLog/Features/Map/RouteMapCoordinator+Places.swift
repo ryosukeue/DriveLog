@@ -30,7 +30,10 @@ extension RouteMapCoordinator {
             let stayPoint = MKMapPoint(stay.coordinate.mapCoordinate)
             let closest = scene.mediaAnnotations.compactMap { media -> (String, CLLocationDistance)? in
                 let distance = stayPoint.distance(to: MKMapPoint(media.coordinate.mapCoordinate))
-                guard distance <= placeGroupingDistance else { return nil }
+                let maximumDistance = isTemporallyRelated(media, to: stay)
+                    ? temporallyRelatedPlaceGroupingDistance
+                    : placeGroupingDistance
+                guard distance <= maximumDistance else { return nil }
                 return (media.localIdentifier, distance)
             }.min { first, second in
                 first.1 == second.1 ? first.0 < second.0 : first.1 < second.1
@@ -173,5 +176,25 @@ extension RouteMapCoordinator {
 
     private var placeGroupingDistance: CLLocationDistance {
         ProcessingConfiguration.mvp.stay.stayRadius
+    }
+
+    private var temporallyRelatedPlaceGroupingDistance: CLLocationDistance {
+        ProcessingConfiguration.mvp.overrideMatching.stayOverrideCoordinateTolerance
+    }
+
+    private var placeGroupingTimeTolerance: TimeInterval {
+        ProcessingConfiguration.mvp.overrideMatching.stayOverrideArrivalTolerance
+    }
+
+    private func isTemporallyRelated(
+        _ media: MapMediaAnnotation,
+        to stay: MapStayAnnotation
+    ) -> Bool {
+        guard let creationDate = mediaByIdentifier[media.localIdentifier]?.creationDate else {
+            return false
+        }
+        let lowerBound = stay.arrivalDate.addingTimeInterval(-placeGroupingTimeTolerance)
+        let upperBound = stay.departureDate.addingTimeInterval(placeGroupingTimeTolerance)
+        return lowerBound ... upperBound ~= creationDate
     }
 }
