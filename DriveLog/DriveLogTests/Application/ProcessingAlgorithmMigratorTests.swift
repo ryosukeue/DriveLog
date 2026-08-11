@@ -5,7 +5,7 @@ import Testing
 struct ProcessingAlgorithmMigratorTests {
     @Test("uses processing algorithm version seven")
     func currentVersion() {
-        #expect(DefaultProcessingAlgorithmMigrator.currentVersion == 8)
+        #expect(DefaultProcessingAlgorithmMigrator.currentVersion == 9)
     }
 
     @Test("invalidates and advances an older version exactly once")

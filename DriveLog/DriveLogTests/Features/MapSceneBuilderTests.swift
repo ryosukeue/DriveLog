@@ -232,6 +232,49 @@ struct MapSceneBuilderTests {
         let polyline = try #require(scene.polylines.first)
         #expect(polyline.coordinates == route)
     }
+
+    @Test("connects adjacent routes across a local date boundary")
+    func connectsAcrossLocalDateBoundary() {
+        let first = makeMovement(
+            id: "first",
+            key: "2024-01-01",
+            route: [coordinateAtMeters(0), coordinateAtMeters(200)],
+            label: nil,
+            start: 0,
+            duration: 60
+        )
+        let second = makeMovement(
+            id: "second",
+            key: "2024-01-02",
+            route: [coordinateAtMeters(300), coordinateAtMeters(500)],
+            label: nil,
+            start: 180,
+            duration: 60
+        )
+
+        let scene = builder.build(movements: [second, first], stays: [], media: [])
+
+        #expect(scene.polylines.last == MapPolyline(
+            segmentStableID: "first",
+            coordinates: [coordinateAtMeters(200), coordinateAtMeters(300)]
+        ))
+    }
+
+    @Test("does not connect routes beyond the display continuity limit")
+    func rejectsLongDisplayGap() {
+        let first = makeMovement(
+            id: "first", route: [coordinateAtMeters(0), coordinateAtMeters(200)],
+            label: nil, start: 0, duration: 60
+        )
+        let second = makeMovement(
+            id: "second", route: [coordinateAtMeters(300), coordinateAtMeters(500)],
+            label: nil, start: 961, duration: 60
+        )
+
+        let scene = builder.build(movements: [first, second], stays: [], media: [])
+
+        #expect(scene.polylines.count == 2)
+    }
 }
 
 private func coordinate(_ latitude: Double, _ longitude: Double) -> RouteCoordinate {
@@ -243,6 +286,8 @@ private func coordinateAtMeters(_ distance: Double) -> RouteCoordinate {
 }
 
 private func makeMovement(
+    id: String = "movement",
+    key: String = "2024-01-01",
     route: [RouteCoordinate],
     label: RouteCoordinate?,
     start: TimeInterval = 0,
@@ -250,7 +295,7 @@ private func makeMovement(
 ) -> MovementSegmentData {
     let date = Date(timeIntervalSince1970: start)
     return MovementSegmentData(
-        stableID: "movement", localDateKey: "2024-01-01", startDate: date,
+        stableID: id, localDateKey: key, startDate: date,
         endDate: date.addingTimeInterval(duration), distanceMeters: 100,
         durationSeconds: duration,
         estimatedAverageSpeedMetersPerSecond: nil, automaticClassification: .other,

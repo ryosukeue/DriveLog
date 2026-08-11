@@ -5,6 +5,7 @@ nonisolated struct MapSceneBuilder: MapSceneBuilding {
     private let minimumRegionDelta = 0.01
     private let distanceCalculator = GeodesicDistanceCalculator()
     private let stayRules = ProcessingConfiguration.mvp.stay
+    private let segmentationRules = ProcessingConfiguration.mvp.segmentation
 
     func build(
         movements: [MovementSegmentData],
@@ -12,13 +13,17 @@ nonisolated struct MapSceneBuilder: MapSceneBuilding {
         media: [MediaPlacement]
     ) -> MapScene {
         let visibleStays = stays.filter(\.isVisibleByAutomaticRule)
-        let polylines = movements.compactMap { movement -> MapPolyline? in
+        let movementPolylines = movements.compactMap { movement -> MapPolyline? in
             guard !movement.route.isEmpty else { return nil }
             return MapPolyline(
                 segmentStableID: movement.stableID,
                 coordinates: routeCoordinates(for: movement, visibleStays: visibleStays)
             )
         }
+        let polylines = movementPolylines + continuityPolylines(
+            movements: movements,
+            renderedPolylines: movementPolylines
+        )
         let labels = movements.compactMap { movement -> MapMovementLabel? in
             guard let coordinate = movement.labelCoordinate else { return nil }
             return MapMovementLabel(
@@ -169,6 +174,39 @@ nonisolated struct MapSceneBuilder: MapSceneBuilding {
             toLatitude: end.latitude,
             longitude: end.longitude
         )
+    }
+
+    private func continuityPolylines(
+        movements: [MovementSegmentData],
+        renderedPolylines: [MapPolyline]
+    ) -> [MapPolyline] {
+        let routesByStableID = Dictionary(
+            renderedPolylines.map { ($0.segmentStableID, $0.coordinates) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let sorted = movements.sorted {
+            if $0.startDate == $1.startDate {
+                return $0.stableID < $1.stableID
+            }
+            return $0.startDate < $1.startDate
+        }
+        return zip(sorted, sorted.dropFirst()).compactMap { preceding, following in
+            let interval = following.startDate.timeIntervalSince(preceding.endDate)
+            guard interval >= 0,
+                  interval <= segmentationRules.softContinuousGap,
+                  let start = routesByStableID[preceding.stableID]?.last,
+                  let end = routesByStableID[following.stableID]?.first
+            else { return nil }
+            let bridgeDistance = distance(from: start, to: end)
+            guard bridgeDistance > 1,
+                  bridgeDistance / max(interval, 1) <=
+                  segmentationRules.maximumBridgeAverageSpeed
+            else { return nil }
+            return MapPolyline(
+                segmentStableID: preceding.stableID,
+                coordinates: [start, end]
+            )
+        }
     }
 
     private func initialRegion(coordinates: [RouteCoordinate]) -> MapRegion? {

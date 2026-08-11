@@ -7,7 +7,7 @@ protocol AppLifecycleCoordinating: AnyObject {
 
 @MainActor
 final class AppLifecycleCoordinator: AppLifecycleCoordinating {
-    static let foregroundPendingDayLimit = 3
+    static let foregroundPendingDayLimit = 4
 
     private let permissionManager: any PermissionManaging
     private let startMonitoringUseCase: StartMonitoringUseCase

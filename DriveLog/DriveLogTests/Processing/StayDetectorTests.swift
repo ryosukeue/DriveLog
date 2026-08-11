@@ -97,6 +97,33 @@ struct StayDetectorTests {
         #expect(result?.estimatedDepartureDate == baseDate.addingTimeInterval(600))
     }
 
+    @Test("prefers a completed visit over its arrival-only duplicate")
+    func completedVisitPreferred() {
+        let gap = makeGap(duration: 600)
+        let open = VisitEventData(
+            latitude: 35,
+            longitude: 139,
+            arrivalDate: baseDate.addingTimeInterval(60),
+            departureDate: nil,
+            horizontalAccuracy: 10,
+            timeZoneIdentifier: "Asia/Tokyo",
+            utcOffsetSeconds: 32400,
+            localDateKey: "2024-01-01"
+        )
+        let completed = makeVisit(
+            arrival: 60,
+            departure: 540,
+            latitude: 36,
+            longitude: 140
+        )
+
+        let result = detect(gaps: [gap], visits: [open, completed]).first
+
+        #expect(result?.estimatedDepartureDate == baseDate.addingTimeInterval(540))
+        #expect(result?.durationSeconds == 480)
+        #expect(result?.representativeCoordinate == RouteCoordinate(latitude: 36, longitude: 140))
+    }
+
     @Test("applies exact stable ID overrides")
     func overrides() {
         let gap = makeGap(duration: 240)

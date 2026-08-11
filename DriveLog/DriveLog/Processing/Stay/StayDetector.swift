@@ -147,7 +147,22 @@ nonisolated struct StayDetector: StayDetecting {
 
     private func preferredVisit(_ visits: [VisitEventData]) -> VisitEventData? {
         visits.sorted {
-            ($0.arrivalDate ?? .distantFuture) < ($1.arrivalDate ?? .distantFuture)
+            switch ($0.departureDate, $1.departureDate) {
+            case (_?, nil):
+                return true
+            case (nil, _?):
+                return false
+            case let (firstDeparture?, secondDeparture?):
+                let firstArrival = $0.arrivalDate ?? .distantFuture
+                let secondArrival = $1.arrivalDate ?? .distantFuture
+                if firstArrival == secondArrival {
+                    return firstDeparture > secondDeparture
+                }
+                return firstArrival < secondArrival
+            case (nil, nil):
+                return ($0.arrivalDate ?? .distantFuture) <
+                    ($1.arrivalDate ?? .distantFuture)
+            }
         }.first
     }
 
