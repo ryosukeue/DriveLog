@@ -35,6 +35,32 @@ struct UserDefaultsVehicleStoreTests {
         #expect(outside == nil)
     }
 
+    @Test("bridges a temporary route loss when the same vehicle reconnects")
+    func bridgesSameVehicleReconnect() throws {
+        let suiteName = "UserDefaultsVehicleStoreTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = UserDefaultsVehicleStore(defaults: defaults)
+        let start = Date(timeIntervalSince1970: 1_000)
+        let vehicle = try store.addVehicle(
+            name: "テストカー",
+            audioRouteUID: "audio-1",
+            audioRouteName: "Car Audio",
+            now: start.addingTimeInterval(-10)
+        )
+
+        store.updateDetectedAudioRoute(uid: "audio-1", at: start)
+        store.updateDetectedAudioRoute(uid: nil, at: start.addingTimeInterval(30 * 60))
+        store.updateDetectedAudioRoute(uid: "audio-1", at: start.addingTimeInterval(90 * 60))
+        store.updateDetectedAudioRoute(uid: nil, at: start.addingTimeInterval(120 * 60))
+
+        let detected = store.vehicle(
+            forStartDate: start,
+            endDate: start.addingTimeInterval(120 * 60)
+        )
+        #expect(detected == vehicle)
+    }
+
     @Test("keeps multiple vehicles internally while enforcing an optional UI limit")
     func internalMultipleVehicleSupport() throws {
         let suiteName = "UserDefaultsVehicleStoreTests.\(UUID().uuidString)"

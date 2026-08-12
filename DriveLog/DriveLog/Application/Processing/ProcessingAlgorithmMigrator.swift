@@ -26,7 +26,7 @@ actor UserDefaultsAlgorithmVersionStore: ProcessingAlgorithmVersionStoring {
 }
 
 actor DefaultProcessingAlgorithmMigrator: ProcessingAlgorithmMigrating {
-    static let currentVersion = 9
+    static let currentVersion = 10
 
     private let currentVersion: Int
     private let stateInvalidator: any ProcessingStateInvalidating

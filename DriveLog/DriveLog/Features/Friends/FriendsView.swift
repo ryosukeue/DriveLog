@@ -23,7 +23,7 @@ struct FriendsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                addFriendButton
+                profileEditButton
                 monthSelector
                 content
             }
@@ -96,20 +96,19 @@ struct FriendsView: View {
         #endif
     }
 
-    private var addFriendButton: some View {
+    private var profileEditButton: some View {
         Button {
-            isShowingInvitation = true
-            Task { await viewModel.prepareInvitation() }
+            isShowingICloudSetup = true
         } label: {
             HStack(spacing: 14) {
-                Image(systemName: "person.badge.plus")
+                Image(systemName: "person.crop.circle.badge.pencil")
                     .font(.title2)
                     .frame(width: 40, height: 40)
                     .background(.blue.opacity(0.14), in: Circle())
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("友達追加")
+                    Text("プロフィール編集")
                         .font(.headline)
-                    Text("QRコードまたはリンクで招待")
+                    Text("ランキングに表示する名前を変更")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -121,7 +120,7 @@ struct FriendsView: View {
             .background(.background.secondary, in: RoundedRectangle(cornerRadius: 16))
         }
         .buttonStyle(.plain)
-        .accessibilityIdentifier("friends.add")
+        .accessibilityIdentifier("friends.editProfile")
     }
 
     private var monthSelector: some View {
@@ -203,6 +202,7 @@ struct FriendsView: View {
                     in: RoundedRectangle(cornerRadius: 14)
                 )
             }
+            addFriendRankingRow
             if viewModel.entries.count == 1 {
                 Text("友達を追加すると、ここでその月の距離と順位を競えます。")
                     .font(.callout)
@@ -210,6 +210,33 @@ struct FriendsView: View {
                     .padding(.top, 4)
             }
         }
+    }
+
+    private var addFriendRankingRow: some View {
+        Button {
+            isShowingInvitation = true
+            Task { await viewModel.prepareInvitation() }
+        } label: {
+            HStack(spacing: 14) {
+                Color.clear
+                    .frame(width: 28)
+                Image(systemName: "plus")
+                    .font(.title2.bold())
+                    .frame(width: 28, height: 28)
+                    .foregroundStyle(.secondary)
+                Text("友達追加")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .padding()
+            .background(
+                Color.secondary.opacity(0.12),
+                in: RoundedRectangle(cornerRadius: 14)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("friends.add")
     }
 }
 

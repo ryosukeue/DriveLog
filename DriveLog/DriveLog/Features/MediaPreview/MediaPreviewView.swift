@@ -26,12 +26,14 @@ struct MediaPreviewView: View {
             Color.black.ignoresSafeArea()
             TabView(selection: $selectedIdentifier) {
                 ForEach(viewModels, id: \.asset.localIdentifier) { viewModel in
-                    MediaPreviewPage(viewModel: viewModel)
+                    MediaPreviewPage(
+                        viewModel: viewModel,
+                        isSelected: viewModel.asset.localIdentifier == selectedIdentifier
+                    )
                         .tag(viewModel.asset.localIdentifier)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .highPriorityGesture(pagingGesture)
         }
         .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
@@ -98,36 +100,19 @@ struct MediaPreviewView: View {
         )
     }
 
-    private func selectAdjacentPage(swipingLeft: Bool) {
-        guard let currentIndex = viewModels.firstIndex(where: {
-            $0.asset.localIdentifier == selectedIdentifier
-        }) else { return }
-        let nextIndex = currentIndex + (swipingLeft ? 1 : -1)
-        guard viewModels.indices.contains(nextIndex) else { return }
-        withAnimation {
-            selectedIdentifier = viewModels[nextIndex].asset.localIdentifier
-        }
-    }
-
-    private var pagingGesture: some Gesture {
-        DragGesture(minimumDistance: 30)
-            .onEnded { value in
-                guard abs(value.translation.width) > abs(value.translation.height) else { return }
-                selectAdjacentPage(swipingLeft: value.translation.width < 0)
-            }
-    }
 }
 
 private struct MediaPreviewPage: View {
     @State var viewModel: MediaPreviewViewModel
+    let isSelected: Bool
 
     var body: some View {
         content
             .safeAreaInset(edge: .bottom) {
                 metadata
             }
-            .task {
-                guard case .idle = viewModel.state else { return }
+            .task(id: isSelected) {
+                guard isSelected, case .idle = viewModel.state else { return }
                 await viewModel.load()
             }
             .onDisappear {
