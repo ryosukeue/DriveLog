@@ -79,7 +79,6 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
 
     private static let storageKey = "vehicle.store.v1"
     private static let maximumIntervals = 4_000
-    private static let maximumReconnectBridgeDuration: TimeInterval = 90 * 60
     private static let palette = [
         "#007AFF", "#34C759", "#AF52DE", "#FF9500", "#00C7BE", "#5856D6"
     ]
@@ -459,8 +458,7 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
     ) -> [VehicleDistanceShare] {
         let duration = endDate.timeIntervalSince(startDate)
         guard duration > 0, duration.isFinite else { return [] }
-        let attributionIntervals = bridgedIntervals(intervals)
-        let overlaps = attributionIntervals.reduce(into: [UUID: TimeInterval]()) { result, interval in
+        let overlaps = intervals.reduce(into: [UUID: TimeInterval]()) { result, interval in
             guard registeredVehicleIDs.contains(interval.vehicleID) else { return }
             let intervalEnd = interval.endDate ?? .distantFuture
             let overlapStart = max(startDate, interval.startDate)
@@ -479,32 +477,6 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
                 return first.vehicleID.uuidString < second.vehicleID.uuidString
             }
             return first.fraction > second.fraction
-        }
-    }
-
-    private static func bridgedIntervals(
-        _ intervals: [DetectionInterval]
-    ) -> [DetectionInterval] {
-        intervals.sorted { $0.startDate < $1.startDate }.reduce(into: []) { result, interval in
-            guard let previous = result.last,
-                  previous.vehicleID == interval.vehicleID,
-                  let previousEnd = previous.endDate
-            else {
-                result.append(interval)
-                return
-            }
-            let reconnectDelay = interval.startDate.timeIntervalSince(previousEnd)
-            guard reconnectDelay >= 0,
-                  reconnectDelay <= maximumReconnectBridgeDuration
-            else {
-                result.append(interval)
-                return
-            }
-            result[result.count - 1] = DetectionInterval(
-                vehicleID: previous.vehicleID,
-                startDate: previous.startDate,
-                endDate: interval.endDate
-            )
         }
     }
 

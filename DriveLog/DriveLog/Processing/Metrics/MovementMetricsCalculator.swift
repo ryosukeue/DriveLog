@@ -26,34 +26,22 @@ nonisolated struct MovementMetricsCalculator: Sendable {
         guard duration >= 0 else {
             return nil
         }
-        let pairs = zip(locations, locations.dropFirst()).map { first, second in
-            let elapsed = second.timestamp.timeIntervalSince(first.timestamp)
-            let distance = distanceCalculator.meters(
-                fromLatitude: first.latitude,
-                longitude: first.longitude,
-                toLatitude: second.latitude,
-                longitude: second.longitude
+        let distance = zip(locations, locations.dropFirst()).reduce(0) { result, pair in
+            result + distanceCalculator.meters(
+                fromLatitude: pair.0.latitude,
+                longitude: pair.0.longitude,
+                toLatitude: pair.1.latitude,
+                longitude: pair.1.longitude
             )
-            return (elapsed: elapsed, distance: distance)
         }
-        let distance = pairs.reduce(0) { $0 + $1.distance }
-        // A movement may intentionally bridge a long Core Location gap. That gap is useful
-        // for preserving the route, but treating the unobserved time as driving time makes
-        // the displayed speed (and fallback classification) artificially low.
-        let observedPairs = pairs.filter {
-            $0.elapsed > 0 && $0.elapsed <= rules.softContinuousGap
-        }
-        let observedDuration = observedPairs.reduce(0) { $0 + $1.elapsed }
-        let observedDistance = observedPairs.reduce(0) { $0 + $1.distance }
-        let canEstimateSpeed = observedDuration >= rules.minimumSpeedDisplayDuration &&
+        let canEstimateSpeed = duration >= rules.minimumSpeedDisplayDuration &&
             locations.count >= rules.minimumSpeedDisplayPointCount &&
-            observedDistance >= rules.minimumSpeedDisplayDistance
+            distance >= rules.minimumSpeedDisplayDistance &&
+            duration > 0
         return MovementMetrics(
             distanceMeters: distance,
             durationSeconds: duration,
-            estimatedAverageSpeedMetersPerSecond: canEstimateSpeed
-                ? observedDistance / observedDuration
-                : nil
+            estimatedAverageSpeedMetersPerSecond: canEstimateSpeed ? distance / duration : nil
         )
     }
 }

@@ -3,9 +3,9 @@ import Testing
 
 @Suite("Processing algorithm migrator")
 struct ProcessingAlgorithmMigratorTests {
-    @Test("uses processing algorithm version seven")
+    @Test("uses processing algorithm version ten")
     func currentVersion() {
-        #expect(DefaultProcessingAlgorithmMigrator.currentVersion == 9)
+        #expect(DefaultProcessingAlgorithmMigrator.currentVersion == 10)
     }
 
     @Test("invalidates and advances an older version exactly once")

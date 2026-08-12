@@ -69,19 +69,6 @@ struct MovementMetricsCalculatorTests {
         #expect(abs((result.segments.first?.estimatedAverageSpeedMetersPerSecond ?? 0) - 2) < 0.001)
     }
 
-    @Test("average speed excludes an unobserved long gap")
-    func excludesLongGapFromAverageSpeed() {
-        let result = calculator.calculate(locations: [
-            location(distance: 0, seconds: 0),
-            location(distance: 10_000, seconds: 600),
-            location(distance: 10_500, seconds: 4_800)
-        ])
-
-        #expect(abs((result?.distanceMeters ?? 0) - 10_500) < 0.001)
-        #expect(result?.durationSeconds == 4_800)
-        #expect(abs((result?.estimatedAverageSpeedMetersPerSecond ?? 0) - 10_000 / 600) < 0.001)
-    }
-
     private func calculate(distance: Double, duration: TimeInterval) -> MovementMetrics? {
         calculator.calculate(locations: [
             location(distance: 0, seconds: 0),

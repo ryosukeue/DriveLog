@@ -311,10 +311,20 @@ private extension MovementSegmenter {
     ) {
         switch (previousVisit, currentVisit) {
         case (nil, let visit?):
-            result.append(end)
+            if end.timestamp.timeIntervalSince(visit.arrival) <=
+                visit.departure.timeIntervalSince(end.timestamp)
+            {
+                result.append(end)
+            } else {
+                result.chunks.append([end])
+            }
             result.appendStayGap(from: start, to: end, visit: visit)
         case (let visit?, nil):
-            result.chunks.append([end])
+            if (result.chunks.last?.last?.timestamp ?? .distantPast) >= visit.midpoint {
+                result.append(end)
+            } else {
+                result.chunks.append([end])
+            }
             result.appendStayGap(from: start, to: end, visit: visit)
         case let (previous?, _?):
             result.chunks.append([end])
@@ -389,4 +399,8 @@ private nonisolated enum TravelMode {
 private nonisolated struct ConfirmedVisitInterval: Equatable {
     let arrival: Date
     let departure: Date
+
+    var midpoint: Date {
+        arrival.addingTimeInterval(departure.timeIntervalSince(arrival) / 2)
+    }
 }

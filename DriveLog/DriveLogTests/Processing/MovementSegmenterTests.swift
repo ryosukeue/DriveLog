@@ -365,6 +365,24 @@ extension MovementSegmenterTests {
         #expect(result.discardedSegments.isEmpty)
     }
 
+    @Test("a sparse location at visit departure starts the following movement")
+    func sparseDepartureLocationDoesNotExtendPreviousMovement() {
+        let points = [
+            location(distance: 0, seconds: 0),
+            location(distance: 30_000, seconds: 1_500),
+            location(distance: 30_500, seconds: 5_500),
+            location(distance: 33_500, seconds: 5_800)
+        ]
+
+        let result = segment(points, visits: [visit(arrival: 1_620, departure: 5_500)])
+
+        #expect(result.segments.map(\.locations) == [
+            Array(points[0 ... 1]), Array(points[2 ... 3])
+        ])
+        #expect(result.segments[0].durationSeconds == 1_500)
+        #expect(result.gaps.map(\.reason) == [.stationaryStay])
+    }
+
     @Test("does not partition locations for a visit shorter than five minutes")
     func shortVisitRemainsContinuous() {
         let points = [

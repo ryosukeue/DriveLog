@@ -24,16 +24,22 @@ struct MediaPreviewView: View {
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            TabView(selection: $selectedIdentifier) {
-                ForEach(viewModels, id: \.asset.localIdentifier) { viewModel in
-                    MediaPreviewPage(
-                        viewModel: viewModel,
-                        isSelected: viewModel.asset.localIdentifier == selectedIdentifier
-                    )
-                        .tag(viewModel.asset.localIdentifier)
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 0) {
+                    ForEach(viewModels, id: \.asset.localIdentifier) { viewModel in
+                        MediaPreviewPage(
+                            viewModel: viewModel,
+                            isSelected: viewModel.asset.localIdentifier == selectedIdentifier
+                        )
+                        .containerRelativeFrame(.horizontal)
+                        .id(viewModel.asset.localIdentifier)
+                    }
                 }
+                .scrollTargetLayout()
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
+            .scrollIndicators(.hidden)
+            .scrollTargetBehavior(.paging)
+            .scrollPosition(id: selectedPageBinding)
         }
         .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
@@ -76,6 +82,17 @@ struct MediaPreviewView: View {
 
     private var selectedViewModel: MediaPreviewViewModel? {
         viewModels.first { $0.asset.localIdentifier == selectedIdentifier }
+    }
+
+    private var selectedPageBinding: Binding<String?> {
+        Binding(
+            get: { selectedIdentifier },
+            set: { identifier in
+                if let identifier {
+                    selectedIdentifier = identifier
+                }
+            }
+        )
     }
 
     private var navigationTitle: String {
