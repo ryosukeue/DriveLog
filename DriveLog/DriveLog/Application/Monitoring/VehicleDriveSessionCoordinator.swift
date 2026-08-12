@@ -13,6 +13,7 @@ actor VehicleDriveSessionCoordinator {
     private let vehicleStore: UserDefaultsVehicleStore
     private let gasStationProvider: any NearbyGasStationProviding
     private let notificationService: FuelStopNotificationService
+    private let fuelStopNotificationsEnabled: Bool
     private var observationTask: Task<Void, Never>?
     private var stationaryCheckTask: Task<Void, Never>?
     private var detectedVehicle: VehicleProfile?
@@ -26,13 +27,15 @@ actor VehicleDriveSessionCoordinator {
         monitoringUseCase: StartMonitoringUseCase,
         vehicleStore: UserDefaultsVehicleStore,
         gasStationProvider: any NearbyGasStationProviding,
-        notificationService: FuelStopNotificationService
+        notificationService: FuelStopNotificationService,
+        fuelStopNotificationsEnabled: Bool = false
     ) {
         self.locationChanges = locationChanges
         self.monitoringUseCase = monitoringUseCase
         self.vehicleStore = vehicleStore
         self.gasStationProvider = gasStationProvider
         self.notificationService = notificationService
+        self.fuelStopNotificationsEnabled = fuelStopNotificationsEnabled
     }
 
     deinit {
@@ -88,6 +91,7 @@ actor VehicleDriveSessionCoordinator {
     }
 
     private func updateStationaryDetection(with sample: Sample, speed: Double?) {
+        guard fuelStopNotificationsEnabled else { return }
         if let speed, speed >= 3 {
             resetStationaryDetection()
             return
