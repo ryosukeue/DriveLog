@@ -15,17 +15,17 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
         var vehicles: [VehicleProfile] = []
         var intervals: [DetectionInterval] = []
         var dayDistanceCredits: [VehicleDayDistanceCredit] = []
+        var movementDistanceCredits: [VehicleMovementDistanceCredit] = []
         var oilNotificationStates: [UUID: OilNotificationState] = [:]
         var fuelRecords: [VehicleFuelRecord] = []
-        var fuelTrackingDistanceKilometersByVehicleID: [UUID: Double] = [:]
 
         private enum CodingKeys: String, CodingKey {
             case vehicles
             case intervals
             case dayDistanceCredits
+            case movementDistanceCredits
             case oilNotificationStates
             case fuelRecords
-            case fuelTrackingDistanceKilometersByVehicleID
         }
 
         init() {}
@@ -44,6 +44,10 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
                 [VehicleDayDistanceCredit].self,
                 forKey: .dayDistanceCredits
             ) ?? []
+            movementDistanceCredits = try container.decodeIfPresent(
+                [VehicleMovementDistanceCredit].self,
+                forKey: .movementDistanceCredits
+            ) ?? []
             oilNotificationStates = try container.decodeIfPresent(
                 [UUID: OilNotificationState].self,
                 forKey: .oilNotificationStates
@@ -52,15 +56,18 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
                 [VehicleFuelRecord].self,
                 forKey: .fuelRecords
             ) ?? []
-            fuelTrackingDistanceKilometersByVehicleID = try container.decodeIfPresent(
-                [UUID: Double].self,
-                forKey: .fuelTrackingDistanceKilometersByVehicleID
-            ) ?? [:]
         }
     }
 
     private struct VehicleDayDistanceCredit: Codable, Sendable {
         let localDateKey: String
+        var distanceKilometersByVehicleID: [UUID: Double]
+    }
+
+    private struct VehicleMovementDistanceCredit: Codable, Sendable {
+        let localDateKey: String
+        let startDate: Date
+        let endDate: Date
         var distanceKilometersByVehicleID: [UUID: Double]
     }
 
@@ -187,9 +194,11 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
             state.vehicles.removeAll { $0.id == id }
             state.oilNotificationStates[id] = nil
             state.fuelRecords.removeAll { $0.vehicleID == id }
-            state.fuelTrackingDistanceKilometersByVehicleID[id] = nil
             for index in state.dayDistanceCredits.indices {
                 state.dayDistanceCredits[index].distanceKilometersByVehicleID[id] = nil
+            }
+            for index in state.movementDistanceCredits.indices {
+                state.movementDistanceCredits[index].distanceKilometersByVehicleID[id] = nil
             }
             for index in state.intervals.indices
                 where state.intervals[index].vehicleID == id && state.intervals[index].endDate == nil
@@ -208,20 +217,12 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
     }
 
     func fuelTrackingDistanceKilometers(for vehicleID: UUID) -> Double {
-        lock.withLock {
-            max(0, $0.fuelTrackingDistanceKilometersByVehicleID[vehicleID, default: 0])
-        }
-    }
-
-    func addFuelTrackingDistance(
-        _ distanceKilometers: Double,
-        for vehicleID: UUID
-    ) {
-        guard distanceKilometers.isFinite, distanceKilometers > 0 else { return }
-        _ = try? mutate { state in
-            guard state.vehicles.contains(where: { $0.id == vehicleID }) else { return }
-            state.fuelTrackingDistanceKilometersByVehicleID[vehicleID, default: 0]
-                += distanceKilometers
+        lock.withLock { state in
+            Self.confirmedDistanceKilometers(
+                for: vehicleID,
+                at: .distantFuture,
+                credits: state.movementDistanceCredits
+            )
         }
     }
 
@@ -245,9 +246,10 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
                 date: date,
                 liters: liters,
                 isFullTank: isFullTank,
-                trackedDistanceKilometers: max(
-                    0,
-                    state.fuelTrackingDistanceKilometersByVehicleID[vehicleID, default: 0]
+                trackedDistanceKilometers: Self.confirmedDistanceKilometers(
+                    for: vehicleID,
+                    at: date,
+                    credits: state.movementDistanceCredits
                 )
             )
             state.fuelRecords.append(record)
@@ -305,7 +307,6 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
                 state = StoredState()
                 state.vehicles = [vehicle]
                 state.fuelRecords = records
-                state.fuelTrackingDistanceKilometersByVehicleID[vehicleID] = 1_194
                 state.intervals = [DetectionInterval(
                     vehicleID: vehicleID,
                     startDate: now.addingTimeInterval(-3_600),
@@ -380,6 +381,26 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
                         * share.fraction / 1_000
                 }
             }
+            let newMovementCredits: [VehicleMovementDistanceCredit] = movements.compactMap { movement in
+                let shares = Self.distanceShares(
+                    forStartDate: movement.startDate,
+                    endDate: movement.endDate,
+                    intervals: state.intervals,
+                    registeredVehicleIDs: registeredVehicleIDs
+                )
+                let distances = shares.reduce(into: [UUID: Double]()) { result, share in
+                    let distance = max(0, movement.distanceMeters) * share.fraction / 1_000
+                    guard distance > 0, distance.isFinite else { return }
+                    result[share.vehicleID, default: 0] += distance
+                }
+                guard !distances.isEmpty else { return nil }
+                return VehicleMovementDistanceCredit(
+                    localDateKey: localDateKey,
+                    startDate: movement.startDate,
+                    endDate: movement.endDate,
+                    distanceKilometersByVehicleID: distances
+                )
+            }
             let existingIndex = state.dayDistanceCredits.firstIndex {
                 $0.localDateKey == localDateKey
             }
@@ -394,6 +415,22 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
                     localDateKey: localDateKey,
                     distanceKilometersByVehicleID: newDistances
                 ))
+            }
+            state.movementDistanceCredits.removeAll { $0.localDateKey == localDateKey }
+            state.movementDistanceCredits.append(contentsOf: newMovementCredits)
+            state.fuelRecords = state.fuelRecords.map { record in
+                VehicleFuelRecord(
+                    id: record.id,
+                    vehicleID: record.vehicleID,
+                    date: record.date,
+                    liters: record.liters,
+                    isFullTank: record.isFullTank,
+                    trackedDistanceKilometers: Self.confirmedDistanceKilometers(
+                        for: record.vehicleID,
+                        at: record.date,
+                        credits: state.movementDistanceCredits
+                    )
+                )
             }
 
             var notifications: [VehicleOilChangeNotification] = []
@@ -492,6 +529,26 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
             && oilChangeIntervalKilometers > 0
             && lastOilChangeOdometerKilometers >= 0
             && lastOilChangeOdometerKilometers <= odometerKilometers
+    }
+
+    private static func confirmedDistanceKilometers(
+        for vehicleID: UUID,
+        at date: Date,
+        credits: [VehicleMovementDistanceCredit]
+    ) -> Double {
+        credits.reduce(0) { total, credit in
+            guard let distance = credit.distanceKilometersByVehicleID[vehicleID],
+                  distance > 0,
+                  distance.isFinite,
+                  date > credit.startDate
+            else { return total }
+            let duration = credit.endDate.timeIntervalSince(credit.startDate)
+            guard duration > 0 else {
+                return date >= credit.endDate ? total + distance : total
+            }
+            let elapsed = min(date.timeIntervalSince(credit.startDate), duration)
+            return total + distance * max(0, elapsed / duration)
+        }
     }
 
     private func mutate<Result>(

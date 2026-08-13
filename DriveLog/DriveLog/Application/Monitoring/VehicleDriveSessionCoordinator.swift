@@ -10,14 +10,12 @@ actor VehicleDriveSessionCoordinator {
 
     private let locationChanges: AsyncStream<LocationEventData>
     private let monitoringUseCase: StartMonitoringUseCase
-    private let vehicleStore: UserDefaultsVehicleStore
     private let gasStationProvider: any NearbyGasStationProviding
     private let notificationService: FuelStopNotificationService
     private let fuelStopNotificationsEnabled: Bool
     private var observationTask: Task<Void, Never>?
     private var stationaryCheckTask: Task<Void, Never>?
     private var detectedVehicle: VehicleProfile?
-    private var lastTrackingSample: Sample?
     private var stationaryAnchor: Sample?
     private var latestSample: Sample?
     private var checkedCurrentStop = false
@@ -25,14 +23,12 @@ actor VehicleDriveSessionCoordinator {
     init(
         locationChanges: AsyncStream<LocationEventData>,
         monitoringUseCase: StartMonitoringUseCase,
-        vehicleStore: UserDefaultsVehicleStore,
         gasStationProvider: any NearbyGasStationProviding,
         notificationService: FuelStopNotificationService,
         fuelStopNotificationsEnabled: Bool = false
     ) {
         self.locationChanges = locationChanges
         self.monitoringUseCase = monitoringUseCase
-        self.vehicleStore = vehicleStore
         self.gasStationProvider = gasStationProvider
         self.notificationService = notificationService
         self.fuelStopNotificationsEnabled = fuelStopNotificationsEnabled
@@ -57,13 +53,12 @@ actor VehicleDriveSessionCoordinator {
     func updateDetectedVehicle(_ vehicle: VehicleProfile?) async {
         guard vehicle?.id != detectedVehicle?.id else { return }
         detectedVehicle = vehicle
-        lastTrackingSample = nil
         resetStationaryDetection()
         await monitoringUseCase.setVehicleConnected(vehicle?.usesHighAccuracyTracking == true)
     }
 
     private func handle(_ event: LocationEventData) async {
-        guard let vehicle = detectedVehicle,
+        guard detectedVehicle != nil,
               event.horizontalAccuracy >= 0,
               event.horizontalAccuracy <= 100
         else { return }
@@ -74,20 +69,7 @@ actor VehicleDriveSessionCoordinator {
             horizontalAccuracy: event.horizontalAccuracy
         )
         latestSample = sample
-        recordTrackedDistance(to: sample, vehicleID: vehicle.id)
         updateStationaryDetection(with: sample, speed: event.speedMetersPerSecond)
-    }
-
-    private func recordTrackedDistance(to sample: Sample, vehicleID: UUID) {
-        defer { lastTrackingSample = sample }
-        guard let previous = lastTrackingSample else { return }
-        let elapsed = sample.timestamp.timeIntervalSince(previous.timestamp)
-        guard elapsed > 0, elapsed <= 180 else { return }
-        let distance = Self.distanceMeters(from: previous, to: sample)
-        let plausibleMaximum = elapsed * 70 + previous.horizontalAccuracy
-            + sample.horizontalAccuracy
-        guard distance >= 5, distance <= plausibleMaximum else { return }
-        vehicleStore.addFuelTrackingDistance(distance / 1_000, for: vehicleID)
     }
 
     private func updateStationaryDetection(with sample: Sample, speed: Double?) {

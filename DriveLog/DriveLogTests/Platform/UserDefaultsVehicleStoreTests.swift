@@ -194,6 +194,60 @@ struct UserDefaultsVehicleStoreTests {
         #expect(restored.oilChangeIntervalKilometers == 5_000)
         #expect(restored.lastOilChangeOdometerKilometers == 0)
     }
+
+    @Test("rebuilds fuel distance from processed vehicle movements")
+    func rebuildsFuelDistanceFromProcessedMovements() throws {
+        let suiteName = "UserDefaultsVehicleStoreTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = UserDefaultsVehicleStore(defaults: defaults)
+        let start = Date(timeIntervalSince1970: 1_000)
+        let vehicle = try store.addVehicle(
+            name: "テストカー",
+            audioRouteUID: "audio-1",
+            audioRouteName: "Car Audio",
+            now: start.addingTimeInterval(-10)
+        )
+        store.updateDetectedAudioRoute(uid: "audio-1", at: start)
+
+        _ = try store.addFuelRecord(
+            vehicleID: vehicle.id,
+            liters: 40,
+            isFullTank: true,
+            date: start.addingTimeInterval(100)
+        )
+        _ = try store.addFuelRecord(
+            vehicleID: vehicle.id,
+            liters: 30,
+            isFullTank: true,
+            date: start.addingTimeInterval(500)
+        )
+
+        _ = store.replaceProcessedDistances(
+            for: "2026-08-08",
+            movements: [
+                movement(
+                    id: "movement-1",
+                    localDateKey: "2026-08-08",
+                    start: start.addingTimeInterval(200),
+                    distanceMeters: 60_000
+                ),
+                movement(
+                    id: "movement-2",
+                    localDateKey: "2026-08-08",
+                    start: start.addingTimeInterval(350),
+                    distanceMeters: 30_000
+                )
+            ]
+        )
+
+        let records = store.fuelRecords(for: vehicle.id)
+        let interval = try #require(FuelEconomyCalculator.intervals(from: records).first)
+        #expect(records[0].trackedDistanceKilometers == 0)
+        #expect(records[1].trackedDistanceKilometers == 90)
+        #expect(interval.distanceKilometers == 90)
+        #expect(interval.kilometersPerLiter == 3)
+    }
 }
 
 private struct LegacyStoredState: Encodable {

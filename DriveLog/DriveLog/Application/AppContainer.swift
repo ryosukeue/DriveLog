@@ -231,7 +231,6 @@ final class AppContainer {
         let vehicleDriveSessionCoordinator = VehicleDriveSessionCoordinator(
             locationChanges: providers.location.locationChanges,
             monitoringUseCase: startMonitoring,
-            vehicleStore: vehicleStore,
             gasStationProvider: MapKitNearbyGasStationProvider(),
             notificationService: FuelStopNotificationService()
         )
