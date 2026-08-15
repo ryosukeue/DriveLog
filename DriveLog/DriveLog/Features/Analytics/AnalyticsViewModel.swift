@@ -107,6 +107,47 @@ final class AnalyticsViewModel {
     }
 
     @discardableResult
+    func updateFuelRecord(
+        id: UUID,
+        liters: Double,
+        isFullTank: Bool,
+        manualDistanceKilometers: Double?
+    ) -> Bool {
+        do {
+            try vehicleStore.updateFuelRecord(
+                id: id,
+                liters: liters,
+                isFullTank: isFullTank,
+                manualDistanceKilometers: manualDistanceKilometers
+            )
+            reloadVehicleAnalytics()
+            fuelRecordNotice = "給油記録を更新しました"
+            return true
+        } catch {
+            fuelRecordNotice = "給油量と走行距離を確認してください"
+            return false
+        }
+    }
+
+    func automaticDistanceKilometers(endingAt recordID: UUID) -> Double? {
+        let sorted = fuelRecords.sorted { $0.date < $1.date }
+        guard let recordIndex = sorted.firstIndex(where: { $0.id == recordID }),
+              sorted[recordIndex].isFullTank
+        else { return nil }
+        guard let previousFullTank = sorted[..<recordIndex].last(where: \.isFullTank) else {
+            return nil
+        }
+        let distance = sorted[recordIndex].trackedDistanceKilometers
+            - previousFullTank.trackedDistanceKilometers
+        guard distance > 0, distance.isFinite else { return nil }
+        return distance
+    }
+
+    func fuelEconomyInterval(endingAt recordID: UUID) -> FuelEconomyInterval? {
+        FuelEconomyCalculator.intervals(from: fuelRecords).first { $0.id == recordID }
+    }
+
+    @discardableResult
     func recordOilChange(vehicleID: UUID, odometerKilometers: Double) -> Bool {
         guard let vehicle = vehicles.first(where: { $0.id == vehicleID }) else {
             return false

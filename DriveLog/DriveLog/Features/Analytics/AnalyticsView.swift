@@ -7,6 +7,8 @@ struct AnalyticsView: View {
     @State private var fuelAmount = ""
     @State private var isFullTank = false
     @State private var oilChangeVehicle: VehicleProfile?
+    @State private var editingFuelRecord: VehicleFuelRecord?
+    @FocusState private var isFuelAmountFocused: Bool
     private let distanceFormatter: DistanceFormatter
     private let isPlusEnabled: Bool
     private let onShowPremium: () -> Void
@@ -32,6 +34,7 @@ struct AnalyticsView: View {
                 }
                 .padding()
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("アナリティクス")
             .task {
                 if viewModel.state == .idle {
@@ -65,6 +68,29 @@ struct AnalyticsView: View {
                         vehicleID: vehicle.id,
                         odometerKilometers: odometer
                     )
+                }
+            }
+            .sheet(item: $editingFuelRecord) { record in
+                FuelRecordEditView(
+                    record: record,
+                    automaticDistanceKilometers: viewModel.automaticDistanceKilometers(
+                        endingAt: record.id
+                    )
+                ) { liters, isFullTank, manualDistanceKilometers in
+                    viewModel.updateFuelRecord(
+                        id: record.id,
+                        liters: liters,
+                        isFullTank: isFullTank,
+                        manualDistanceKilometers: manualDistanceKilometers
+                    )
+                }
+            }
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("閉じる") {
+                        isFuelAmountFocused = false
+                    }
                 }
             }
             .environment(
@@ -250,20 +276,54 @@ struct AnalyticsView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("給油履歴")
                             .font(.headline)
-                        ForEach(displayedFuelRecords.reversed()) { record in
-                            HStack {
-                                Text(record.date, format: .dateTime.month().day().hour().minute())
-                                Spacer()
-                                Text(
-                                    record.liters,
-                                    format: .number.precision(.fractionLength(1...2))
-                                )
-                                + Text(" L")
-                                Text(record.isFullTank ? "満タン" : "非満タン")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(record.isFullTank ? .green : .secondary)
+                        ForEach(Array(displayedFuelRecords.reversed())) { record in
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Text(
+                                        record.date,
+                                        format: .dateTime.month().day().hour().minute()
+                                    )
+                                    Spacer()
+                                    Text(
+                                        record.liters,
+                                        format: .number.precision(.fractionLength(1...2))
+                                    )
+                                    + Text(" L")
+                                    Text(record.isFullTank ? "満タン" : "非満タン")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(record.isFullTank ? .green : .secondary)
+                                    Button {
+                                        editingFuelRecord = record
+                                    } label: {
+                                        Image(systemName: "pencil")
+                                            .frame(width: 30, height: 30)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel("給油記録を編集")
+                                }
+                                if let interval = viewModel.fuelEconomyInterval(
+                                    endingAt: record.id
+                                ) {
+                                    HStack(spacing: 16) {
+                                        Text("距離 \(formattedKilometers(interval.distanceKilometers))")
+                                        Text("給油量 \(formattedLiters(interval.fuelLiters))")
+                                    }
+                                    .font(.caption.monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                                    Text(
+                                        record.manualDistanceKilometers == nil
+                                            ? "距離：自動計測"
+                                            : "距離：手動補正"
+                                    )
+                                    .font(.caption2)
+                                    .foregroundStyle(
+                                        record.manualDistanceKilometers == nil
+                                            ? Color.secondary : Color.orange
+                                    )
+                                }
                             }
                             .font(.subheadline)
+                            .padding(.vertical, 2)
                         }
                     }
                 }
@@ -283,6 +343,7 @@ struct AnalyticsView: View {
                 TextField("0.0", text: $fuelAmount)
                     .keyboardType(.decimalPad)
                     .textFieldStyle(.roundedBorder)
+                    .focused($isFuelAmountFocused)
                 Text("L")
                     .foregroundStyle(.secondary)
                 Toggle("満タン", isOn: $isFullTank)
@@ -293,6 +354,7 @@ struct AnalyticsView: View {
                 if viewModel.recordFuel(liters: liters, isFullTank: isFullTank) {
                     fuelAmount = ""
                     isFullTank = false
+                    isFuelAmountFocused = false
                 }
             } label: {
                 Label("給油を記録", systemImage: "fuelpump.fill")
@@ -516,6 +578,14 @@ struct AnalyticsView: View {
         "\(value.formatted(.number.precision(.fractionLength(1)))) km/L"
     }
 
+    private func formattedKilometers(_ value: Double) -> String {
+        "\(value.formatted(.number.precision(.fractionLength(1)))) km"
+    }
+
+    private func formattedLiters(_ value: Double) -> String {
+        "\(value.formatted(.number.precision(.fractionLength(1...2)))) L"
+    }
+
     private func oilProgress(_ vehicle: VehicleProfile) -> Double {
         let traveled = vehicle.odometerKilometers
             - vehicle.lastOilChangeOdometerKilometers
@@ -538,6 +608,151 @@ struct AnalyticsView: View {
             return .orange
         }
         return Color(hex: vehicle.colorHex)
+    }
+}
+
+private struct FuelRecordEditView: View {
+    private enum Field: Hashable {
+        case liters
+        case distance
+    }
+
+    @Environment(\.dismiss) private var dismiss
+    let record: VehicleFuelRecord
+    let automaticDistanceKilometers: Double?
+    let onSave: (Double, Bool, Double?) -> Bool
+    @State private var liters: String
+    @State private var isFullTank: Bool
+    @State private var manualDistanceKilometers: String
+    @FocusState private var focusedField: Field?
+
+    init(
+        record: VehicleFuelRecord,
+        automaticDistanceKilometers: Double?,
+        onSave: @escaping (Double, Bool, Double?) -> Bool
+    ) {
+        self.record = record
+        self.automaticDistanceKilometers = automaticDistanceKilometers
+        self.onSave = onSave
+        _liters = State(initialValue: Self.editableNumber(record.liters))
+        _isFullTank = State(initialValue: record.isFullTank)
+        _manualDistanceKilometers = State(initialValue: record.manualDistanceKilometers.map {
+            Self.editableNumber($0)
+        } ?? "")
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("給油内容") {
+                    HStack {
+                        TextField("0.0", text: $liters)
+                            .keyboardType(.decimalPad)
+                            .focused($focusedField, equals: .liters)
+                        Text("L")
+                            .foregroundStyle(.secondary)
+                    }
+                    Toggle("満タン", isOn: $isFullTank)
+                    LabeledContent("記録日時") {
+                        Text(record.date, format: .dateTime.year().month().day().hour().minute())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if isFullTank {
+                    Section {
+                        HStack {
+                            TextField("空欄なら自動計測", text: $manualDistanceKilometers)
+                                .keyboardType(.decimalPad)
+                                .focused($focusedField, equals: .distance)
+                            Text("km")
+                                .foregroundStyle(.secondary)
+                        }
+                        if let automaticDistanceKilometers {
+                            LabeledContent("自動計測距離") {
+                                Text(
+                                    automaticDistanceKilometers,
+                                    format: .number.precision(.fractionLength(1))
+                                )
+                                + Text(" km")
+                            }
+                        } else {
+                            Text("前回の満タン記録がないため、この給油では燃費を計算しません。")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } header: {
+                        Text("燃費計算に使う走行距離")
+                    } footer: {
+                        Text(
+                            "GPSの自動計測が実走行より短い場合だけ、" +
+                                "前回の満タンから今回までの実走行距離を入力してください。" +
+                                "空欄に戻すと自動計測を使用します。"
+                        )
+                    }
+                }
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .navigationTitle("給油記録を編集")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("キャンセル") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("保存") {
+                        guard let litersValue,
+                              onSave(
+                                  litersValue,
+                                  isFullTank,
+                                  isFullTank ? manualDistanceValue : nil
+                              )
+                        else { return }
+                        focusedField = nil
+                        dismiss()
+                    }
+                    .disabled(!canSave)
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("閉じる") { focusedField = nil }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private var canSave: Bool {
+        litersValue != nil
+            && (!isFullTank || manualDistanceTextIsEmpty || manualDistanceValue != nil)
+    }
+
+    private var litersValue: Double? {
+        Self.positiveNumber(from: liters)
+    }
+
+    private var manualDistanceValue: Double? {
+        Self.positiveNumber(from: manualDistanceKilometers)
+    }
+
+    private var manualDistanceTextIsEmpty: Bool {
+        manualDistanceKilometers.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private static func positiveNumber(from text: String) -> Double? {
+        let normalized = text
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: ",", with: ".")
+        guard let value = Double(normalized), value.isFinite, value > 0 else { return nil }
+        return value
+    }
+
+    private static func editableNumber(_ value: Double) -> String {
+        value.formatted(
+            .number.locale(Locale(identifier: "en_US_POSIX"))
+                .grouping(.never)
+                .precision(.fractionLength(0...2))
+        )
     }
 }
 

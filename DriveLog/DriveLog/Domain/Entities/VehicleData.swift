@@ -139,6 +139,25 @@ nonisolated struct VehicleFuelRecord: Codable, Identifiable, Sendable, Equatable
     let liters: Double
     let isFullTank: Bool
     let trackedDistanceKilometers: Double
+    let manualDistanceKilometers: Double?
+
+    init(
+        id: UUID,
+        vehicleID: UUID,
+        date: Date,
+        liters: Double,
+        isFullTank: Bool,
+        trackedDistanceKilometers: Double,
+        manualDistanceKilometers: Double? = nil
+    ) {
+        self.id = id
+        self.vehicleID = vehicleID
+        self.date = date
+        self.liters = liters
+        self.isFullTank = isFullTank
+        self.trackedDistanceKilometers = trackedDistanceKilometers
+        self.manualDistanceKilometers = manualDistanceKilometers
+    }
 }
 
 nonisolated struct FuelEconomyInterval: Identifiable, Sendable, Equatable {
@@ -178,8 +197,10 @@ nonisolated enum FuelEconomyCalculator {
 
             accumulatedLiters += record.liters
             guard record.isFullTank else { continue }
-            let distance = record.trackedDistanceKilometers
+            let automaticallyTrackedDistance = record.trackedDistanceKilometers
                 - intervalStart.trackedDistanceKilometers
+            let distance = record.manualDistanceKilometers
+                ?? automaticallyTrackedDistance
             if distance > 0, distance.isFinite, accumulatedLiters > 0 {
                 result.append(FuelEconomyInterval(
                     id: record.id,

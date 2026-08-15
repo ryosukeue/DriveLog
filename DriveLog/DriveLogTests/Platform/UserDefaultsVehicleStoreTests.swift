@@ -248,6 +248,50 @@ struct UserDefaultsVehicleStoreTests {
         #expect(interval.distanceKilometers == 90)
         #expect(interval.kilometersPerLiter == 3)
     }
+
+    @Test("edits fuel amount, tank state, and manual calculation distance")
+    func editsFuelRecord() throws {
+        let suiteName = "UserDefaultsVehicleStoreTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = UserDefaultsVehicleStore(defaults: defaults)
+        let start = Date(timeIntervalSince1970: 1_000)
+        let vehicle = try store.addVehicle(
+            name: "テストカー",
+            audioRouteUID: "audio-1",
+            audioRouteName: "Car Audio"
+        )
+        let first = try store.addFuelRecord(
+            vehicleID: vehicle.id,
+            liters: 40,
+            isFullTank: true,
+            date: start
+        )
+        let second = try store.addFuelRecord(
+            vehicleID: vehicle.id,
+            liters: 30,
+            isFullTank: false,
+            date: start.addingTimeInterval(1_000)
+        )
+
+        _ = first
+        let updated = try store.updateFuelRecord(
+            id: second.id,
+            liters: 36,
+            isFullTank: true,
+            manualDistanceKilometers: 360
+        )
+
+        #expect(updated.liters == 36)
+        #expect(updated.isFullTank)
+        #expect(updated.manualDistanceKilometers == 360)
+        let interval = try #require(
+            FuelEconomyCalculator.intervals(from: store.fuelRecords(for: vehicle.id)).first
+        )
+        #expect(interval.distanceKilometers == 360)
+        #expect(interval.fuelLiters == 36)
+        #expect(interval.kilometersPerLiter == 10)
+    }
 }
 
 private struct LegacyStoredState: Encodable {

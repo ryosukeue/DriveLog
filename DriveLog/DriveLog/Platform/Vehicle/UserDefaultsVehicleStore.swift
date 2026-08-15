@@ -82,6 +82,7 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
         case vehicleNotFound
         case invalidMaintenanceValues
         case invalidFuelAmount
+        case invalidFuelDistance
     }
 
     private static let storageKey = "vehicle.store.v1"
@@ -257,6 +258,40 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
         }
     }
 
+    @discardableResult
+    func updateFuelRecord(
+        id: UUID,
+        liters: Double,
+        isFullTank: Bool,
+        manualDistanceKilometers: Double?
+    ) throws -> VehicleFuelRecord {
+        guard liters.isFinite, liters > 0 else {
+            throw StoreError.invalidFuelAmount
+        }
+        if let manualDistanceKilometers,
+           (!manualDistanceKilometers.isFinite || manualDistanceKilometers <= 0)
+        {
+            throw StoreError.invalidFuelDistance
+        }
+        return try mutate { state in
+            guard let index = state.fuelRecords.firstIndex(where: { $0.id == id }) else {
+                throw StoreError.vehicleNotFound
+            }
+            let existing = state.fuelRecords[index]
+            let updated = VehicleFuelRecord(
+                id: existing.id,
+                vehicleID: existing.vehicleID,
+                date: existing.date,
+                liters: liters,
+                isFullTank: isFullTank,
+                trackedDistanceKilometers: existing.trackedDistanceKilometers,
+                manualDistanceKilometers: isFullTank ? manualDistanceKilometers : nil
+            )
+            state.fuelRecords[index] = updated
+            return updated
+        }
+    }
+
     #if DEBUG
         func seedFuelReviewScreenshotData(now: Date, calendar: Calendar) {
             let components = calendar.dateComponents([.year, .month], from: now)
@@ -429,7 +464,8 @@ final class UserDefaultsVehicleStore: VehicleAttributionProviding,
                         for: record.vehicleID,
                         at: record.date,
                         credits: state.movementDistanceCredits
-                    )
+                    ),
+                    manualDistanceKilometers: record.manualDistanceKilometers
                 )
             }
 
